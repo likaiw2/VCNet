@@ -6,10 +6,13 @@ import time
 import datetime
 from torch.autograd import Variable
 import tools
+import numpy as np
 
 # 设置路径
 dataSourcePath = "dataSet1/brain/"
 dataSavePath = "output/trial08/brain/"
+device=torch.device("cuda:0")
+# device=torch.device("cpu")
 
 # 使用前清除cuda缓存
 torch.cuda.empty_cache()
@@ -27,67 +30,54 @@ def weights_init(m):
 #模型的代码实现见VCNet_model.py
 from VCNet.VCNet_model import *
 
+# Feel free to change pretrained to False if you're training the model from scratch
+pretrained = False
+save_model = False
 
-#Training Process
-# New parameters
+fileStartVal = 1
+fileIncrement = 1
+constVal = 1
+
+
+
+#---------------------initialize the model----------------------
+# 1)parameters for dataset
+total_index = 100
+ratio = 0.7
+maxi_train_index = total_index*ratio
+dim = (160, 224, 168)   # [depth, height, width]. brain
+float32DataType = np.float32
+
+trainDataset = tools.DataSet(data_path="",
+                             mask_type="test",
+                             prefix="norm_ct",
+                             data_type="raw",
+                             volume_shape=dim,
+                             max_index=70)
+
+# 2)parameters for loss function
 adv_criterion = nn.BCEWithLogitsLoss()
 recon_criterion = nn.L1Loss()
+
+# 3)other parameters
 lambda_recon = 200
-device=torch.device("cuda:0")
 n_epochs = 1000
 input_dim = 1
 real_dim = 1
 batch_size = 1          #原模型参数 10
 lr = 5e-3             #learn rate 原模型参数 5e-3(0.005)
-# dropout_rate = 0.2      #原模型参数 0.2
-
-totalTimesteps = 100
-trainsetRatio = 0.7  # according to deep learning specialization, if you have a small collection of data, then use 70%/30% for train/test.
-nTimesteps_train = round(totalTimesteps * trainsetRatio)  # nTimesteps_train=70.
-# display_step = 70     #需要一个一个epoch输出的时候用
-display_step = np.ceil(np.ceil(nTimesteps_train / batch_size) * n_epochs / 20)   #一共输出20个epoch，供判断用
-
-fileStartVal = 1
-fileIncrement = 1
-constVal = 1
-cropScaleFactor = (0.5, 0.5, 0.5)  # [depth, height, width].
-dim = (160, 224, 168)   # [depth, height, width]. brain
-# dim = (96, 240, 384)    # [depth, height, width]. pelvic
-dim_crop = (int(dim[0] * cropScaleFactor[0]),
-            int(dim[1] * cropScaleFactor[1]),
-            int(dim[2] * cropScaleFactor[2]))
-float32DataType = np.float32
-myRandCrop3D = tools.MyRandomCrop3D3(volume_sz=(1, dim[0], dim[1], dim[2]),cropVolume_sz=dim_crop)
 
 
-# Feel free to change pretrained to False if you're training the model from scratch
-pretrained = False
-save_model = False
-
-# dataset = torchvision.datasets.ImageFolder("maps", transform=transform)
-trainDataset = tools.VolumesDataset(dataSourcePath=dataSourcePath, nTimesteps_train=nTimesteps_train,
-                            dim=dim,
-                            fileStartVal=fileStartVal, fileIncrement=fileIncrement, constVal=constVal,
-                            float32DataType=float32DataType,
-                            transform=myRandCrop3D)
-
-
-
-
-
-
-
-# gen = UNet(input_dim, real_dim).to(device)
-gen = ResUNet_LRes(in_channel=input_dim, n_classes=1, dp_prob=0.2).to(device)
+# 4)send parameters to cuda
+gen = UNet_v2(in_channel=1).to(device)
 gen_opt = torch.optim.Adam(gen.parameters(), lr=lr)
-#disc = Discriminator(input_dim + real_dim).to(device)
-disc = Discriminator().to(device)
+
+disc = Dis_VCNet().to(device)
 disc_opt = torch.optim.Adam(disc.parameters(), lr=1e-3)
 
 criterion_bce = nn.BCELoss().to(device)
 criterion_L1 = nn.L1Loss().to(device)
 criterion_L2 = nn.MSELoss().to(device)
-
 
 
 if pretrained:
@@ -99,12 +89,10 @@ if pretrained:
 else:
     gen = gen.apply(weights_init)
     disc = disc.apply(weights_init)
-# UNQ_C2 (UNIQUE CELL IDENTIFIER, DO NOT EDIT)
 
-print("Success!")
-from skimage import color
-import numpy as np
+# print("Success!")
 
+#---------------------------------training------------------------
 def train(save_model=True):
     # read the start time
     ot = time.time()
