@@ -213,9 +213,4 @@ def fine_tune(save_model=True):
             gen_opt.step()
 
             
-    
-    
-    
-    
-    
-train()
+# when to train? how to swift train mode???????
