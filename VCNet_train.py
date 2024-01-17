@@ -10,7 +10,8 @@ import numpy as np
 
 # 设置路径
 dataSourcePath = "dataSet1/brain/"
-dataSavePath = "output/trial08/brain/"
+dataSavePath = "output/"
+pthLoadPath = ""
 device=torch.device("cuda:0")
 # device=torch.device("cpu")
 
@@ -32,19 +33,20 @@ from VCNet.VCNet_model import *
 
 # Feel free to change pretrained to False if you're training the model from scratch
 pretrained = False
-save_model = False
+save_model = True
 
 fileStartVal = 1
 fileIncrement = 1
 constVal = 1
-
+total_gen_loss = []
+total_disc_loss = []
 
 
 #---------------------initialize the model----------------------
-# 1)parameters for dataset
+# 1) parameters for dataset
 total_index = 100
-ratio = 0.7
-maxi_train_index = total_index*ratio
+ratio_for_train = 0.7
+max_train_index = round(total_index*ratio_for_train)
 dim = (160, 224, 168)   # [depth, height, width]. brain
 float32DataType = np.float32
 
@@ -55,33 +57,37 @@ trainDataset = tools.DataSet(data_path="",
                              volume_shape=dim,
                              max_index=70)
 
-# 2)parameters for loss function
-adv_criterion = nn.BCEWithLogitsLoss()
-recon_criterion = nn.L1Loss()
+# 2) parameters for loss function
+Loss_G_rec = tools.WeightedMSELoss().to(device)
+Loss_G_Adv = tools.AdversarialGLoss().to(device)
+Loss_D_Adv = tools.AdversarialDLoss().to(device)
 
-# 3)other parameters
+# 3) other parameters
 lambda_recon = 200
-n_epochs = 1000
+n_epochs = 400
 input_dim = 1
 real_dim = 1
 batch_size = 1          #原模型参数 10
-lr = 5e-3             #learn rate 原模型参数 5e-3(0.005)
+# lr = 5e-3             #learn rate 原模型参数 5e-3(0.005)
+lr = 0.0001
+weight_decay_adv = 0.001
+weight_decay_rec = 1
+
+display_step = np.ceil(np.ceil(max_train_index / batch_size) * n_epochs / 20)   #一共输出20个epoch，供判断用
 
 
-# 4)send parameters to cuda
+# 4) send parameters to cuda
 gen = UNet_v2(in_channel=1).to(device)
-gen_opt = torch.optim.Adam(gen.parameters(), lr=lr)
+gen_opt = torch.optim.Adam(gen.parameters(), lr=lr,betas=(0.9,0.999),weight_decay=weight_decay_rec)
 
 disc = Dis_VCNet().to(device)
-disc_opt = torch.optim.Adam(disc.parameters(), lr=1e-3)
+disc_opt = torch.optim.Adam(disc.parameters(), lr=lr,betas=(0.9,0.999),weight_decay=weight_decay_adv)
 
-criterion_bce = nn.BCELoss().to(device)
-criterion_L1 = nn.L1Loss().to(device)
-criterion_L2 = nn.MSELoss().to(device)
+print("initialize finished")
 
-
+#---------------------------------training------------------------
 if pretrained:
-    loaded_state = torch.load("output/trial8/DCGAN_27999.pth")
+    loaded_state = torch.load(pthLoadPath)
     gen.load_state_dict(loaded_state["gen"])
     gen_opt.load_state_dict(loaded_state["gen_opt"])
     disc.load_state_dict(loaded_state["disc"])
@@ -89,128 +95,127 @@ if pretrained:
 else:
     gen = gen.apply(weights_init)
     disc = disc.apply(weights_init)
-
-# print("Success!")
-
-#---------------------------------training------------------------
-def train(save_model=True):
+    
+def pre_train(save_model=True):
     # read the start time
     ot = time.time()
     t1 = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-    print("##train start(brain)##  time:",t1)
-    mean_generator_loss = 0
-    mean_discriminator_loss = 0
+    print("## pre train start##  time:",t1)
+    
     dataloader = DataLoader(trainDataset, batch_size=batch_size, shuffle=True)
+    gen_opt.param_groups[0]['weight_decay'] = weight_decay_rec
+    
     cur_step = 0
-    running_loss = 0.0
 
     for epoch in range(n_epochs):
         # Dataloader returns the batches
-        for ct,mri,index in dataloader:
+        for real_volume,masked_volume,mask,index in dataloader:
 
-            # wrap them into Variable
-            ct = ct.to(device)
-            mri = mri.to(device)
-            # print("ct: " , ct.shape)
-            # print("mri: " , mri.shape)
-
-            ## (1) update D network: maximize log(D(x)) + log(1 - D(G(z)))
-            # source->ori_ct  residual_source->ori_ct  label->ori_mri  outputG->fake
-            # real_label = torch.ones(batch_size,1)  fake_label = torch.zeros(batch_size,1)
-            # 初始化变量
-            disc_opt.zero_grad()  # Zero out the gradient before backpropagation
-            fake = gen(ct)
-
-            source = Variable(ct)
-            labels = Variable(mri)
-            outputG = Variable(fake)
-
-            outputD_real = disc(labels)
-            outputD_real = F.sigmoid(outputD_real)
-
-            outputD_fake = disc(outputG).detach()
-            outputD_fake = F.sigmoid(outputD_fake)
-            disc.zero_grad()
-            real_label = torch.ones(batch_size, 1)
-            real_label = real_label.to(device)
-            # print(real_label.size())
-            real_label = Variable(real_label)
-            # print(outputD_real.size())
-            loss_real = criterion_bce(outputD_real, real_label)
-            loss_real.backward()
-            # train with fake data
-            fake_label = torch.zeros(batch_size, 1)
-            #         fake_label = torch.FloatTensor(batch_size)
-            #         fake_label.data.resize_(batch_size).fill_(0)
-            fake_label = fake_label.to(device)
-            fake_label = Variable(fake_label)
-            loss_fake = criterion_bce(outputD_fake, fake_label).requires_grad_(True)
-            loss_fake.backward()
-
-            # lossD = loss_real + loss_fake
-            lossD = loss_real + loss_fake
-            # update network parameters
-            disc_opt.step()
-
-            ## (2) update G network: minimize the L1/L2 loss, maximize the D(G(x))------------------------
-
-            #         print inputs.data.shape
-            # outputG = net(source) #here I am not sure whether we should use twice or not
-            outputG = gen(source)  # 5x64x64->1*64x64
-
-            # outputG = net(source,residual_source) #5x64x64->1*64x64
-            gen.zero_grad()
-            lossG_G = criterion_L1(torch.squeeze(outputG), torch.squeeze(labels))
-            lossG_G = 1 * lossG_G
-            lossG_G.backward()  # compute gradients
-
-            outputG = gen(source)  # 5x64x64->1*64x64
-
-            if len(outputG.size()) == 3:
-                outputG = outputG.unsqueeze(1)
-
-            outputD = disc(outputG)
-            outputD = F.sigmoid(outputD)
-            lossG_D = 0.05 * criterion_bce(outputD,real_label)  # note, for generator, the label for outputG is real, because the G wants to confuse D
-            lossG_D.backward()
-            # for other losses, we can define the loss function following the pytorch tutorial
-            gen_opt.step()  # update network parameters
-            running_loss = running_loss + lossG_G
-            #----------------------------------------------------------------------------------
-
-            ### Visualization code ###
+            # wrap them into torch.tensor
+            real_volume = torch.tensor(real_volume,requires_grad=True).to(device)
+            masked_volume = torch.tensor(masked_volume,requires_grad=True).to(device)
+            # mask = torch.tensor(mask,requires_grad=True).to(device)
+            output_volume = gen(masked_volume)
+            
+            # update the generator only
+            gen_loss = Loss_G_rec(real_volume,output_volume)
+            total_gen_loss.append(gen_loss)
+            print("Weighted MSE Loss:", gen_loss.item())
+            
+            gen_opt.zero_grad()  # Zero out the gradient before back propagation
+            gen_loss.backward()
+            gen_opt.step()
+            
+            ### save model and generated volume(if need) ###
             if (cur_step+1) % display_step == 0 or cur_step == 1:
                 
                 t = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-                print(t, f"  Epoch {epoch}: Step {cur_step}: Generator (Res_UNet) loss: {running_loss/100}, Discriminator loss: {lossD}")
-                #计算单位运行时间
+
+                # compute time
                 dt = time.time() - ot
                 elapsedTime = str(datetime.timedelta(seconds=dt))
                 per_epoch = str(datetime.timedelta(seconds=dt / (epoch+1)))
                 print(f"    epoch = {epoch}     dt={elapsedTime}    per-epoch={per_epoch}")
-                # save fake.
-                saveRawFile10(cur_step,
-                              'fake_mr',
-                              (fileStartVal + index * fileIncrement) / constVal,
-                              '',
-                              fake[0, 0, :, :, :])
-
-                saveRawFile10(cur_step, 'truth_mr', (fileStartVal + index * fileIncrement) / constVal, '',
-                              mri[0, 0, :, :, :])
                 
-                # show_tensor_images(condition, size=(input_dim, target_shape, target_shape))
-                # show_tensor_images(real, size=(real_dim, target_shape, target_shape))
-                # show_tensor_images(fake, size=(real_dim, target_shape, target_shape))
+                # save generated volume
+                tools.saveRawFile10(f"{dataSavePath}/VCNet_{epoch}",
+                                    f"vol_{cur_step:03d}_fake",
+                                    output_volume[0, 0, :, :, :])
+                
+                tools.saveRawFile10(f"{dataSavePath}/{epoch}",
+                                    f"vol_{cur_step:03d}_true",
+                                    real_volume[0, 0, :, :, :])
+                
+                tools.saveRawFile10(f"{dataSavePath}/{epoch}",
+                                    f"vol_{cur_step:03d}_masked",
+                                    masked_volume[0, 0, :, :, :])
+
+
                 mean_generator_loss = 0
                 mean_discriminator_loss = 0
                 # You can change save_model to True if you'd like to save the model
                 if save_model:
-                    saveModel(cur_step=cur_step)
+                    fileName = f"{dataSavePath}/{fileName}.pth"
+                    torch.save({'gen': gen.state_dict(),
+                                'gen_opt': gen_opt.state_dict(),
+                                'disc': disc.state_dict(),
+                                'disc_opt': disc_opt.state_dict(),
+                                }, fileName)
                     
             cur_step += 1
+            
+
     t2 = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
     print("##train finished(brain)##  time:",t2)
     print("total train time:")
     print("start:",t1)
     print("end:",t2)
+    
+    
+def fine_tune(save_model=True):
+    # read the start time
+    ot = time.time()
+    t1 = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+    print("##fine tune train start##  time:",t1)
+    
+    mean_generator_loss = 0
+    mean_discriminator_loss = 0
+    
+    dataloader = DataLoader(trainDataset, batch_size=batch_size, shuffle=True)
+    gen_opt.param_groups[0]['weight_decay'] = weight_decay_adv
+
+    for epoch in range(n_epochs):
+        # Dataloader returns the batches
+        for real_volume,masked_volume,mask,index in dataloader:
+
+            # wrap them into torch.tensor
+            real_volume = torch.tensor(real_volume,requires_grad=True).to(device)
+            masked_volume = torch.tensor(masked_volume,requires_grad=True).to(device)
+            mask = torch.tensor(mask,requires_grad=True).to(device)
+            output_volume = gen(masked_volume)
+            
+            # update disc
+            disc_loss = Loss_D_Adv(real_dim,output_volume,masked_volume,mask)
+            total_disc_loss.append(disc_loss)
+            print("Adv Disc Loss:", disc_loss.item())
+            
+            disc_opt.zero_grad()  # Zero out the gradient before back propagation
+            disc_loss.backward()
+            disc_opt.step()
+            
+            # update gen
+            gen_loss = Loss_G_Adv(output_volume,masked_volume,mask,real_volume)
+            total_gen_loss.append(gen_loss)
+            print("Adv Gen Loss:", gen_loss.item())
+            
+            gen_opt.zero_grad()
+            gen_loss.backward()
+            gen_opt.step()
+
+            
+    
+    
+    
+    
+    
 train()
