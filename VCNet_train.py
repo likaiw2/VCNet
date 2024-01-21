@@ -9,11 +9,11 @@ import numpy as np
 import torch
 
 # 设置路径
-dataSourcePath = "/Users/wanglikai/Codes/Volume_Complete/dataSet0"
-dataSavePath = "/Users/wanglikai/Codes/Volume_Complete/VCNet_out"
+dataSourcePath = "C:\Files\Research\dataSet0"
+dataSavePath = "C:\Files\Research\VCNet\dataSave"
 pthLoadPath = ""
-# device=torch.device("cuda:0")
-device=torch.device("cpu")
+device=torch.device("cuda:0")
+# device=torch.device("cpu")
 
 # 使用前清除cuda缓存
 torch.cuda.empty_cache()
@@ -116,8 +116,8 @@ def pre_train(save_model=True,p_epochs=400):
         for real_volume,masked_volume,mask,index in dataloader:
 
             # wrap them into torch.tensor
-            real_volume = torch.tensor(real_volume,requires_grad=True).to(device)
-            masked_volume = torch.tensor(masked_volume,requires_grad=True).to(device)
+            real_volume = torch.tensor(real_volume,requires_grad=True).float().to(device)
+            masked_volume = torch.tensor(masked_volume,requires_grad=True).float().to(device)
             # mask = torch.tensor(mask,requires_grad=True).to(device)
             output_volume = gen(masked_volume)
             
@@ -194,8 +194,8 @@ def fine_tune(save_model=True,f_epochs=100):
         for real_volume,masked_volume,mask,index in dataloader:
 
             # wrap them into torch.tensor
-            real_volume = torch.tensor(real_volume,requires_grad=True).to(device)
-            masked_volume = torch.tensor(masked_volume,requires_grad=True).to(device)
+            real_volume = torch.tensor(real_volume,requires_grad=True).float().to(device)
+            masked_volume = torch.tensor(masked_volume,requires_grad=True).float().to(device)
             mask = torch.tensor(mask,requires_grad=True).to(device)
             output_volume = gen(masked_volume)
             
