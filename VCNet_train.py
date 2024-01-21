@@ -1,19 +1,19 @@
 from torchvision.utils import make_grid
 from torch.utils.data import DataLoader
-
+from torch.autograd import Variable
 from torchvision import transforms
 import time
 import datetime
-from torch.autograd import Variable
 import tools
 import numpy as np
+import torch
 
 # 设置路径
-dataSourcePath = "dataSet1/brain/"
-dataSavePath = "output/"
+dataSourcePath = "/Users/wanglikai/Codes/Volume_Complete/dataSet0"
+dataSavePath = "/Users/wanglikai/Codes/Volume_Complete/VCNet_out"
 pthLoadPath = ""
-device=torch.device("cuda:0")
-# device=torch.device("cpu")
+# device=torch.device("cuda:0")
+device=torch.device("cpu")
 
 # 使用前清除cuda缓存
 torch.cuda.empty_cache()
@@ -29,7 +29,7 @@ def weights_init(m):
 
 
 #模型的代码实现见VCNet_model.py
-from VCNet.VCNet_model import *
+from VCNet_model import *
 
 # Feel free to change pretrained to False if you're training the model from scratch
 pretrained = False
@@ -50,21 +50,18 @@ max_train_index = round(total_index*ratio_for_train)
 dim = (160, 224, 168)   # [depth, height, width]. brain
 float32DataType = np.float32
 
-trainDataset = tools.DataSet(data_path="",
-                             mask_type="test",
-                             prefix="norm_ct",
-                             data_type="raw",
+trainDataset = tools.DataSet(data_path=dataSourcePath,
                              volume_shape=dim,
+                             mask_type="test",
+                             prefix="norm_ct.",
+                             data_type="raw",
+                             float32DataType=np.float32,
                              max_index=70)
 
-# 2) parameters for loss function
-Loss_G_rec = tools.WeightedMSELoss().to(device)
-Loss_G_Adv = tools.AdversarialGLoss().to(device)
-Loss_D_Adv = tools.AdversarialDLoss().to(device)
-
-# 3) other parameters
+# 2) other parameters
 lambda_recon = 200
-n_epochs = 400
+p_epochs = 400          # for pre train     # 预训练
+f_epochs = 100          # for fine tune     # 微调
 input_dim = 1
 real_dim = 1
 batch_size = 1          #原模型参数 10
@@ -73,15 +70,20 @@ lr = 0.0001
 weight_decay_adv = 0.001
 weight_decay_rec = 1
 
-display_step = np.ceil(np.ceil(max_train_index / batch_size) * n_epochs / 20)   #一共输出20个epoch，供判断用
+# display_step = np.ceil(np.ceil(max_train_index / batch_size) * n_epochs / 20)   #一共输出20个epoch，供判断用
 
 
-# 4) send parameters to cuda
+# 3) send parameters to cuda
 gen = UNet_v2(in_channel=1).to(device)
 gen_opt = torch.optim.Adam(gen.parameters(), lr=lr,betas=(0.9,0.999),weight_decay=weight_decay_rec)
 
 disc = Dis_VCNet().to(device)
 disc_opt = torch.optim.Adam(disc.parameters(), lr=lr,betas=(0.9,0.999),weight_decay=weight_decay_adv)
+
+# 4) parameters for loss function
+Loss_G_rec = tools.WeightedMSELoss().to(device)
+Loss_G_Adv = tools.AdversarialGLoss(disc).to(device)
+Loss_D_Adv = tools.AdversarialDLoss(disc).to(device)
 
 print("initialize finished")
 
@@ -96,18 +98,20 @@ else:
     gen = gen.apply(weights_init)
     disc = disc.apply(weights_init)
     
-def pre_train(save_model=True):
+def pre_train(save_model=True,p_epochs=400):
     # read the start time
     ot = time.time()
     t1 = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
     print("## pre train start##  time:",t1)
     
-    dataloader = DataLoader(trainDataset, batch_size=batch_size, shuffle=True)
+    dataloader = DataLoader(trainDataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    print("     data loaded!")
     gen_opt.param_groups[0]['weight_decay'] = weight_decay_rec
     
+    display_step = np.ceil(np.ceil(max_train_index / batch_size) * p_epochs / 20)   #一共输出20个epoch，供判断用
     cur_step = 0
 
-    for epoch in range(n_epochs):
+    for epoch in range(p_epochs):
         # Dataloader returns the batches
         for real_volume,masked_volume,mask,index in dataloader:
 
@@ -142,11 +146,11 @@ def pre_train(save_model=True):
                                     f"vol_{cur_step:03d}_fake",
                                     output_volume[0, 0, :, :, :])
                 
-                tools.saveRawFile10(f"{dataSavePath}/{epoch}",
+                tools.saveRawFile10(f"{dataSavePath}/VCNet_{epoch}",
                                     f"vol_{cur_step:03d}_true",
                                     real_volume[0, 0, :, :, :])
                 
-                tools.saveRawFile10(f"{dataSavePath}/{epoch}",
+                tools.saveRawFile10(f"{dataSavePath}/VCNet_{epoch}",
                                     f"vol_{cur_step:03d}_masked",
                                     masked_volume[0, 0, :, :, :])
 
@@ -172,7 +176,7 @@ def pre_train(save_model=True):
     print("end:",t2)
     
     
-def fine_tune(save_model=True):
+def fine_tune(save_model=True,f_epochs=100):
     # read the start time
     ot = time.time()
     t1 = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
@@ -180,11 +184,12 @@ def fine_tune(save_model=True):
     
     mean_generator_loss = 0
     mean_discriminator_loss = 0
+    display_step = np.ceil(np.ceil(max_train_index / batch_size) * f_epochs / 20)   #一共输出20个epoch，供判断用
     
     dataloader = DataLoader(trainDataset, batch_size=batch_size, shuffle=True)
     gen_opt.param_groups[0]['weight_decay'] = weight_decay_adv
 
-    for epoch in range(n_epochs):
+    for epoch in range(f_epochs):
         # Dataloader returns the batches
         for real_volume,masked_volume,mask,index in dataloader:
 
@@ -211,6 +216,45 @@ def fine_tune(save_model=True):
             gen_opt.zero_grad()
             gen_loss.backward()
             gen_opt.step()
+            
+            ### save model and generated volume(if need) ###
+            if (cur_step+1) % display_step == 0 or cur_step == 1:
+                
+                t = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+
+                # compute time
+                dt = time.time() - ot
+                elapsedTime = str(datetime.timedelta(seconds=dt))
+                per_epoch = str(datetime.timedelta(seconds=dt / (epoch+1)))
+                print(f"    epoch = {epoch}     dt={elapsedTime}    per-epoch={per_epoch}")
+                
+                # save generated volume
+                tools.saveRawFile10(f"{dataSavePath}/VCNet_{epoch}",
+                                    f"vol_{cur_step:03d}_fake",
+                                    output_volume[0, 0, :, :, :])
+                
+                tools.saveRawFile10(f"{dataSavePath}/VCNet_{epoch}",
+                                    f"vol_{cur_step:03d}_true",
+                                    real_volume[0, 0, :, :, :])
+                
+                tools.saveRawFile10(f"{dataSavePath}/VCNet_{epoch}",
+                                    f"vol_{cur_step:03d}_masked",
+                                    masked_volume[0, 0, :, :, :])
+
+
+                mean_generator_loss = 0
+                mean_discriminator_loss = 0
+                # You can change save_model to True if you'd like to save the model
+                if save_model:
+                    fileName = f"{dataSavePath}/{fileName}.pth"
+                    torch.save({'gen': gen.state_dict(),
+                                'gen_opt': gen_opt.state_dict(),
+                                'disc': disc.state_dict(),
+                                'disc_opt': disc_opt.state_dict(),
+                                }, fileName)
+                    
+            cur_step += 1
 
             
 # when to train? how to swift train mode???????
+pre_train(True,400)

@@ -196,13 +196,13 @@ def generate_mask(volume_shape:[int,int,int],shape_type:int):
 
 
 class DataSet(Dataset): #定义Dataset类的名称
-    def __init__(self,data_path="", volume_shape=(160, 224, 168), mask_type="test", prefix="norm_ct.",data_type="raw",max_index=70): 
+    def __init__(self,data_path="", volume_shape=(160, 224, 168), mask_type="test", prefix="norm_ct.",data_type="raw",max_index=70,float32DataType=np.float32): 
         self.data_path = data_path              
         self.prefix = prefix
         self.max_index = max_index                   # largest index
         self.data_type = data_type
         self.volume_shape = volume_shape        # [depth, height, width]
-        
+        self.float32DataType = float32DataType
         self.mask_type = mask_type              # "test","train","predict"
         self.mask_name = ["no_mask","x_stack","y_stack","z_stack","cuboid","cylinder","hyperboloid","sphere","tetrahedron","ring"]
         
@@ -211,17 +211,16 @@ class DataSet(Dataset): #定义Dataset类的名称
     
     def __len__(self):
         return self.max_index     # =70.
-    
         
     def __getitem__(self, index=0):               # index: [0, 69].
-
-        assert (index<0 or index>=self.max_index),f"The index {index} of the data is out of range"
-        assert (not os.path.exists(self.data_path)),f"Path [{self.data_path}] is not exist"
+        assert (index>=0 and index<self.max_index),f"The index {index} of the data is out of range: 0-{self.max_index}"
+        assert (os.path.exists(self.data_path)),f"Path [{self.data_path}] is not exist"
 
         # read original volume data.
-        fileName = f"{self.prefix}{index:02d}.{self.data_type}"
+        fileName = f"{self.data_path}/{self.prefix}{index:03d}.{self.data_type}"
         volume_data = np.fromfile(fileName, dtype=self.float32DataType)
         volume_data = torch.from_numpy(volume_data)                                                             # convert numpy data into tensor
+        mask_volume = []
         
         # generate mask (if needed)
         if self.mask_type == "test":
@@ -243,10 +242,8 @@ class DataSet(Dataset): #定义Dataset类的名称
             mask_volume,mask = generate_mask(volume_shape=volume_data.shape, shape_type=mask_index)
             masked_volume_data = volume_data * (1 - mask_volume)
             
-                
         # mask_volume = torch.from_numpy(mask_volume)
         volume_data = volume_data.view([1, self.volume_shape[0], self.volume_shape[1], self.volume_shape[2]])   # reshape into [channels, depth, height, width].
-        
         
         return volume_data,masked_volume_data,mask_volume,index
 
