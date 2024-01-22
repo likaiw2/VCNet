@@ -34,6 +34,12 @@ def saveRawFile10(dataSavePath, fileName, volume):
     volume = volume.detach().numpy()
     volume.astype('float32').tofile(fileName)
 
+def crop_raw(origin_pos,new_pos,size=(128,128,128)):
+    # read original volume data.
+    fileName = origin_pos
+    raw_data = np.fromfile(fileName, dtype=np.float32)
+    assert (raw_data[0]>=size[0] and raw_data[1]>=size[1] and raw_data[2]>=size[2])
+    
     
 def generate_mask(volume_shape:[int,int,int],shape_type:int):
     '''
@@ -145,7 +151,7 @@ def generate_mask(volume_shape:[int,int,int],shape_type:int):
         mask_pos = [pos_x,pos_y,pos_z]
         
         for i in range(x.size):
-            mask_volume[x[i],y[i],z[i]] = 1
+            mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 1
         
     elif shape_type == 5:    # cylinder         圆柱体
         # make shape grid
@@ -165,7 +171,7 @@ def generate_mask(volume_shape:[int,int,int],shape_type:int):
         mask_pos = [pos_x,pos_y,pos_z]
         
         for i in range(x.size):
-            mask_volume[x[i],y[i],z[i]] = 1
+            mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 1
         
         
         
@@ -190,7 +196,7 @@ def generate_mask(volume_shape:[int,int,int],shape_type:int):
         assert True,"wrong input parameter"
     
     # mask_volume = mask_volume.view([1, volume_shape[0], volume_shape[1], volume_shape[2]])   # reshape into [channels, depth, height, width].
-    
+    mask = np.array(mask)
     return mask_volume,mask
     # return mask_volume,mask
 

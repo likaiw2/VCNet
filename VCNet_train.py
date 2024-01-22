@@ -8,18 +8,21 @@ import tools
 import numpy as np
 import torch
 
-# 设置路径
+# dim = (160, 224, 168)   # [depth, height, width]. brain
+# dim = (96, 240, 384)    # [depth, height, width]. pelvic
+
+# set path
 dataSourcePath = "C:\Files\Research\dataSet0"
 dataSavePath = "C:\Files\Research\VCNet\dataSave"
 pthLoadPath = ""
 device=torch.device("cuda:0")
 # device=torch.device("cpu")
 
-# 使用前清除cuda缓存
+# clear cuda memory
 torch.cuda.empty_cache()
 torch.manual_seed(0)
 
-# 对3d卷积神经网络的权重初始化
+# initialize weight of network
 def weights_init(m):
     if isinstance(m, nn.Conv3d) or isinstance(m, nn.ConvTranspose3d):
         torch.nn.init.normal_(m.weight, 0.0, 0.02)
