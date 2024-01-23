@@ -11,12 +11,17 @@ import torch
 # dim = (160, 224, 168)   # [depth, height, width]. brain
 # dim = (96, 240, 384)    # [depth, height, width]. pelvic
 
-# set path
-dataSourcePath = "C:\Files\Research\dataSet0"
-dataSavePath = "C:\Files\Research\VCNet\dataSave"
+# set path(for windows test)
+# dataSourcePath = "C:\Files\Research\dataSet0"
+# dataSavePath = "C:\Files\Research\VCNet\dataSave"
+
+# set path(for macbook test)
+dataSourcePath = "/Users/wanglikai/Codes/Volume_Complete/dataSet0"
+dataSavePath = "/Users/wanglikai/Codes/Volume_Complete/VCNet/dataSave"
+
 pthLoadPath = ""
-device=torch.device("cuda:0")
-# device=torch.device("cpu")
+# device=torch.device("cuda:0")
+device=torch.device("cpu")
 
 # clear cuda memory
 torch.cuda.empty_cache()

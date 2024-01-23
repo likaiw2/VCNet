@@ -23,6 +23,7 @@ class MaskType(Enum):
     tetrahedron = 8
     ring        = 9
 
+# saveRawFile10 --> not test assume good    --2024.1.22
 def saveRawFile10(dataSavePath, fileName, volume):
     if not os.path.exists(dataSavePath):
         os.makedirs(dataSavePath)
@@ -34,13 +35,24 @@ def saveRawFile10(dataSavePath, fileName, volume):
     volume = volume.detach().numpy()
     volume.astype('float32').tofile(fileName)
 
-def crop_raw(origin_pos,new_pos,size=(128,128,128)):
+# crop_raw --> modifying        --2024.1.22
+def crop_raw_128(origin_pos,new_pos):
+    size=(128,128,128)
     # read original volume data.
     fileName = origin_pos
-    raw_data = np.fromfile(fileName, dtype=np.float32)
-    assert (raw_data[0]>=size[0] and raw_data[1]>=size[1] and raw_data[2]>=size[2])
+    old_data = np.fromfile(fileName, dtype=np.float32)
+    assert (old_data.shape[0]>=size[0] and old_data.shape[1]>=size[1] and old_data.shape[2]>=size[2])
+    
+    # 取n=[32:160],h=[86:214],w=[20:148]最合适
+    new_data = old_data[old_data.shape[0]-size[0]         :,
+                        old_data.shape[1]-size[1]-10      :old_data.shape[1]-size[1]+118,
+                        int(old_data.shape[2]/2-size[2]/2):int(old_data.shape[2]/2+size[2]/2)]
+
+    new_data.astype('float32').tofile(new_pos)
     
     
+
+# generate_mask()   --> test GOOD      --2024.1.21
 def generate_mask(volume_shape:[int,int,int],shape_type:int):
     '''
         -------------------------
@@ -94,7 +106,7 @@ def generate_mask(volume_shape:[int,int,int],shape_type:int):
         mask_pos = [pos_x,pos_y,pos_z]
         
         for i in range(x.size):
-            mask_volume[x[i],y[i],z[i]] = 1
+            mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 1
 
     elif shape_type == 2:    # y-stack
         # make shape grid
@@ -113,7 +125,7 @@ def generate_mask(volume_shape:[int,int,int],shape_type:int):
         mask_pos = [pos_x,pos_y,pos_z]
         
         for i in range(x.size):
-            mask_volume[x[i],y[i],z[i]] = 1
+            mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 1
         
     elif shape_type == 3:    # z-stack
         # make shape grid
@@ -132,7 +144,8 @@ def generate_mask(volume_shape:[int,int,int],shape_type:int):
         mask_pos = [pos_x,pos_y,pos_z]
         
         for i in range(x.size):
-            mask_volume[x[i],y[i],z[i]] = 1
+            mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 1
+
         
     elif shape_type == 4:    # cuboid
         # make shape grid
@@ -200,7 +213,7 @@ def generate_mask(volume_shape:[int,int,int],shape_type:int):
     return mask_volume,mask
     # return mask_volume,mask
 
-
+# DataSet   --> not test assume good  --2024.1.22
 class DataSet(Dataset): #定义Dataset类的名称
     def __init__(self,data_path="", volume_shape=(160, 224, 168), mask_type="test", prefix="norm_ct.",data_type="raw",max_index=70,float32DataType=np.float32): 
         self.data_path = data_path              

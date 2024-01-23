@@ -21,7 +21,7 @@ class VoxelShuffle(nn.Module):
 	def __init__(self,in_channels,out_channels,upscale_factor):
 		super(VoxelShuffle,self).__init__()
 		self.upscale_factor = upscale_factor
-		self.conv = nn.Conv3d(in_channels,out_channels*(upscale_factor**3),3,1,1)
+		self.conv = nn.Conv3d(in_channels,out_channels*(upscale_factor**3),kernel_size=3,stride=1,padding=1)
 
 	def forward(self,x):
 		x = voxel_shuffle(self.conv(x),self.upscale_factor)
@@ -33,14 +33,14 @@ class ResidualBlock(nn.Module):
         
         self.relu = nn.ReLU(inplace=True)
         
-        # in the VCNet, in_channels and out_channels are the same, 
-        self.conv1 = nn.Conv3d(in_channels=in_channels,out_channels=out_channels,kernel_size=3,dilation=2,stride=1)
+        # in the VCNet, in_channels and out_channels are the same
+        self.conv1 = nn.Conv3d(in_channels=in_channels,out_channels=out_channels,kernel_size=3,stride=1,dilation=2,padding=2)
         self.bn1 = nn.BatchNorm3d(out_channels)
         
-        self.conv2 = nn.Conv3d(in_channels=in_channels,out_channels=out_channels,kernel_size=3,dilation=4,stride=1)
+        self.conv2 = nn.Conv3d(in_channels=in_channels,out_channels=out_channels,kernel_size=3,stride=1,dilation=4,padding=4)
         self.bn2 = nn.BatchNorm3d(out_channels)
         
-        self.conv3 = nn.Conv3d(in_channels=in_channels,out_channels=out_channels,kernel_size=3,dilation=8,stride=1)
+        self.conv3 = nn.Conv3d(in_channels=in_channels,out_channels=out_channels,kernel_size=3,stride=1,dilation=8,padding=8)
         self.bn3 = nn.BatchNorm3d(out_channels)
 
     def forward(self, x):
@@ -63,8 +63,6 @@ class ResidualBlock(nn.Module):
 
         return out
 
-
-
 class UNet_v2(nn.Module):
     def __init__(self, in_channel=1):   #n_classes 不知道干啥用的我给删掉了
         super(UNet_v2, self).__init__()
@@ -72,17 +70,17 @@ class UNet_v2(nn.Module):
         self.activate_fun = nn.ReLU(inplace=True)   # 原地修改数据，可以节省空间
         
         # Conv + ReLU (down sample)
-        self.down_1_conv1 = nn.Conv3d(in_channels=1,   out_channels=32,  kernel_size=4, dilation=1,  stride=2)
-        self.down_1_conv2 = nn.Conv3d(in_channels=32,  out_channels=32,  kernel_size=3, dilation=1,  stride=1)
+        self.down_1_conv1 = nn.Conv3d(in_channels=1,   out_channels=32,  kernel_size=4, dilation=1,  stride=2, padding=1)
+        self.down_1_conv2 = nn.Conv3d(in_channels=32,  out_channels=32,  kernel_size=3, dilation=1,  stride=1, padding=1)
         
-        self.down_2_conv1 = nn.Conv3d(in_channels=32,  out_channels=64,  kernel_size=4, dilation=1,  stride=2)
-        self.down_2_conv2 = nn.Conv3d(in_channels=64,  out_channels=64,  kernel_size=3, dilation=1,  stride=1)
+        self.down_2_conv1 = nn.Conv3d(in_channels=32,  out_channels=64,  kernel_size=4, dilation=1,  stride=2, padding=1)
+        self.down_2_conv2 = nn.Conv3d(in_channels=64,  out_channels=64,  kernel_size=3, dilation=1,  stride=1, padding=1)
         
-        self.down_3_conv1 = nn.Conv3d(in_channels=64,  out_channels=128, kernel_size=4, dilation=1,  stride=2)
-        self.down_3_conv2 = nn.Conv3d(in_channels=128, out_channels=128, kernel_size=3, dilation=1,  stride=1)
+        self.down_3_conv1 = nn.Conv3d(in_channels=64,  out_channels=128, kernel_size=4, dilation=1,  stride=2, padding=1)
+        self.down_3_conv2 = nn.Conv3d(in_channels=128, out_channels=128, kernel_size=3, dilation=1,  stride=1, padding=1)
         
-        self.down_4_conv1 = nn.Conv3d(in_channels=128, out_channels=256, kernel_size=4, dilation=1,  stride=2)
-        self.down_4_conv2 = nn.Conv3d(in_channels=256, out_channels=256, kernel_size=3, dilation=1,  stride=1)
+        self.down_4_conv1 = nn.Conv3d(in_channels=128, out_channels=256, kernel_size=4, dilation=1,  stride=2, padding=1)
+        self.down_4_conv2 = nn.Conv3d(in_channels=256, out_channels=256, kernel_size=3, dilation=1,  stride=1, padding=1)
 
         # dilated conv + RB 作者表述不清不楚， 邮件询问后，得到三个 dilated RB 一模一样
         self.mid_middle1 = ResidualBlock(in_channels=256,out_channels=256)
@@ -108,24 +106,37 @@ class UNet_v2(nn.Module):
         
         # Conv + ReLU (down sample)
         out=self.activate_fun(self.down_1_conv1(x))
+        print("layer1_conv1",out.shape)
         out=self.activate_fun(self.down_1_conv2(out))
+        print("layer1_conv2",out.shape)
+        
         res_1 = out
         
         out=self.activate_fun(self.down_2_conv1(out))
+        print("layer2_conv1",out.shape)
         out=self.activate_fun(self.down_2_conv2(out))
+        print("layer2_conv2",out.shape)
+        
         res_2 = out
         
         out=self.activate_fun(self.down_3_conv1(out))
+        print("layer3_conv1",out.shape)
         out=self.activate_fun(self.down_3_conv2(out))
+        print("layer3_conv2",out.shape)
         res_3 = out
         
         out=self.activate_fun(self.down_4_conv1(out))
+        print("layer4_conv1",out.shape)
         out=self.activate_fun(self.down_4_conv2(out))
+        print("layer4_conv2",out.shape,"\n")
         
         # dilated conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
         out=self.mid_middle1(out)
+        print("mid_1",out.shape)
         out=self.mid_middle2(out)
+        print("mid_2",out.shape)
         out=self.mid_middle3(out)
+        print("mid_3",out.shape,"\n")
         
         # VS+Conv+ReLU
         out=self.activate_fun(self.up_4_VS(out))
