@@ -58,7 +58,8 @@ class ResidualBlock(nn.Module):
         out = self.bn3(out)
         out = self.relu(out)
 
-        out += identity
+        # out += identity   #这个会报错，很呆，会产生inplace问题
+        out = identity + out
         out = self.relu(out)
 
         return out
@@ -88,17 +89,17 @@ class UNet_v2(nn.Module):
         self.mid_middle3 = ResidualBlock(in_channels=256,out_channels=256)
 
         # VS+Conv+ReLU
-        self.up_4_VS = VoxelShuffle(in_channels=256, out_channels=128,upscale_factor=2)
-        self.up_4_conv = nn.Conv3d(in_channels=128,  out_channels=128,  kernel_size=3, dilation=1,  stride=1)
+        self.up_4_VS = VoxelShuffle(in_channels=256, out_channels=128,  upscale_factor=2)
+        self.up_4_conv = nn.Conv3d(in_channels=256,  out_channels=128,  kernel_size=3, dilation=1,  stride=1, padding=1)
 
-        self.up_3_VS = VoxelShuffle(in_channels=128, out_channels=64,upscale_factor=2)
-        self.up_3_conv = nn.Conv3d(in_channels=64,   out_channels=64,  kernel_size=3, dilation=1,  stride=1)
+        self.up_3_VS = VoxelShuffle(in_channels=128, out_channels=64,   upscale_factor=2)
+        self.up_3_conv = nn.Conv3d(in_channels=128,  out_channels=64,   kernel_size=3, dilation=1,  stride=1, padding=1)
         
-        self.up_2_VS = VoxelShuffle(in_channels=64,  out_channels=32,upscale_factor=2)
-        self.up_2_conv = nn.Conv3d(in_channels=32,   out_channels=32,  kernel_size=3, dilation=1,  stride=1)
+        self.up_2_VS = VoxelShuffle(in_channels=64,  out_channels=32,   upscale_factor=2)
+        self.up_2_conv = nn.Conv3d(in_channels=64,   out_channels=32,   kernel_size=3, dilation=1,  stride=1, padding=1)
         
-        self.up_1_VS = VoxelShuffle(in_channels=32,  out_channels=1,upscale_factor=2)
-        self.up_1_conv = nn.Conv3d(in_channels=1,    out_channels=1,  kernel_size=3, dilation=1,  stride=1)
+        self.up_1_VS = VoxelShuffle(in_channels=32,  out_channels=1,    upscale_factor=2)
+        self.up_1_conv = nn.Conv3d(in_channels=1,    out_channels=1,    kernel_size=3, dilation=1,  stride=1, padding=1)
         self.final_activate_fun = nn.Tanh()
         
     def forward(self, x):
@@ -106,53 +107,67 @@ class UNet_v2(nn.Module):
         
         # Conv + ReLU (down sample)
         out=self.activate_fun(self.down_1_conv1(x))
-        print("layer1_conv1",out.shape)
+        # print("layer1_conv1",out.shape)
         out=self.activate_fun(self.down_1_conv2(out))
-        print("layer1_conv2",out.shape)
+        # print("layer1_conv2",out.shape)
         
         res_1 = out
         
         out=self.activate_fun(self.down_2_conv1(out))
-        print("layer2_conv1",out.shape)
+        # print("layer2_conv1",out.shape)
         out=self.activate_fun(self.down_2_conv2(out))
-        print("layer2_conv2",out.shape)
+        # print("layer2_conv2",out.shape)
         
         res_2 = out
         
         out=self.activate_fun(self.down_3_conv1(out))
-        print("layer3_conv1",out.shape)
+        # print("layer3_conv1",out.shape)
         out=self.activate_fun(self.down_3_conv2(out))
-        print("layer3_conv2",out.shape)
+        # print("layer3_conv2",out.shape)
         res_3 = out
         
         out=self.activate_fun(self.down_4_conv1(out))
-        print("layer4_conv1",out.shape)
+        # print("layer4_conv1",out.shape)
         out=self.activate_fun(self.down_4_conv2(out))
-        print("layer4_conv2",out.shape,"\n")
+        # print("layer4_conv2",out.shape,"\n")
         
         # dilated conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
         out=self.mid_middle1(out)
-        print("mid_1",out.shape)
+        # print("mid_1",out.shape)
         out=self.mid_middle2(out)
-        print("mid_2",out.shape)
+        # print("mid_2",out.shape)
         out=self.mid_middle3(out)
-        print("mid_3",out.shape,"\n")
+        # print("mid_3",out.shape,"\n")
         
         # VS+Conv+ReLU
         out=self.activate_fun(self.up_4_VS(out))
-        out=self.activate_fun(self.up_4_conv(out))
+        # print("layer4_VS",out.shape)
         out=torch.cat([out, res_3], dim=1)
+        # print("layer4_cat",out.shape)
+        out=self.activate_fun(self.up_4_conv(out))
+        # print("layer4_conv",out.shape)
+        
         
         out=self.activate_fun(self.up_3_VS(out))
-        out=self.activate_fun(self.up_3_conv(out))
+        # print("layer3_VS",out.shape)
         out=torch.cat([out, res_2], dim=1)
+        # print("layer3_cat",out.shape)
+        out=self.activate_fun(self.up_3_conv(out))
+        # print("layer3_conv",out.shape)
+        
         
         out=self.activate_fun(self.up_2_VS(out))
-        out=self.activate_fun(self.up_2_conv(out))
+        # print("layer2_VS",out.shape)
         out=torch.cat([out, res_1], dim=1)
+        # print("layer2_cat",out.shape)
+        out=self.activate_fun(self.up_2_conv(out))
+        # print("layer2_conv",out.shape)
+        
         
         out=self.activate_fun(self.up_1_VS(out))
+        # print("layer1_VS",out.shape)
         out=self.final_activate_fun(self.up_1_conv(out))
+        # print("layer1_conv(final)",out.shape)
         
         return out
     
@@ -179,3 +194,4 @@ class Dis_VCNet(nn.Module):
         out = self.avg(out)
         
         return out
+    

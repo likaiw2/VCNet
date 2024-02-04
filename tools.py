@@ -40,7 +40,7 @@ def crop_raw_128(origin_pos,new_pos):
     size=(128,128,128)
     # read original volume data.
     fileName = origin_pos
-    old_data = np.fromfile(fileName, dtype=np.float32)
+    old_data = np.fromfile(fileName, dtype=np.float32).reshape(160,224,168)
     assert (old_data.shape[0]>=size[0] and old_data.shape[1]>=size[1] and old_data.shape[2]>=size[2])
     
     # 取n=[32:160],h=[86:214],w=[20:148]最合适
@@ -50,6 +50,7 @@ def crop_raw_128(origin_pos,new_pos):
 
     new_data.astype('float32').tofile(new_pos)
     
+def detect_mask(real_volume,masked_volume)
     
 
 # generate_mask()   --> test GOOD      --2024.1.21
@@ -146,7 +147,6 @@ def generate_mask(volume_shape:[int,int,int],shape_type:int):
         for i in range(x.size):
             mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 1
 
-        
     elif shape_type == 4:    # cuboid
         # make shape grid
         random_x,random_y,random_z = int(max_x*random.random()),int(max_y*random.random()),int(max_z*random.random())
@@ -167,40 +167,74 @@ def generate_mask(volume_shape:[int,int,int],shape_type:int):
             mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 1
         
     elif shape_type == 5:    # cylinder         圆柱体
-        # make shape grid
-        random_x,random_y,random_z = int(max_x*random.random()),int(max_y*random.random()),int(max_z*random.random())
+        random_r,random_h = int(volume_shape[0]*random.random()),int(volume_shape[2]*random.random())
         
-        x,y,z = np.meshgrid(range(random_x),range(random_y),range(random_z))
-        x,y,z = np.reshape(x,(-1,1)),np.reshape(y,(-1,1)),np.reshape(z,(-1,1))
+        # make sure the size is less than 1/2 origin
+        while((random_r**2) * np.pi * random_h > volume_shape[0]*volume_shape[1]*volume_shape[2]/2):
+            random_r,random_h = int(volume_shape[0]*random.random()),int(volume_shape[2]*random.random())
+            
         # make position
-        pos_x = random.randint(0,int(volume_shape[0]-random_x))
-        pos_y = random.randint(0,int(volume_shape[1]-random_y))
-        pos_z = random.randint(0,int(volume_shape[2]-random_z))
+        pos_x = random.randint(random_r if (random_r<=int(volume_shape[0]-random_r)) else int(volume_shape[0]-random_r),
+                               int(volume_shape[0]-random_r) if (random_r>int(volume_shape[0]-random_r)) else random_r)
+        pos_y = random.randint(random_r if (random_r<=int(volume_shape[0]-random_r)) else int(volume_shape[0]-random_r),
+                               int(volume_shape[0]-random_r) if (random_r>int(volume_shape[0]-random_r)) else random_r)
+        pos_z = random.randint(0,int(volume_shape[2]-random_h))
         
-        # add position
-        # mask = [x,y,z]
-        mask = [x+pos_x,y+pos_y,z+pos_z]
-        mask_shape = [x.size,y.size,z.size]
-        mask_pos = [pos_x,pos_y,pos_z]
+        # calculate the distance, if distance_xy<r and z in the h, set 1
+        for i in range(volume_shape[0]):
+            for j in range(volume_shape[1]):
+                for k in range(volume_shape[2]):
+                    if ((i-pos_x)**2 + (j-pos_y)**2 <= random_r**2)and(k>=pos_z and k<=pos_z+random_h):
+                        mask_volume[i,j,k] = 1
         
-        for i in range(x.size):
-            mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 1
+        mask = "cylinder"
         
+    elif shape_type == 6:    # hyperboloid      双曲线体 暂时用球体替代
+        random_r = int(volume_shape[0]*random.random())
         
+        # make sure the size is less than 1/2 origin
+        while((random_r**2) * np.pi * 4/3 > volume_shape[0]*volume_shape[1]*volume_shape[2]/2):
+            random_r = int(volume_shape[0]*random.random())
+            
+        # make position
+        random_r if (random_r<=int(volume_shape[0]-random_r)) else int(volume_shape[0]-random_r)
+        pos_x = random.randint(random_r if (random_r<=int(volume_shape[0]-random_r)) else int(volume_shape[0]-random_r),
+                               int(volume_shape[0]-random_r) if (random_r>int(volume_shape[0]-random_r)) else random_r)
+        pos_y = random.randint(random_r if (random_r<=int(volume_shape[0]-random_r)) else int(volume_shape[0]-random_r),
+                               int(volume_shape[0]-random_r) if (random_r>int(volume_shape[0]-random_r)) else random_r)
+        pos_z = random.randint(random_r if (random_r<=int(volume_shape[0]-random_r)) else int(volume_shape[0]-random_r),
+                               int(volume_shape[0]-random_r) if (random_r>int(volume_shape[0]-random_r)) else random_r)
         
-        
-        r = 1
-        h = 2
-        theta = np.linspace(0, 2 * np.pi)
-        
-        
-        
-        
-        
-    elif shape_type == 6:    # hyperboloid      双曲线体
-        ...
+        # calculate the distance, if distance_xy<r and z in the h, set 1
+        for i in range(volume_shape[0]):
+            for j in range(volume_shape[1]):
+                for k in range(volume_shape[2]):
+                    if ((i-pos_x)**2 + (j-pos_y)**2 + (k-pos_z)**2 <= random_r**2):
+                        mask_volume[i,j,k] = 1
+                        
     elif shape_type == 7:    # sphere           球体
-        ...
+        random_r = int(volume_shape[0]*random.random())
+        
+        # make sure the size is less than 1/2 origin
+        while((random_r**2) * np.pi * 4/3 > volume_shape[0]*volume_shape[1]*volume_shape[2]/2):
+            random_r = int(volume_shape[0]*random.random())
+            
+        # make position
+        random_r if (random_r<=int(volume_shape[0]-random_r)) else int(volume_shape[0]-random_r)
+        pos_x = random.randint(random_r if (random_r<=int(volume_shape[0]-random_r)) else int(volume_shape[0]-random_r),
+                               int(volume_shape[0]-random_r) if (random_r>int(volume_shape[0]-random_r)) else random_r)
+        pos_y = random.randint(random_r if (random_r<=int(volume_shape[0]-random_r)) else int(volume_shape[0]-random_r),
+                               int(volume_shape[0]-random_r) if (random_r>int(volume_shape[0]-random_r)) else random_r)
+        pos_z = random.randint(random_r if (random_r<=int(volume_shape[0]-random_r)) else int(volume_shape[0]-random_r),
+                               int(volume_shape[0]-random_r) if (random_r>int(volume_shape[0]-random_r)) else random_r)
+        
+        # calculate the distance, if distance_xy<r and z in the h, set 1
+        for i in range(volume_shape[0]):
+            for j in range(volume_shape[1]):
+                for k in range(volume_shape[2]):
+                    if ((i-pos_x)**2 + (j-pos_y)**2 + (k-pos_z)**2 <= random_r**2):
+                        mask_volume[i,j,k] = 1
+                        
     elif shape_type == 8:    # tetrahedron      四面体
         ...
     elif shape_type == 9:    # ring             环
@@ -215,7 +249,7 @@ def generate_mask(volume_shape:[int,int,int],shape_type:int):
 
 # DataSet   --> not test assume good  --2024.1.22
 class DataSet(Dataset): #定义Dataset类的名称
-    def __init__(self,data_path="", volume_shape=(160, 224, 168), mask_type="test", prefix="norm_ct.",data_type="raw",max_index=70,float32DataType=np.float32): 
+    def __init__(self,data_path="", volume_shape=(128, 128, 128), mask_type="test", prefix="original_volume_",data_type="raw",max_index=70,float32DataType=np.float32): 
         self.data_path = data_path              
         self.prefix = prefix
         self.max_index = max_index                   # largest index
@@ -232,11 +266,12 @@ class DataSet(Dataset): #定义Dataset类的名称
         return self.max_index     # =70.
         
     def __getitem__(self, index=0):               # index: [0, 69].
-        assert (index>=0 and index<self.max_index),f"The index {index} of the data is out of range: 0-{self.max_index}"
+        assert (index>=0 and index<self.max_index),f"The index {index} of the data is out of range: [0,{self.max_index}]"
         assert (os.path.exists(self.data_path)),f"Path [{self.data_path}] is not exist"
 
         # read original volume data.
-        fileName = f"{self.data_path}/{self.prefix}{index:03d}.{self.data_type}"
+        fileName = f"{self.data_path}/{self.prefix}{index+1:03d}.{self.data_type}"
+        print("    Reading: ",fileName)
         volume_data = np.fromfile(fileName, dtype=self.float32DataType)
         volume_data = torch.from_numpy(volume_data)                                                             # convert numpy data into tensor
         mask_volume = []
@@ -276,7 +311,7 @@ class WeightedMSELoss(nn.Module):
 
     def forward(self, y_true, y_pred):
         ones = torch.ones_like(y_true[0, :])
-        idx = torch.cumsum(ones, dim=0)             # calculate the accumulate sum
+        idx = torch.cumsum(ones, dim=0).clone()             # calculate the accumulate sum
         weights = 1 / idx
 
         mse_loss = F.mse_loss(y_true, y_pred, reduction='none')
