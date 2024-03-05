@@ -12,12 +12,12 @@ import torch
 # dim = (96, 240, 384)    # [depth, height, width]. pelvic
 
 # set path(for windows test)
-# dataSourcePath = "C:\Files\Research\dataSet0"
-# dataSavePath = "C:\Files\Research\VCNet\dataSave"
+dataSourcePath = "C:\Files\Research\dataSet0"
+dataSavePath = "C:\Files\Research\VCNet\dataSave"
 
 # set path(for macbook test)
-dataSourcePath = "/Users/wanglikai/Codes/Volume_Complete/dataSet1"
-dataSavePath = "/Users/wanglikai/Codes/Volume_Complete/VCNet/dataSave"
+# dataSourcePath = "/Users/wanglikai/Codes/Volume_Complete/dataSet1"
+# dataSavePath = "/Users/wanglikai/Codes/Volume_Complete/VCNet/dataSave"
 
 pthLoadPath = ""
 # device=torch.device("cuda:0")
