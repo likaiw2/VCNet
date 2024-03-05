@@ -1,7 +1,7 @@
 import os
 import random
 import torch
-import pytest
+# import pytest
 
 import numpy as np
 import torch.nn as nn
@@ -50,7 +50,7 @@ def crop_raw_128(origin_pos,new_pos):
 
     new_data.astype('float32').tofile(new_pos)
     
-def detect_mask(real_volume,masked_volume)
+# def detect_mask(real_volume,masked_volume)
     
 
 # generate_mask()   --> test GOOD      --2024.1.21
