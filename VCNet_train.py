@@ -12,19 +12,18 @@ import torch
 # dim = (96, 240, 384)    # [depth, height, width]. pelvic
 
 # set path(for windows test)
-dataSourcePath = "C:\Files\Research\dataSet0"
-dataSavePath = "C:\Files\Research\VCNet\dataSave"
+dataSourcePath = r"C:\Files\Research\dataSet2"
+dataSavePath = r"C:\Files\Research\VCNet\dataSave"
 
 # set path(for macbook test)
 # dataSourcePath = "/Users/wanglikai/Codes/Volume_Complete/dataSet1"
 # dataSavePath = "/Users/wanglikai/Codes/Volume_Complete/VCNet/dataSave"
 
 # set path(for linux Server)
-dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"
-dataSavePath = "/home/dell/storage/WANGLIKAI/VCNet/Output"
+# dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"                                                                                    
 
 pthLoadPath = ""
-device=torch.device("cuda:1")
+device=torch.device("cuda:0")
 # device=torch.device("cpu")
 
 torch.autograd.set_detect_anomaly(True)
@@ -72,7 +71,7 @@ float32DataType = np.float32
 
 trainDataset = tools.DataSet(data_path=dataSourcePath,
                              volume_shape=dim,
-                             mask_type="test",
+                             mask_type="train",
                              prefix="original_volume_",
                              data_type="raw",
                              float32DataType=np.float32,
@@ -138,17 +137,14 @@ def pre_train(save_model=True,p_epochs=400):
 
             # wrap them into torch.tensor
             real_volume = real_volume.clone().detach().requires_grad_(True).float().to(device)
-            # real_volume = real_volume.clone().detach().requires_grad_(True).to(device)
             masked_volume = masked_volume.clone().detach().requires_grad_(True).float().to(device)
-            # masked_volume = masked_volume.clone().detach().requires_grad_(True).to(device)
             # mask = torch.tensor(mask,requires_grad=True).to(device)
             # output_volume = gen(masked_volume)
             output_volume = gen(masked_volume).to(device)
             # update the generator only
             gen_loss = Loss_G_rec(real_volume.detach(),output_volume)
-            # total_gen_loss.append(gen_loss)
-            print("    Weighted MSE Loss:", gen_loss.item())
-            # print()
+            total_gen_loss.append(gen_loss)
+            # print("    Weighted MSE Loss:", gen_loss.item())
             
             gen_opt.zero_grad()  # Zero out the gradient before back propagation
             gen_loss.backward()

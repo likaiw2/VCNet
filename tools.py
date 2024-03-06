@@ -271,7 +271,7 @@ class DataSet(Dataset): #定义Dataset类的名称
 
         # read original volume data.
         fileName = f"{self.data_path}/{self.prefix}{index+1:03d}.{self.data_type}"
-        print("    Reading: ",fileName)
+        # print("    Reading: ",fileName)
         volume_data = np.fromfile(fileName, dtype=self.float32DataType)
         volume_data = torch.from_numpy(volume_data)                                                             # convert numpy data into tensor
         mask_volume = []
@@ -286,18 +286,30 @@ class DataSet(Dataset): #定义Dataset类的名称
             # mask when train
             mask_index = random.randint(1,3)              #123
             mask_name = self.mask_name[mask_index]
-            mask_volume,mask = generate_mask(volume_shape=volume_data.shape, shape_type=mask_index)
+            mask_volume,mask = generate_mask(volume_shape=self.volume_shape, shape_type=mask_index)
+            volume_data = volume_data.view([self.volume_shape[0], self.volume_shape[1], self.volume_shape[2]])   # reshape into [depth, height, width].
             masked_volume_data = volume_data * (1 - mask_volume)
+            # print("index:",mask_index)
+            # print("name:",mask_name)
+            
+            # saveRawFile10(f"dataSave/test/",
+            #                         f"masked",
+            #                         mask_volume[0, 0, :, :, :])
+            
+            # saveRawFile10(f"dataSave/test/",
+            #                         f"masked_volume_data",
+            #                         masked_volume_data[0, 0, :, :, :])
             
         elif (self.mask_type == "predict"):
             # mask when predict
             mask_index = random.randint(3,9)              #3456789
             mask_name = self.mask_name[mask_index]
-            mask_volume,mask = generate_mask(volume_shape=volume_data.shape, shape_type=mask_index)
+            mask_volume,mask = generate_mask(volume_shape=self.volume_shape, shape_type=mask_index)
             masked_volume_data = volume_data * (1 - mask_volume)
             
         # mask_volume = torch.from_numpy(mask_volume)
         volume_data = volume_data.view([1, self.volume_shape[0], self.volume_shape[1], self.volume_shape[2]])   # reshape into [channels, depth, height, width].
+        masked_volume_data = masked_volume_data.view([1, self.volume_shape[0], self.volume_shape[1], self.volume_shape[2]])   # reshape into [channels, depth, height, width].
         
         return volume_data,masked_volume_data,mask_volume,index
 
