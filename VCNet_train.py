@@ -143,8 +143,8 @@ def pre_train(save_model=True,p_epochs=400):
             output_volume = gen(masked_volume).to(device)
             # update the generator only
             gen_loss = Loss_G_rec(real_volume.detach(),output_volume)
-            total_gen_loss.append(gen_loss)
-            # print("    Weighted MSE Loss:", gen_loss.item())
+            # total_gen_loss.append(gen_loss)
+            print("    Weighted MSE Loss:", gen_loss.item())
             
             gen_opt.zero_grad()  # Zero out the gradient before back propagation
             gen_loss.backward()
