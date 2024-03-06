@@ -12,15 +12,16 @@ import torch
 # dim = (96, 240, 384)    # [depth, height, width]. pelvic
 
 # set path(for windows test)
-dataSourcePath = r"C:\Files\Research\dataSet2"
-dataSavePath = r"C:\Files\Research\VCNet\dataSave"
+# dataSourcePath = r"C:\Files\Research\dataSet2"
+# dataSavePath = r"C:\Files\Research\VCNet\dataSave"
 
 # set path(for macbook test)
 # dataSourcePath = "/Users/wanglikai/Codes/Volume_Complete/dataSet1"
 # dataSavePath = "/Users/wanglikai/Codes/Volume_Complete/VCNet/dataSave"
 
 # set path(for linux Server)
-# dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"                                                                                    
+dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"
+dataSavePath = "/home/dell/storage/WANGLIKAI/VCNet/output"
 
 pthLoadPath = ""
 device=torch.device("cuda:0")
@@ -83,7 +84,7 @@ p_epochs = 400          # for pre train     # 预训练
 f_epochs = 100          # for fine tune     # 微调
 input_dim = 1
 real_dim = 1
-batch_size = 1          #原模型参数 10
+batch_size = 32          #原模型参数 10
 # lr = 5e-3             #learn rate 原模型参数 5e-3(0.005)
 lr = 0.0001
 weight_decay_adv = 0.001
@@ -279,5 +280,5 @@ def fine_tune(save_model=True,f_epochs=100):
 
             
 # when to train? how to swift train mode???????
-pre_train(True,400)
-fine_tune(True,100)
+pre_train(True,512)
+fine_tune(True,512)
