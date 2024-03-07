@@ -67,7 +67,7 @@ class ResidualBlock(nn.Module):
 class UNet_v2(nn.Module):
     def __init__(self, in_channel=1):   #n_classes 不知道干啥用的我给删掉了
         super(UNet_v2, self).__init__()
-        
+                             
         self.activate_fun = nn.ReLU(inplace=True)   # 原地修改数据，可以节省空间
         
         # Conv + ReLU (down sample)
@@ -102,7 +102,7 @@ class UNet_v2(nn.Module):
         self.up_1_conv = nn.Conv3d(in_channels=1,    out_channels=1,    kernel_size=3, dilation=1,  stride=1, padding=1)
         self.final_activate_fun = nn.Tanh()
         
-    def forward(self, x):
+    def forward(self, x,AE_mode=False):
         res_x = x
         
         # Conv + ReLU (down sample)
@@ -142,7 +142,8 @@ class UNet_v2(nn.Module):
         # VS+Conv+ReLU
         out=self.activate_fun(self.up_4_VS(out))
         # print("layer4_VS",out.shape)
-        out=torch.cat([out, res_3], dim=1)
+        if not AE_mode:
+            out=torch.cat([out, res_3], dim=1)
         # print("layer4_cat",out.shape)
         out=self.activate_fun(self.up_4_conv(out))
         # print("layer4_conv",out.shape)
@@ -150,7 +151,8 @@ class UNet_v2(nn.Module):
         
         out=self.activate_fun(self.up_3_VS(out))
         # print("layer3_VS",out.shape)
-        out=torch.cat([out, res_2], dim=1)
+        if not AE_mode:
+            out=torch.cat([out, res_2], dim=1)
         # print("layer3_cat",out.shape)
         out=self.activate_fun(self.up_3_conv(out))
         # print("layer3_conv",out.shape)
@@ -158,7 +160,8 @@ class UNet_v2(nn.Module):
         
         out=self.activate_fun(self.up_2_VS(out))
         # print("layer2_VS",out.shape)
-        out=torch.cat([out, res_1], dim=1)
+        if not AE_mode:
+            out=torch.cat([out, res_1], dim=1)
         # print("layer2_cat",out.shape)
         out=self.activate_fun(self.up_2_conv(out))
         # print("layer2_conv",out.shape)

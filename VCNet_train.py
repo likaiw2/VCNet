@@ -12,16 +12,16 @@ import torch
 # dim = (96, 240, 384)    # [depth, height, width]. pelvic
 
 # set path(for windows test)
-# dataSourcePath = r"C:\Files\Research\dataSet2"
-# dataSavePath = r"C:\Files\Research\VCNet\dataSave"
+dataSourcePath = r"C:\Files\Research\dataSet2"
+dataSavePath = r"C:\Files\Research\VCNet\dataSave"
 
 # set path(for macbook test)
 # dataSourcePath = "/Users/wanglikai/Codes/Volume_Complete/dataSet1"
 # dataSavePath = "/Users/wanglikai/Codes/Volume_Complete/VCNet/dataSave"
 
 # set path(for linux Server)
-dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"
-dataSavePath = "/home/dell/storage/WANGLIKAI/VCNet/output"
+# dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"
+# dataSavePath = "/home/dell/storage/WANGLIKAI/VCNet/output"
 
 pthLoadPath = ""
 device=torch.device("cuda:0")
@@ -84,7 +84,7 @@ p_epochs = 400          # for pre train     # 预训练
 f_epochs = 100          # for fine tune     # 微调
 input_dim = 1
 real_dim = 1
-batch_size = 32          #原模型参数 10
+batch_size = 2          #原模型参数 10
 # lr = 5e-3             #learn rate 原模型参数 5e-3(0.005)
 lr = 0.0001
 weight_decay_adv = 0.001
@@ -141,15 +141,15 @@ def pre_train(save_model=True,p_epochs=400):
             masked_volume = masked_volume.clone().detach().requires_grad_(True).float().to(device)
             # mask = torch.tensor(mask,requires_grad=True).to(device)
             # output_volume = gen(masked_volume)
-            output_volume = gen(masked_volume).to(device)
+            output_volume = gen(masked_volume,AE_mode=True)
             # update the generator only
             gen_loss = Loss_G_rec(real_volume.detach(),output_volume)
             # total_gen_loss.append(gen_loss)
             print("    Weighted MSE Loss:", gen_loss.item())
             
-            gen_opt.zero_grad()  # Zero out the gradient before back propagation
             gen_loss.backward()
             gen_opt.step()
+            gen_opt.zero_grad()  # Zero out the gradient before back propagation
             
             ### save model and generated volume(if need) ###
             if (cur_step+1) % display_step == 0 or cur_step == 1:
@@ -280,5 +280,5 @@ def fine_tune(save_model=True,f_epochs=100):
 
             
 # when to train? how to swift train mode???????
-pre_train(True,512)
+pre_train(True,80)
 fine_tune(True,512)
