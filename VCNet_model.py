@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 def voxel_shuffle(input, upscale_factor):
     batch_size, channels, in_height, in_width, in_depth = input.size()
-    channels //= upscale_factor ** 3
+    channels = channels // upscale_factor ** 3
 
     out_height = in_height * upscale_factor
     out_width = in_width * upscale_factor
@@ -131,40 +131,40 @@ class UNet_v2(nn.Module):
         out=self.activate_fun(self.down_4_conv2(out))
         # print("layer4_conv2",out.shape,"\n")
         
-        # dilated conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
-        out=self.mid_middle1(out)
-        # print("mid_1",out.shape)
-        out=self.mid_middle2(out)
-        # print("mid_2",out.shape)
-        out=self.mid_middle3(out)
-        # print("mid_3",out.shape,"\n")
+        # # dilated conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
+        # out=self.mid_middle1(out)
+        # # print("mid_1",out.shape)
+        # out=self.mid_middle2(out)
+        # # print("mid_2",out.shape)
+        # out=self.mid_middle3(out)
+        # # print("mid_3",out.shape,"\n")
         
         # VS+Conv+ReLU
         out=self.activate_fun(self.up_4_VS(out))
         # print("layer4_VS",out.shape)
         if not AE_mode:
             out=torch.cat([out, res_3], dim=1)
-        # print("layer4_cat",out.shape)
-        out=self.activate_fun(self.up_4_conv(out))
-        # print("layer4_conv",out.shape)
+            # print("layer4_cat",out.shape)
+            out=self.activate_fun(self.up_4_conv(out))
+            # print("layer4_conv",out.shape)
         
         
         out=self.activate_fun(self.up_3_VS(out))
         # print("layer3_VS",out.shape)
         if not AE_mode:
             out=torch.cat([out, res_2], dim=1)
-        # print("layer3_cat",out.shape)
-        out=self.activate_fun(self.up_3_conv(out))
-        # print("layer3_conv",out.shape)
+            # print("layer3_cat",out.shape)
+            out=self.activate_fun(self.up_3_conv(out))
+            # print("layer3_conv",out.shape)
         
         
         out=self.activate_fun(self.up_2_VS(out))
         # print("layer2_VS",out.shape)
         if not AE_mode:
             out=torch.cat([out, res_1], dim=1)
-        # print("layer2_cat",out.shape)
-        out=self.activate_fun(self.up_2_conv(out))
-        # print("layer2_conv",out.shape)
+            # print("layer2_cat",out.shape)
+            out=self.activate_fun(self.up_2_conv(out))
+            # print("layer2_conv",out.shape)
         
         
         out=self.activate_fun(self.up_1_VS(out))

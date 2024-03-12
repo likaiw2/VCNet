@@ -29,10 +29,10 @@ device=torch.device("cuda:0")
 
 torch.autograd.set_detect_anomaly(True)
 
-print(torch.__version__)  # 检查 PyTorch 版本
-print(torch.version.cuda)  # 检查 CUDA 版本
-print(torch.cuda.is_available())  # 检查是否可用 GPU
-print(torch.cuda.device_count())  # 检查 GPU 数量
+print("pytorch version:",torch.__version__)  # 检查 PyTorch 版本
+print("cuda version:",torch.version.cuda)  # 检查 CUDA 版本
+print("cuda available:",torch.cuda.is_available())  # 检查是否可用 GPU
+print("available cuda number:",torch.cuda.device_count())  # 检查 GPU 数量
 
 # clear cuda memory
 torch.cuda.empty_cache()

@@ -321,13 +321,10 @@ class WeightedMSELoss(nn.Module):
     def __init__(self):
         super(WeightedMSELoss, self).__init__()
 
-    def forward(self, y_true, y_pred):
-        ones = torch.ones_like(y_true[0, :])
-        idx = torch.cumsum(ones, dim=0).clone()             # calculate the accumulate sum
-        weights = 1 / idx
-
-        mse_loss = F.mse_loss(y_true, y_pred, reduction='none')
-        weighted_mse_loss = torch.mean(weights * mse_loss)
+    def forward(self, ground_truth, net_output,mask):
+        diff = net_output - ground_truth
+        valuable_part = mask * diff
+        valuable_part_norm = np.linalg.norm(valuable_part,ord=2)
 
         return weighted_mse_loss
 
