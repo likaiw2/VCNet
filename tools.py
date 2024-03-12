@@ -322,12 +322,26 @@ class WeightedMSELoss(nn.Module):
         super(WeightedMSELoss, self).__init__()
 
     def forward(self, ground_truth, net_output,mask):
-        diff = net_output - ground_truth
-        valuable_part = mask * diff
-        valuable_part_norm = np.linalg.norm(valuable_part,ord=2)
+        batch_size = ground_truth.shape[0]
+        # print(mask.shape)
+        iter_norm = []
+        
+        for i in range(batch_size):
+            V_ground_truth = ground_truth[i][0]
+            V_net_output = net_output[i][0]
+            V_mask = mask[i]
+            diff = V_net_output - V_ground_truth
+            valuable_part = V_mask * diff
+            # valuable_part_norm = np.linalg.norm(valuable_part,ord=2)
+            valuable_part_norm = torch.linalg.norm(valuable_part,dim=1,ord=2).cpu().detach().numpy()
+            iter_norm.append(valuable_part_norm)
+            
+        iter_norm = np.array(iter_norm)
+        
+        loss_WeightedMSE = torch.mean(torch.tensor(iter_norm,requires_grad=True).cuda())
 
-        return weighted_mse_loss
-
+        return loss_WeightedMSE
+    
 class AdversarialGLoss(nn.Module):
     # $\mathcal{L}_{\mathrm{adv}}^G=\frac{1}{n} \sum_{j=1}^n\left[\log D\left(\mathbf{M}_j^C \odot G\left(\mathbf{V}_{M, j}^C\right)+\left(\mathbf{1}-\mathbf{M}_j^C\right) \odot \mathbf{V}_j^C\right)\right]$
     def __init__(self, discriminator):

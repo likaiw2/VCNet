@@ -139,12 +139,15 @@ def pre_train(save_model=True,p_epochs=400):
             # wrap them into torch.tensor
             real_volume = real_volume.clone().detach().requires_grad_(True).float().to(device)
             masked_volume = masked_volume.clone().detach().requires_grad_(True).float().to(device)
-            # mask = torch.tensor(mask,requires_grad=True).to(device)
-            # output_volume = gen(masked_volume)
-            output_volume = gen(masked_volume,AE_mode=True)
+            mask = mask.clone().detach().requires_grad_(True).float().to(device)
+            
+            output_volume = gen(masked_volume,AE_mode=False)
+            
             # update the generator only
-            gen_loss = Loss_G_rec(real_volume.detach(),output_volume)
-            # total_gen_loss.append(gen_loss)
+            gen_loss = Loss_G_rec(real_volume.detach(),output_volume,mask)
+            if not gen_loss.requires_grad:
+                gen_loss.clone().detach().requires_grad_(True)
+
             print("    Weighted MSE Loss:", gen_loss.item())
             
             gen_loss.backward()
@@ -280,5 +283,5 @@ def fine_tune(save_model=True,f_epochs=100):
 
             
 # when to train? how to swift train mode???????
-pre_train(True,80)
+pre_train(True,512)
 fine_tune(True,512)
