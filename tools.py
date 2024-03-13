@@ -348,24 +348,26 @@ class AdversarialGLoss(nn.Module):
         super(AdversarialGLoss, self).__init__()
         self.discriminator = discriminator
 
-    def forward(self, G_output, V_M, M, V_real):
-        # G_output: Generator output for input V_M
-        # V_M: Masked input for generator
-        # M: Mask matrix
-        # V_real: Real data
+    def forward(self, ground_truth, net_output,mask):
+        batch_size = ground_truth.shape[0]
+        # print(mask.shape)
+        iter_norm = []
         
-        # Calculate the generated data mixed with real data
-        mixed_data = M * G_output + (1 - M) * V_real
-
-        # Calculate the discriminator's predictions for the mixed data
-        discriminator_output = self.discriminator(mixed_data)
-
-        # Calculate the adversarial loss using binary cross entropy
-        adversarial_loss = F.binary_cross_entropy_with_logits(discriminator_output, torch.ones_like(discriminator_output))
+        for i in range(batch_size):
+            V_ground_truth = ground_truth[i][0]
+            V_net_output = net_output[i][0]
+            V_mask = mask[i]
+            
+            mixed_data = V_mask * V_net_output + (1 - V_mask) * V_ground_truth
+            dis_output = self.discriminator(mixed_data)
+            
+            log_dis = torch.log10(dis_output)
+            
+            iter_norm.append(log_dis)
+            
+        iter_norm = np.array(iter_norm)
         
-        # Calculate the average adversarial loss across samples
-        n = G_output.size(0)  # Assuming the batch size is the first dimension
-        adversarial_loss = adversarial_loss / n
+        adversarial_loss = torch.mean(torch.tensor(iter_norm,requires_grad=True).cuda())
 
         return adversarial_loss
 
@@ -374,32 +376,35 @@ class AdversarialDLoss(nn.Module):
         super(AdversarialDLoss, self).__init__()
         self.discriminator = discriminator
 
-    def forward(self, V_real, G_output, V_M, M):
-        # V_real: Real data
-        # G_output: Generator output for input V_M
-        # V_M: Masked input for generator
-        # M: Mask matrix
+    def forward(self, ground_truth, net_output,mask):
+        batch_size = ground_truth.shape[0]
+        # print(mask.shape)
+        exp1 = []
+        exp2 = []
+        
+        for i in range(batch_size):
+            V_ground_truth = ground_truth[i][0]
+            V_net_output = net_output[i][0]
+            V_mask = mask[i]
+            
+            log_dis1 = torch.log10(self.discriminator(V_ground_truth))
+            exp1.append(log_dis1)
+            
+            mixed_data = V_mask * V_net_output + (1 - V_mask) * V_ground_truth
+            dis_output = self.discriminator(mixed_data)
+            
+            log_dis2 = torch.log10(1 - dis_output)
+            
+            exp2.append(log_dis2)
+            
+        exp1 = np.array(exp1)
+        exp2 = np.array(exp2)
+        
+        adversarial_loss1 = torch.mean(torch.tensor(exp1,requires_grad=True).cuda())
+        adversarial_loss2 = torch.mean(torch.tensor(exp2,requires_grad=True).cuda())
+        adversarial_loss = adversarial_loss1 + adversarial_loss2
 
-        # Calculate the discriminator's predictions for real data
-        real_discriminator_output = self.discriminator(V_real)
-
-        # Calculate the adversarial loss for real data
-        loss_real = F.binary_cross_entropy_with_logits(real_discriminator_output, torch.ones_like(real_discriminator_output))
-
-        # Calculate the generated data mixed with real data
-        mixed_data = M * G_output + (1 - M) * V_real
-
-        # Calculate the discriminator's predictions for mixed data
-        mixed_discriminator_output = self.discriminator(mixed_data)
-
-        # Calculate the adversarial loss for generated data
-        loss_generated = F.binary_cross_entropy_with_logits(mixed_discriminator_output, torch.zeros_like(mixed_discriminator_output))
-
-        # Calculate the average adversarial loss across samples
-        n = V_real.size(0)  # Assuming the batch size is the first dimension
-        total_loss = (loss_real + loss_generated) / (2 * n)
-
-        return total_loss
+        return adversarial_loss
 
 
 
