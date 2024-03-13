@@ -148,7 +148,7 @@ def pre_train(save_model=True,p_epochs=400):
             if not gen_loss.requires_grad:
                 gen_loss.clone().detach().requires_grad_(True)
 
-            print("    Weighted MSE Loss:", gen_loss.item())
+            # print("    Weighted MSE Loss:", gen_loss.item())
             
             gen_loss.backward()
             gen_opt.step()
@@ -163,7 +163,7 @@ def pre_train(save_model=True,p_epochs=400):
                 dt = time.time() - ot
                 elapsedTime = str(datetime.timedelta(seconds=dt))
                 per_epoch = str(datetime.timedelta(seconds=dt / (epoch+1)))
-                print(f"    epoch = {epoch}     dt={elapsedTime}    per-epoch={per_epoch}")
+                print(f"    (save)")
                 
                 # save generated volume
                 tools.saveRawFile10(f"{dataSavePath}/P_VCNet_{epoch}",
@@ -191,10 +191,15 @@ def pre_train(save_model=True,p_epochs=400):
                                 }, fileName)
                     
             cur_step += 1
-            
+        
+        # compute time
+        dt = time.time() - ot
+        elapsedTime = str(datetime.timedelta(seconds=dt))
+        per_epoch = str(datetime.timedelta(seconds=dt / (epoch+1)))
+        print(f"    epoch = {epoch}/{p_epochs}     dt={elapsedTime}    per-epoch={per_epoch}")    
 
     t2 = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-    print("##train finished(brain)##  time:",t2)
+    print("##train finished##  time:",t2)
     print("total train time:")
     print("start:",t1)
     print("end:",t2)
@@ -204,14 +209,15 @@ def fine_tune(save_model=True,f_epochs=100):
     # read the start time
     ot = time.time()
     t1 = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-    print("##fine tune train start##  time:",t1)
+    print("## pre train start ##  time:",t1)
     
-    mean_generator_loss = 0
-    mean_discriminator_loss = 0
-    display_step = np.ceil(np.ceil(max_train_index / batch_size) * f_epochs / 20)   #一共输出20个epoch，供判断用
+    # dataloader = DataLoader(trainDataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    dataloader = DataLoader(trainDataset, batch_size=batch_size, drop_last=True)
+    print("    data loaded!")
+    gen_opt.param_groups[0]['weight_decay'] = weight_decay_rec
     
-    dataloader = DataLoader(trainDataset, batch_size=batch_size, shuffle=True)
-    gen_opt.param_groups[0]['weight_decay'] = weight_decay_adv
+    display_step = np.ceil(np.ceil(max_train_index / batch_size) * p_epochs / 20)   #一共输出20个epoch，供判断用
+    cur_step = 0
 
     for epoch in range(f_epochs):
         # Dataloader returns the batches
@@ -219,25 +225,23 @@ def fine_tune(save_model=True,f_epochs=100):
 
             # wrap them into torch.tensor
             real_volume = torch.tensor(real_volume,requires_grad=True).float().to(device)
-            # real_volume = torch.tensor(real_volume, requires_grad=True).to(device)
             masked_volume = torch.tensor(masked_volume,requires_grad=True).float().to(device)
-            # masked_volume = torch.tensor(masked_volume, requires_grad=True).to(device)
             mask = torch.tensor(mask,requires_grad=True).to(device)
             output_volume = gen(masked_volume).to(device)
             
             # update disc
-            disc_loss = Loss_D_Adv(real_dim,output_volume,masked_volume,mask)
-            total_disc_loss.append(disc_loss)
-            print("Adv Disc Loss:", disc_loss.item())
+            disc_loss = Loss_D_Adv(real_volume,output_volume,mask)
+            # total_disc_loss.append(disc_loss)
+            # print("Adv Disc Loss:", disc_loss.item())
             
             disc_opt.zero_grad()  # Zero out the gradient before back propagation
             disc_loss.backward()
             disc_opt.step()
             
             # update gen
-            gen_loss = Loss_G_Adv(output_volume,masked_volume,mask,real_volume)
-            total_gen_loss.append(gen_loss)
-            print("Adv Gen Loss:", gen_loss.item())
+            gen_loss = Loss_G_Adv(real_volume,output_volume,mask)
+            # total_gen_loss.append(gen_loss)
+            # print("Adv Gen Loss:", gen_loss.item())
             
             gen_opt.zero_grad()
             gen_loss.backward()

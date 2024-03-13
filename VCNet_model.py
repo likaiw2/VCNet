@@ -89,6 +89,8 @@ class UNet_v2(nn.Module):
         self.mid_middle3 = ResidualBlock(in_channels=256,out_channels=256)
 
         # VS+Conv+ReLU
+        # self.up_4_tconv = nn.ConvTranspose3d(in_channels=256, out_channels=128,kernel_size=3)
+        
         self.up_4_VS = VoxelShuffle(in_channels=256, out_channels=128,  upscale_factor=2)
         self.up_4_conv = nn.Conv3d(in_channels=256,  out_channels=128,  kernel_size=3, dilation=1,  stride=1, padding=1)
 
@@ -131,13 +133,13 @@ class UNet_v2(nn.Module):
         out=self.activate_fun(self.down_4_conv2(out))
         # print("layer4_conv2",out.shape,"\n")
         
-        # # dilated conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
-        # out=self.mid_middle1(out)
-        # # print("mid_1",out.shape)
-        # out=self.mid_middle2(out)
-        # # print("mid_2",out.shape)
-        # out=self.mid_middle3(out)
-        # # print("mid_3",out.shape,"\n")
+        # dilated conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
+        out=self.mid_middle1(out)
+        # print("mid_1",out.shape)
+        out=self.mid_middle2(out)
+        # print("mid_2",out.shape)
+        out=self.mid_middle3(out)
+        # print("mid_3",out.shape,"\n")
         
         # VS+Conv+ReLU
         out=self.activate_fun(self.up_4_VS(out))
