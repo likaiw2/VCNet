@@ -7,6 +7,7 @@ import datetime
 import tools
 import numpy as np
 import torch
+import sys
 
 # dim = (160, 224, 168)   # [depth, height, width]. brain
 # dim = (96, 240, 384)    # [depth, height, width]. pelvic
@@ -119,6 +120,10 @@ else:
     disc = disc.apply(weights_init)
     
 def pre_train(save_model=True,p_epochs=400):
+    
+    test_mode=False
+    VS_upscale=True
+    
     # read the start time
     ot = time.time()
     t1 = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
@@ -133,17 +138,18 @@ def pre_train(save_model=True,p_epochs=400):
     cur_step = 0
 
     for epoch in range(p_epochs):
+        if epoch == 1:
+            sys.exit()
         # Dataloader returns the batches
         for real_volume,masked_volume,mask,index in dataloader:
-
             # wrap them into torch.tensor
             real_volume = real_volume.clone().detach().requires_grad_(True).float().to(device)
             masked_volume = masked_volume.clone().detach().requires_grad_(True).float().to(device)
             mask = mask.clone().detach().requires_grad_(True).float().to(device)
             
             output_volume = gen(masked_volume,
-                                AE_mode=False,
-                                VS_upscale=True)
+                                test_mode,
+                                VS_upscale)
             
             # update the generator only
             gen_loss = Loss_G_rec(real_volume.detach(),output_volume,mask)

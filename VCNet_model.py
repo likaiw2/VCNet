@@ -112,7 +112,7 @@ class UNet_v2(nn.Module):
         self.up_1_conv = nn.Conv3d(in_channels=1,    out_channels=1,    kernel_size=3, dilation=1,  stride=1, padding=1)
         self.final_activate_fun = nn.Tanh()
         
-    def forward(self, x,AE_mode=False,VS_upscale=True):
+    def forward(self, x,test_mode=False,VS_upscale=True):
         res_x = x
         
         # Conv + ReLU (down sample)
@@ -120,8 +120,8 @@ class UNet_v2(nn.Module):
         # print("layer1_conv1",out.shape)
         out=self.activate_fun(self.pool1(out))
         # print("layer1_conv2",out.shape)
-        # for i in range(32):
-        #     tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_64",f"testRAW_{i}",out[0, i, :, :, :])
+        for i in range(32):
+            tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_64",f"testRAW_{i}",out[0, i, :, :, :])
         
         res_1 = out
         
@@ -129,21 +129,27 @@ class UNet_v2(nn.Module):
         # print("layer2_conv1",out.shape)
         out=self.activate_fun(self.pool2(out))
         # print("layer2_conv2",out.shape)
-        # for i in range(32):
-        #     tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_32",f"testRAW_{i}",out[0, i, :, :, :])
-            
+        if test_mode:
+            for i in range(32):
+                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_32",f"testRAW_{i}",out[0, i, :, :, :])
         res_2 = out
         
         out=self.activate_fun(self.down_3_conv2(out))
         # print("layer3_conv1",out.shape)
         out=self.activate_fun(self.pool3(out))
         # print("layer3_conv2",out.shape)
+        if test_mode:
+            for i in range(32):
+                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_16",f"testRAW_{i}",out[0, i, :, :, :])
         res_3 = out
         
         out=self.activate_fun(self.down_4_conv2(out))
         # print("layer4_conv1",out.shape)
         out=self.activate_fun(self.pool4(out))
         # print("layer4_conv2",out.shape,"\n")
+        if test_mode:
+            for i in range(32):
+                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_8",f"testRAW_{i}",out[0, i, :, :, :])
         
         # dilated conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
         out=self.mid_middle1(out)
@@ -151,6 +157,9 @@ class UNet_v2(nn.Module):
         out=self.mid_middle2(out)
         # print("mid_2",out.shape)
         out=self.mid_middle3(out)
+        if test_mode:
+            for i in range(32):
+                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#mid",f"testRAW_{i}",out[0, i, :, :, :])
         # print("mid_3",out.shape,"\n")
         
         # VS+Conv+ReLU
@@ -159,24 +168,26 @@ class UNet_v2(nn.Module):
         else:
             out=self.activate_fun(self.up_4_tconv(out))
         # print("layer4_VS",out.shape)
-        if not AE_mode:
-            out=torch.cat([out, res_3], dim=1)
-            # print("layer4_cat",out.shape)
-            out=self.activate_fun(self.up_4_conv(out))
-            # print("layer4_conv",out.shape)
+        out=torch.cat([out, res_3], dim=1)
+        # print("layer4_cat",out.shape)
+        out=self.activate_fun(self.up_4_conv(out))
+        if test_mode:
+            for i in range(32):
+                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#up_16",f"testRAW_{i}",out[0, i, :, :, :])
+        # print("layer4_conv",out.shape)
         
         if VS_upscale:
             out=self.activate_fun(self.up_3_VS(out))
         else:
             out=self.activate_fun(self.up_3_tconv(out))
         # print("layer3_VS",out.shape)
-        if not AE_mode:
-            out=torch.cat([out, res_2], dim=1)
-            # print("layer3_cat",out.shape)
-            out=self.activate_fun(self.up_3_conv(out))
-            # print("layer3_conv",out.shape)
-        # for i in range(32):
-        #     tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#up_32",f"testRAW_{i}",out[0, i, :, :, :])
+        out=torch.cat([out, res_2], dim=1)
+        # print("layer3_cat",out.shape)
+        out=self.activate_fun(self.up_3_conv(out))
+        # print("layer3_conv",out.shape)
+        if test_mode:
+            for i in range(32):
+                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#up_32",f"testRAW_{i}",out[0, i, :, :, :])
         
         
         if VS_upscale:
@@ -184,13 +195,13 @@ class UNet_v2(nn.Module):
         else:
             out=self.activate_fun(self.up_2_tconv(out))
         # print("layer2_VS",out.shape)
-        if not AE_mode:
-            out=torch.cat([out, res_1], dim=1)
-            # print("layer2_cat",out.shape)
-            out=self.activate_fun(self.up_2_conv(out))
-            # print("layer2_conv",out.shape)
-        # for i in range(32):
-        #     tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#up_64",f"testRAW_{i}",out[0, i, :, :, :])
+        out=torch.cat([out, res_1], dim=1)
+        # print("layer2_cat",out.shape)
+        out=self.activate_fun(self.up_2_conv(out))
+        # print("layer2_conv",out.shape)
+        if test_mode:
+            for i in range(32):
+                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#up_64",f"testRAW_{i}",out[0, i, :, :, :])
         
         
         if VS_upscale:
