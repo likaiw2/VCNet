@@ -72,18 +72,23 @@ class UNet_v2(nn.Module):
         self.activate_fun = nn.ReLU(inplace=True)   # 原地修改数据，可以节省空间
         
         # Conv + ReLU (down sample)
-        self.down_1_conv1 = nn.Conv3d(in_channels=1,   out_channels=32,  kernel_size=4, dilation=1,  stride=2, padding=1)
-        self.down_1_conv2 = nn.Conv3d(in_channels=32,  out_channels=32,  kernel_size=3, dilation=1,  stride=1, padding=1)
+        self.down_1_conv1 = nn.Conv3d(in_channels=32,   out_channels=32,  kernel_size=4, dilation=1,  stride=2, padding=1)
+        self.down_1_conv2 = nn.Conv3d(in_channels=1,  out_channels=32,  kernel_size=3, dilation=1,  stride=1, padding=1)
         
-        self.down_2_conv1 = nn.Conv3d(in_channels=32,  out_channels=64,  kernel_size=4, dilation=1,  stride=2, padding=1)
-        self.down_2_conv2 = nn.Conv3d(in_channels=64,  out_channels=64,  kernel_size=3, dilation=1,  stride=1, padding=1)
+        self.down_2_conv1 = nn.Conv3d(in_channels=64,  out_channels=64,  kernel_size=4, dilation=1,  stride=2, padding=1)
+        self.down_2_conv2 = nn.Conv3d(in_channels=32,  out_channels=64,  kernel_size=3, dilation=1,  stride=1, padding=1)
         
-        self.down_3_conv1 = nn.Conv3d(in_channels=64,  out_channels=128, kernel_size=4, dilation=1,  stride=2, padding=1)
-        self.down_3_conv2 = nn.Conv3d(in_channels=128, out_channels=128, kernel_size=3, dilation=1,  stride=1, padding=1)
+        self.down_3_conv1 = nn.Conv3d(in_channels=128,  out_channels=128, kernel_size=4, dilation=1,  stride=2, padding=1)
+        self.down_3_conv2 = nn.Conv3d(in_channels=64, out_channels=128, kernel_size=3, dilation=1,  stride=1, padding=1)
         
-        self.down_4_conv1 = nn.Conv3d(in_channels=128, out_channels=256, kernel_size=4, dilation=1,  stride=2, padding=1)
-        self.down_4_conv2 = nn.Conv3d(in_channels=256, out_channels=256, kernel_size=3, dilation=1,  stride=1, padding=1)
+        self.down_4_conv1 = nn.Conv3d(in_channels=256, out_channels=256, kernel_size=4, dilation=1,  stride=2, padding=1)
+        self.down_4_conv2 = nn.Conv3d(in_channels=128, out_channels=256, kernel_size=3, dilation=1,  stride=1, padding=1)
 
+        self.pool1 = nn.MaxPool3d(2)
+        self.pool2 = nn.MaxPool3d(2)
+        self.pool3 = nn.MaxPool3d(2)
+        self.pool4 = nn.MaxPool3d(2)
+        
         # dilated conv + RB 作者表述不清不楚， 邮件询问后，得到三个 dilated RB 一模一样
         self.mid_middle1 = ResidualBlock(in_channels=256,out_channels=256)
         self.mid_middle2 = ResidualBlock(in_channels=256,out_channels=256)
@@ -111,33 +116,33 @@ class UNet_v2(nn.Module):
         res_x = x
         
         # Conv + ReLU (down sample)
-        out=self.activate_fun(self.down_1_conv1(x))
+        out=self.activate_fun(self.down_1_conv2(x))
         # print("layer1_conv1",out.shape)
-        out=self.activate_fun(self.down_1_conv2(out))
+        out=self.activate_fun(self.down_1_conv1(out))
         # print("layer1_conv2",out.shape)
         # for i in range(32):
         #     tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_64",f"testRAW_{i}",out[0, i, :, :, :])
         
         res_1 = out
         
-        out=self.activate_fun(self.down_2_conv1(out))
-        # print("layer2_conv1",out.shape)
         out=self.activate_fun(self.down_2_conv2(out))
+        # print("layer2_conv1",out.shape)
+        out=self.activate_fun(self.down_2_conv1(out))
         # print("layer2_conv2",out.shape)
         # for i in range(32):
         #     tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_32",f"testRAW_{i}",out[0, i, :, :, :])
             
         res_2 = out
         
-        out=self.activate_fun(self.down_3_conv1(out))
-        # print("layer3_conv1",out.shape)
         out=self.activate_fun(self.down_3_conv2(out))
+        # print("layer3_conv1",out.shape)
+        out=self.activate_fun(self.down_3_conv1(out))
         # print("layer3_conv2",out.shape)
         res_3 = out
         
-        out=self.activate_fun(self.down_4_conv1(out))
-        # print("layer4_conv1",out.shape)
         out=self.activate_fun(self.down_4_conv2(out))
+        # print("layer4_conv1",out.shape)
+        out=self.activate_fun(self.down_4_conv1(out))
         # print("layer4_conv2",out.shape,"\n")
         
         # dilated conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
