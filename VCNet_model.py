@@ -118,7 +118,7 @@ class UNet_v2(nn.Module):
         # Conv + ReLU (down sample)
         out=self.activate_fun(self.down_1_conv2(x))
         # print("layer1_conv1",out.shape)
-        out=self.activate_fun(self.down_1_conv1(out))
+        out=self.activate_fun(self.pool1(out))
         # print("layer1_conv2",out.shape)
         # for i in range(32):
         #     tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_64",f"testRAW_{i}",out[0, i, :, :, :])
@@ -127,7 +127,7 @@ class UNet_v2(nn.Module):
         
         out=self.activate_fun(self.down_2_conv2(out))
         # print("layer2_conv1",out.shape)
-        out=self.activate_fun(self.down_2_conv1(out))
+        out=self.activate_fun(self.pool2(out))
         # print("layer2_conv2",out.shape)
         # for i in range(32):
         #     tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_32",f"testRAW_{i}",out[0, i, :, :, :])
@@ -136,13 +136,13 @@ class UNet_v2(nn.Module):
         
         out=self.activate_fun(self.down_3_conv2(out))
         # print("layer3_conv1",out.shape)
-        out=self.activate_fun(self.down_3_conv1(out))
+        out=self.activate_fun(self.pool3(out))
         # print("layer3_conv2",out.shape)
         res_3 = out
         
         out=self.activate_fun(self.down_4_conv2(out))
         # print("layer4_conv1",out.shape)
-        out=self.activate_fun(self.down_4_conv1(out))
+        out=self.activate_fun(self.pool4(out))
         # print("layer4_conv2",out.shape,"\n")
         
         # dilated conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
