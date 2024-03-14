@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import numpy as np
 import torch.nn.functional as F
+import tools
 
 
 
@@ -89,22 +90,24 @@ class UNet_v2(nn.Module):
         self.mid_middle3 = ResidualBlock(in_channels=256,out_channels=256)
 
         # VS+Conv+ReLU
-        # self.up_4_tconv = nn.ConvTranspose3d(in_channels=256, out_channels=128,kernel_size=3)
-        
+        self.up_4_tconv = nn.ConvTranspose3d(in_channels=256, out_channels=128,kernel_size=4,stride=2,padding=1)
         self.up_4_VS = VoxelShuffle(in_channels=256, out_channels=128,  upscale_factor=2)
         self.up_4_conv = nn.Conv3d(in_channels=256,  out_channels=128,  kernel_size=3, dilation=1,  stride=1, padding=1)
 
+        self.up_3_tconv = nn.ConvTranspose3d(in_channels=128, out_channels=64,kernel_size=4,stride=2,padding=1)
         self.up_3_VS = VoxelShuffle(in_channels=128, out_channels=64,   upscale_factor=2)
         self.up_3_conv = nn.Conv3d(in_channels=128,  out_channels=64,   kernel_size=3, dilation=1,  stride=1, padding=1)
         
+        self.up_2_tconv = nn.ConvTranspose3d(in_channels=64, out_channels=32,kernel_size=4,stride=2,padding=1)
         self.up_2_VS = VoxelShuffle(in_channels=64,  out_channels=32,   upscale_factor=2)
         self.up_2_conv = nn.Conv3d(in_channels=64,   out_channels=32,   kernel_size=3, dilation=1,  stride=1, padding=1)
         
+        self.up_1_tconv = nn.ConvTranspose3d(in_channels=32, out_channels=1,kernel_size=4,stride=2,padding=1)
         self.up_1_VS = VoxelShuffle(in_channels=32,  out_channels=1,    upscale_factor=2)
         self.up_1_conv = nn.Conv3d(in_channels=1,    out_channels=1,    kernel_size=3, dilation=1,  stride=1, padding=1)
         self.final_activate_fun = nn.Tanh()
         
-    def forward(self, x,AE_mode=False):
+    def forward(self, x,AE_mode=False,VS_upscale=True):
         res_x = x
         
         # Conv + ReLU (down sample)
@@ -112,6 +115,8 @@ class UNet_v2(nn.Module):
         # print("layer1_conv1",out.shape)
         out=self.activate_fun(self.down_1_conv2(out))
         # print("layer1_conv2",out.shape)
+        # for i in range(32):
+        #     tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_64",f"testRAW_{i}",out[0, i, :, :, :])
         
         res_1 = out
         
@@ -119,7 +124,9 @@ class UNet_v2(nn.Module):
         # print("layer2_conv1",out.shape)
         out=self.activate_fun(self.down_2_conv2(out))
         # print("layer2_conv2",out.shape)
-        
+        # for i in range(32):
+        #     tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_32",f"testRAW_{i}",out[0, i, :, :, :])
+            
         res_2 = out
         
         out=self.activate_fun(self.down_3_conv1(out))
@@ -142,7 +149,10 @@ class UNet_v2(nn.Module):
         # print("mid_3",out.shape,"\n")
         
         # VS+Conv+ReLU
-        out=self.activate_fun(self.up_4_VS(out))
+        if VS_upscale:
+            out=self.activate_fun(self.up_4_VS(out))
+        else:
+            out=self.activate_fun(self.up_4_tconv(out))
         # print("layer4_VS",out.shape)
         if not AE_mode:
             out=torch.cat([out, res_3], dim=1)
@@ -150,26 +160,38 @@ class UNet_v2(nn.Module):
             out=self.activate_fun(self.up_4_conv(out))
             # print("layer4_conv",out.shape)
         
-        
-        out=self.activate_fun(self.up_3_VS(out))
+        if VS_upscale:
+            out=self.activate_fun(self.up_3_VS(out))
+        else:
+            out=self.activate_fun(self.up_3_tconv(out))
         # print("layer3_VS",out.shape)
         if not AE_mode:
             out=torch.cat([out, res_2], dim=1)
             # print("layer3_cat",out.shape)
             out=self.activate_fun(self.up_3_conv(out))
             # print("layer3_conv",out.shape)
+        # for i in range(32):
+        #     tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#up_32",f"testRAW_{i}",out[0, i, :, :, :])
         
         
-        out=self.activate_fun(self.up_2_VS(out))
+        if VS_upscale:
+            out=self.activate_fun(self.up_2_VS(out))
+        else:
+            out=self.activate_fun(self.up_2_tconv(out))
         # print("layer2_VS",out.shape)
         if not AE_mode:
             out=torch.cat([out, res_1], dim=1)
             # print("layer2_cat",out.shape)
             out=self.activate_fun(self.up_2_conv(out))
             # print("layer2_conv",out.shape)
+        # for i in range(32):
+        #     tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#up_64",f"testRAW_{i}",out[0, i, :, :, :])
         
         
-        out=self.activate_fun(self.up_1_VS(out))
+        if VS_upscale:
+            out=self.activate_fun(self.up_1_VS(out))
+        else:
+            out=self.activate_fun(self.up_1_tconv(out))
         # print("layer1_VS",out.shape)
         out=self.final_activate_fun(self.up_1_conv(out))
         # print("layer1_conv(final)",out.shape)

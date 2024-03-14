@@ -141,7 +141,9 @@ def pre_train(save_model=True,p_epochs=400):
             masked_volume = masked_volume.clone().detach().requires_grad_(True).float().to(device)
             mask = mask.clone().detach().requires_grad_(True).float().to(device)
             
-            output_volume = gen(masked_volume,AE_mode=False)
+            output_volume = gen(masked_volume,
+                                AE_mode=False,
+                                VS_upscale=True)
             
             # update the generator only
             gen_loss = Loss_G_rec(real_volume.detach(),output_volume,mask)
@@ -287,5 +289,5 @@ def fine_tune(save_model=True,f_epochs=100):
 
             
 # when to train? how to swift train mode???????
-pre_train(True,512)
-fine_tune(True,512)
+pre_train(True,400)
+fine_tune(True,400)
