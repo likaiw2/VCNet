@@ -148,7 +148,8 @@ def pre_train(save_model=True,p_epochs=400):
             
             output_volume = gen(masked_volume,
                                 test_mode,
-                                VS_upscale)
+                                VS_upscale,
+                                dataSavePath)
             
             # update the generator only
             gen_loss = Loss_G_rec(real_volume.detach(),output_volume,mask)

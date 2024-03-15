@@ -112,7 +112,7 @@ class UNet_v2(nn.Module):
         self.up_1_conv = nn.Conv3d(in_channels=1,    out_channels=1,    kernel_size=1, dilation=1,  stride=1, padding=0)
         self.final_activate_fun = nn.Tanh()
         
-    def forward(self, x,test_mode=False,VS_upscale=True):
+    def forward(self, x,test_mode=False,VS_upscale=True,dataSavePath):
         res_x = x
         
         # Conv + ReLU (down sample)
@@ -122,7 +122,7 @@ class UNet_v2(nn.Module):
         # print("layer1_conv2",out.shape)
         if test_mode:
             for i in range(32):
-                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_64",f"testRAW_{i}",out[0, i, :, :, :])
+                tools.saveRawFile10(f"{dataSavePath}#down_64",f"testRAW_{i}",out[0, i, :, :, :])
 
         res_1 = out
         
@@ -132,7 +132,7 @@ class UNet_v2(nn.Module):
         # print("layer2_conv2",out.shape)
         if test_mode:
             for i in range(32):
-                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_32",f"testRAW_{i}",out[0, i, :, :, :])
+                tools.saveRawFile10(f"{dataSavePath}/#down_32",f"testRAW_{i}",out[0, i, :, :, :])
         res_2 = out
         
         out=self.activate_fun(self.down_3_conv2(out))
@@ -141,7 +141,7 @@ class UNet_v2(nn.Module):
         # print("layer3_conv2",out.shape)
         if test_mode:
             for i in range(32):
-                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_16",f"testRAW_{i}",out[0, i, :, :, :])
+                tools.saveRawFile10(f"{dataSavePath}/#down_16",f"testRAW_{i}",out[0, i, :, :, :])
         res_3 = out
         
         out=self.activate_fun(self.down_4_conv2(out))
@@ -150,7 +150,7 @@ class UNet_v2(nn.Module):
         # print("layer4_conv2",out.shape,"\n")
         if test_mode:
             for i in range(32):
-                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#down_8",f"testRAW_{i}",out[0, i, :, :, :])
+                tools.saveRawFile10(f"{dataSavePath}/#down_8",f"testRAW_{i}",out[0, i, :, :, :])
         
         # dilated conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
         out=self.mid_middle1(out)
@@ -160,7 +160,7 @@ class UNet_v2(nn.Module):
         out=self.mid_middle3(out)
         if test_mode:
             for i in range(32):
-                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#mid",f"testRAW_{i}",out[0, i, :, :, :])
+                tools.saveRawFile10(f"{dataSavePath}/#mid",f"testRAW_{i}",out[0, i, :, :, :])
         # print("mid_3",out.shape,"\n")
         
         # VS+Conv+ReLU
@@ -174,7 +174,7 @@ class UNet_v2(nn.Module):
         out=self.activate_fun(self.up_4_conv(out))
         if test_mode:
             for i in range(32):
-                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#up_16",f"testRAW_{i}",out[0, i, :, :, :])
+                tools.saveRawFile10(f"{dataSavePath}/#up_16",f"testRAW_{i}",out[0, i, :, :, :])
         # print("layer4_conv",out.shape)
         
         if VS_upscale:
@@ -188,7 +188,7 @@ class UNet_v2(nn.Module):
         # print("layer3_conv",out.shape)
         if test_mode:
             for i in range(32):
-                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#up_32",f"testRAW_{i}",out[0, i, :, :, :])
+                tools.saveRawFile10(f"{dataSavePath}/#up_32",f"testRAW_{i}",out[0, i, :, :, :])
         
         
         if VS_upscale:
@@ -202,7 +202,7 @@ class UNet_v2(nn.Module):
         # print("layer2_conv",out.shape)
         if test_mode:
             for i in range(32):
-                tools.saveRawFile10("C:/Files/Research/VCNet/dataSave/#up_64",f"testRAW_{i}",out[0, i, :, :, :])
+                tools.saveRawFile10(f"{dataSavePath}/#up_64",f"testRAW_{i}",out[0, i, :, :, :])
         
         
         if VS_upscale:
