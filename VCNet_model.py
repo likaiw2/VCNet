@@ -97,22 +97,22 @@ class UNet_v2(nn.Module):
         # VS+Conv+ReLU
         self.up_4_tconv = nn.ConvTranspose3d(in_channels=256, out_channels=128,kernel_size=4,stride=2,padding=1)
         self.up_4_VS = VoxelShuffle(in_channels=256, out_channels=128,  upscale_factor=2)
-        self.up_4_conv = nn.Conv3d(in_channels=256,  out_channels=128,  kernel_size=1, dilation=1,  stride=1, padding=0)
+        self.up_4_conv = nn.Conv3d(in_channels=256,  out_channels=128,  kernel_size=4, dilation=1,  stride=2, padding=1)
 
         self.up_3_tconv = nn.ConvTranspose3d(in_channels=128, out_channels=64,kernel_size=4,stride=2,padding=1)
         self.up_3_VS = VoxelShuffle(in_channels=128, out_channels=64,   upscale_factor=2)
-        self.up_3_conv = nn.Conv3d(in_channels=128,  out_channels=64,   kernel_size=1, dilation=1,  stride=1, padding=0)
+        self.up_3_conv = nn.Conv3d(in_channels=128,  out_channels=64,   kernel_size=4, dilation=1,  stride=2, padding=1)
         
         self.up_2_tconv = nn.ConvTranspose3d(in_channels=64, out_channels=32,kernel_size=4,stride=2,padding=1)
         self.up_2_VS = VoxelShuffle(in_channels=64,  out_channels=32,   upscale_factor=2)
-        self.up_2_conv = nn.Conv3d(in_channels=64,   out_channels=32,   kernel_size=1, dilation=1,  stride=1, padding=0)
+        self.up_2_conv = nn.Conv3d(in_channels=64,   out_channels=32,   kernel_size=4, dilation=1,  stride=2, padding=1)
         
         self.up_1_tconv = nn.ConvTranspose3d(in_channels=32, out_channels=1,kernel_size=4,stride=2,padding=1)
         self.up_1_VS = VoxelShuffle(in_channels=32,  out_channels=1,    upscale_factor=2)
-        self.up_1_conv = nn.Conv3d(in_channels=1,    out_channels=1,    kernel_size=1, dilation=1,  stride=1, padding=0)
+        self.up_1_conv = nn.Conv3d(in_channels=1,    out_channels=1,    kernel_size=4, dilation=1,  stride=2, padding=0)
         self.final_activate_fun = nn.Tanh()
         
-    def forward(self, x,test_mode=False,VS_upscale=True,dataSavePath):
+    def forward(self, x,test_mode=False,VS_upscale=True,dataSavePath="/home/dell/storage/WANGLIKAI/VCNet/output"):
         res_x = x
         
         # Conv + ReLU (down sample)
