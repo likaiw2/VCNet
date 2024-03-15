@@ -13,16 +13,16 @@ import sys
 # dim = (96, 240, 384)    # [depth, height, width]. pelvic
 
 # set path(for windows test)
-dataSourcePath = r"C:\Files\Research\dataSet2"
-dataSavePath = r"C:\Files\Research\VCNet\dataSave"
+# dataSourcePath = r"C:\Files\Research\dataSet2"
+# dataSavePath = r"C:\Files\Research\VCNet\dataSave"
 
 # set path(for macbook test)
 # dataSourcePath = "/Users/wanglikai/Codes/Volume_Complete/dataSet1"
 # dataSavePath = "/Users/wanglikai/Codes/Volume_Complete/VCNet/dataSave"
 
 # set path(for linux Server)
-# dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"
-# dataSavePath = "/home/dell/storage/WANGLIKAI/VCNet/output"
+dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"
+dataSavePath = "/home/dell/storage/WANGLIKAI/VCNet/output"
 
 pthLoadPath = ""
 device=torch.device("cuda:0")
@@ -120,9 +120,8 @@ else:
     disc = disc.apply(weights_init)
     
 def pre_train(save_model=True,p_epochs=400):
-    
-    test_mode=False
-    VS_upscale=True
+    test_mode = False
+    VS_upscale = True
     
     # read the start time
     ot = time.time()
@@ -138,8 +137,8 @@ def pre_train(save_model=True,p_epochs=400):
     cur_step = 0
 
     for epoch in range(p_epochs):
-        if epoch == 1:
-            sys.exit()
+        # if epoch == 1:
+            # sys.exit()
         # Dataloader returns the batches
         for real_volume,masked_volume,mask,index in dataloader:
             # wrap them into torch.tensor
