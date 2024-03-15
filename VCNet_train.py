@@ -120,7 +120,7 @@ else:
     disc = disc.apply(weights_init)
     
 def pre_train(save_model=True,p_epochs=400):
-    test_mode = False
+    test_mode = True
     VS_upscale = True
     
     # read the start time
