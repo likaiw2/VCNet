@@ -68,6 +68,7 @@ class ResidualBlock(nn.Module):
 class UNet_v2(nn.Module):
     def __init__(self, in_channel=1):   #n_classes 不知道干啥用的我给删掉了
         super(UNet_v2, self).__init__()
+        input_feathure = [2,1,128,128,128]
                              
         self.activate_fun = nn.ReLU(inplace=True)   # 原地修改数据，可以节省空间
         
@@ -97,24 +98,35 @@ class UNet_v2(nn.Module):
         # VS+Conv+ReLU
         self.up_4_tconv = nn.ConvTranspose3d(in_channels=256, out_channels=128,kernel_size=4,stride=2,padding=1)
         self.up_4_VS = VoxelShuffle(in_channels=256, out_channels=128,  upscale_factor=2)
-        self.up_4_conv = nn.Conv3d(in_channels=256,  out_channels=128,  kernel_size=4, dilation=1,  stride=2, padding=1)
+        self.up_4_conv = nn.Conv3d(in_channels=256,  out_channels=128,  kernel_size=3, dilation=1,  stride=1, padding=1)
+        self.up_4_conv11 = nn.Conv3d(in_channels=128,  out_channels=128,  kernel_size=1, dilation=1,  stride=1, padding=0)
+        self.up_4_tri_linear = nn.Linear(in_features=256, out_features=128, bias=True)
+
 
         self.up_3_tconv = nn.ConvTranspose3d(in_channels=128, out_channels=64,kernel_size=4,stride=2,padding=1)
         self.up_3_VS = VoxelShuffle(in_channels=128, out_channels=64,   upscale_factor=2)
-        self.up_3_conv = nn.Conv3d(in_channels=128,  out_channels=64,   kernel_size=4, dilation=1,  stride=2, padding=1)
+        self.up_3_conv = nn.Conv3d(in_channels=128,  out_channels=64,   kernel_size=3, dilation=1,  stride=1, padding=1)
+        self.up_3_conv11 = nn.Conv3d(in_channels=64,  out_channels=64,  kernel_size=1, dilation=1,  stride=1, padding=0)
+        self.up_3_tri_linear = nn.Linear(in_features=128, out_features=64, bias=True)
         
         self.up_2_tconv = nn.ConvTranspose3d(in_channels=64, out_channels=32,kernel_size=4,stride=2,padding=1)
         self.up_2_VS = VoxelShuffle(in_channels=64,  out_channels=32,   upscale_factor=2)
-        self.up_2_conv = nn.Conv3d(in_channels=64,   out_channels=32,   kernel_size=4, dilation=1,  stride=2, padding=1)
+        self.up_2_conv = nn.Conv3d(in_channels=64,   out_channels=32,   kernel_size=3, dilation=1,  stride=1, padding=1)
+        self.up_2_conv11 = nn.Conv3d(in_channels=32,  out_channels=32,  kernel_size=1, dilation=1,  stride=1, padding=0)
+        self.up_2_tri_linear = nn.Linear(in_features=64, out_features=32, bias=True)
+
         
         self.up_1_tconv = nn.ConvTranspose3d(in_channels=32, out_channels=1,kernel_size=4,stride=2,padding=1)
         self.up_1_VS = VoxelShuffle(in_channels=32,  out_channels=1,    upscale_factor=2)
-        self.up_1_conv = nn.Conv3d(in_channels=1,    out_channels=1,    kernel_size=4, dilation=1,  stride=2, padding=0)
+        self.up_1_conv = nn.Conv3d(in_channels=1,    out_channels=1,    kernel_size=3, dilation=1,  stride=1, padding=1)
+        self.up_1_conv11 = nn.Conv3d(in_channels=1,  out_channels=1,  kernel_size=1, dilation=1,  stride=1, padding=0)
+        self.up_1_tri_linear = nn.Linear(in_features=32, out_features=1, bias=True)
+
         self.final_activate_fun = nn.Tanh()
         
-    def forward(self, x,test_mode=False,VS_upscale=True,dataSavePath="/home/dell/storage/WANGLIKAI/VCNet/output"):
+    def forward(self, x, test_mode=False, VS_upscale=True, dataSavePath="/home/dell/storage/WANGLIKAI/VCNet/output"):
         res_x = x
-        
+
         # Conv + ReLU (down sample)
         out=self.activate_fun(self.down_1_conv2(x))
         # print("layer1_conv1",out.shape)
@@ -161,13 +173,13 @@ class UNet_v2(nn.Module):
         if test_mode:
             for i in range(32):
                 tools.saveRawFile10(f"{dataSavePath}/#mid",f"testRAW_{i}",out[0, i, :, :, :])
-        # print("mid_3",out.shape,"\n")
+        print("mid_3",out.shape,"\n")
         
         # VS+Conv+ReLU
         if VS_upscale:
             out=self.activate_fun(self.up_4_VS(out))
         else:
-            out=self.activate_fun(self.up_4_tconv(out))
+            out=self.activate_fun(self.up_4_conv11(self.up_4_tri_linear(out)))
         # print("layer4_VS",out.shape)
         out=torch.cat([out, res_3], dim=1)
         # print("layer4_cat",out.shape)
@@ -180,7 +192,9 @@ class UNet_v2(nn.Module):
         if VS_upscale:
             out=self.activate_fun(self.up_3_VS(out))
         else:
-            out=self.activate_fun(self.up_3_tconv(out))
+            # out=self.activate_fun(self.up_3_tconv(out))
+            out=self.activate_fun(self.up_3_conv11(self.up_3_tri_linear(out)))
+
         # print("layer3_VS",out.shape)
         out=torch.cat([out, res_2], dim=1)
         # print("layer3_cat",out.shape)
@@ -194,7 +208,8 @@ class UNet_v2(nn.Module):
         if VS_upscale:
             out=self.activate_fun(self.up_2_VS(out))
         else:
-            out=self.activate_fun(self.up_2_tconv(out))
+            # out=self.activate_fun(self.up_2_tconv(out))
+            out=self.activate_fun(self.up_2_conv11(self.up_2_tri_linear(out)))
         # print("layer2_VS",out.shape)
         out=torch.cat([out, res_1], dim=1)
         # print("layer2_cat",out.shape)
@@ -208,7 +223,8 @@ class UNet_v2(nn.Module):
         if VS_upscale:
             out=self.activate_fun(self.up_1_VS(out))
         else:
-            out=self.activate_fun(self.up_1_tconv(out))
+            # out=self.activate_fun(self.up_1_tconv(out))
+            out=self.activate_fun(self.up_1_conv11(self.up_1_tri_linear(out)))
         # print("layer1_VS",out.shape)
         out=self.final_activate_fun(self.up_1_conv(out))
         # print("layer1_conv(final)",out.shape)
