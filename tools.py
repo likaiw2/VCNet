@@ -81,9 +81,9 @@ def generate_mask(volume_shape:[int,int,int],shape_type:int):
     mask = []       # meshgrid vector
     
     # to make sure the biggest size is smaller than 50%
-    max_x = volume_shape[0]*0.7
-    max_y = volume_shape[1]*0.7
-    max_z = volume_shape[2]*0.7
+    max_x = volume_shape[0]*0.5
+    max_y = volume_shape[1]*0.5
+    max_z = volume_shape[2]*0.5
     
     # make empty mask
     mask_volume = np.zeros(volume_shape)
