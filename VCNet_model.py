@@ -172,7 +172,7 @@ class UNet_v2(nn.Module):
         if test_mode:
             for i in range(32):
                 tools.saveRawFile10(f"{dataSavePath}/#mid",f"testRAW_{i}",out[0, i, :, :, :])
-        print("mid_3",out.shape,"\n")
+        # print("mid_3",out.shape,"\n")
         
         # VS+Conv+ReLU
         if VS_upscale:
@@ -182,7 +182,7 @@ class UNet_v2(nn.Module):
             out = self.up_4_tri_linear(out)
             # print("tri:",out.shape,"\n")
             out=self.activate_fun(self.up_4_conv11(out))    #[2, 256, 16, 16, 16]
-            print("conv11:",out.shape,"\n")
+            # print("conv11:",out.shape,"\n")
         out=torch.cat([out, res_3], dim=1)
         # print("layer4_cat",out.shape)
         out=self.activate_fun(self.up_4_conv(out))
