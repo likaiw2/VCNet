@@ -168,11 +168,11 @@ class UNet_v2(nn.Module):
                 tools.saveRawFile10(f"{dataSavePath}/#down_8",f"testRAW_{i}",out[0, i, :, :, :])
         
         # dilated conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
-        out=self.mid_middle1(out)
+        # out=self.mid_middle1(out)
         # print("mid_1",out.shape)
-        out=self.mid_middle2(out)
+        # out=self.mid_middle2(out)
         # print("mid_2",out.shape)
-        out=self.mid_middle3(out)
+        # out=self.mid_middle3(out)
         # print("mid_3", out.shape, "\n")
         if test_mode:
             for i in range(32):
