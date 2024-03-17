@@ -87,7 +87,7 @@ input_dim = 1
 real_dim = 1
 batch_size = 2          #原模型参数 10
 # lr = 5e-3             #learn rate 原模型参数 5e-3(0.005)
-lr = 0.0001
+lr = 1e-6
 weight_decay_adv = 0.001
 weight_decay_rec = 1
 
