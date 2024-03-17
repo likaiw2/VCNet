@@ -122,7 +122,7 @@ else:
     
 def pre_train(save_model=True,p_epochs=400):
     test_mode = True
-    VS_upscale = False
+    VS_upscale = True
     
     # read the start time
     ot = time.time()
