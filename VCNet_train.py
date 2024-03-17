@@ -13,16 +13,16 @@ import sys
 # dim = (96, 240, 384)    # [depth, height, width]. pelvic
 
 # set path(for windows test)
-# dataSourcePath = r"C:\Files\Research\dataSet2"
-# dataSavePath = r"C:\Files\Research\VCNet\dataSave"
+dataSourcePath = r"C:\Files\Research\dataSet2"
+dataSavePath = r"C:\Files\Research\VCNet\dataSave"
 
 # set path(for macbook test)
 # dataSourcePath = "/Users/wanglikai/Codes/Volume_Complete/dataSet1"
 # dataSavePath = "/Users/wanglikai/Codes/Volume_Complete/VCNet/dataSave"
 
 # set path(for linux Server)
-dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"
-dataSavePath = "/home/dell/storage/WANGLIKAI/VCNet/output"
+# dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"
+# dataSavePath = "/home/dell/storage/WANGLIKAI/VCNet/output"
 
 pthLoadPath = ""
 device=torch.device("cuda:0")
@@ -121,7 +121,7 @@ else:
     
 def pre_train(save_model=True,p_epochs=400):
     test_mode = True
-    VS_upscale = False
+    VS_upscale = True
     
     # read the start time
     ot = time.time()
