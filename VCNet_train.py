@@ -122,7 +122,7 @@ else:
     
 def pre_train(save_model=True,p_epochs=400):
     test_mode = True
-    VS_upscale = True
+    VS_upscale = False
     
     # read the start time
     ot = time.time()
@@ -130,7 +130,7 @@ def pre_train(save_model=True,p_epochs=400):
     print("## pre train start ##  time:",t1)
     
     # dataloader = DataLoader(trainDataset, batch_size=batch_size, shuffle=True, drop_last=True)
-    dataloader = DataLoader(trainDataset, batch_size=batch_size, drop_last=True)
+    dataloader = DataLoader(trainDataset, batch_size=batch_size, drop_last=True,pin_memory=True)
     print("    data loaded!")
     gen_opt.param_groups[0]['weight_decay'] = weight_decay_rec
     

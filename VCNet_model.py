@@ -70,7 +70,8 @@ class UNet_v2(nn.Module):
         super(UNet_v2, self).__init__()
         input_feathure = [2,1,128,128,128]
                              
-        self.activate_fun = nn.ReLU(inplace=True)   # 原地修改数据，可以节省空间
+        # self.activate_fun = nn.ReLU(inplace=True)   # 原地修改数据，可以节省空间
+        self.activate_fun = nn.Sigmoid()   # 原地修改数据，可以节省空间
         
         # Conv + ReLU (down sample)
         self.down_1_conv1 = nn.Conv3d(in_channels=32,   out_channels=32,  kernel_size=4, dilation=1,  stride=2, padding=1)
@@ -89,6 +90,9 @@ class UNet_v2(nn.Module):
         self.pool2 = nn.MaxPool3d(kernel_size=4, dilation=1,  stride=2, padding=1)
         self.pool3 = nn.MaxPool3d(kernel_size=4, dilation=1,  stride=2, padding=1)
         self.pool4 = nn.MaxPool3d(kernel_size=4, dilation=1,  stride=2, padding=1)
+        
+        self.bn1 = nn.BatchNorm3d(num_features=32)
+        self.bn1 = nn.BatchNorm3d(num_features=64)
         
         # dilated conv + RB 作者表述不清不楚， 邮件询问后，得到三个 dilated RB 一模一样
         self.mid_middle1 = ResidualBlock(in_channels=256,out_channels=256)
@@ -119,7 +123,7 @@ class UNet_v2(nn.Module):
         
         self.up_1_tconv = nn.ConvTranspose3d(in_channels=32, out_channels=1,kernel_size=4,stride=2,padding=1)
         self.up_1_VS = VoxelShuffle(in_channels=32,  out_channels=1,    upscale_factor=2)
-        self.up_1_conv = nn.Conv3d(in_channels=1,    out_channels=1,    kernel_size=3, dilation=1,  stride=1, padding=1)
+        self.up_1_conv = nn.Conv3d(in_channels=2,    out_channels=1,    kernel_size=3, dilation=1,  stride=1, padding=1)
         self.up_1_conv11 = nn.Conv3d(in_channels=32,  out_channels=1,  kernel_size=1, dilation=1,  stride=1, padding=0)
         self.up_1_tri_linear = nn.Upsample(scale_factor=2,mode="trilinear",align_corners=False)
 
@@ -168,11 +172,11 @@ class UNet_v2(nn.Module):
                 tools.saveRawFile10(f"{dataSavePath}/#down_8",f"testRAW_{i}",out[0, i, :, :, :])
         
         # dilated conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
-        # out=self.mid_middle1(out)
+        out=self.mid_middle1(out)
         # print("mid_1",out.shape)
-        # out=self.mid_middle2(out)
+        out=self.mid_middle2(out)
         # print("mid_2",out.shape)
-        # out=self.mid_middle3(out)
+        out=self.mid_middle3(out)
         # print("mid_3", out.shape, "\n")
         if test_mode:
             for i in range(32):
@@ -230,6 +234,7 @@ class UNet_v2(nn.Module):
             # out=self.activate_fun(self.up_1_tconv(out))
             out=self.activate_fun(self.up_1_conv11(self.up_1_tri_linear(out)))
         # print("layer1_VS",out.shape)
+        out=torch.cat([out, res_x], dim=1)
         out=self.final_activate_fun(self.up_1_conv(out))
         # print("layer1_conv(final)",out.shape)
         
