@@ -76,15 +76,19 @@ class UNet_v2(nn.Module):
         # Conv + ReLU (down sample)
         self.down_1_conv1 = nn.Conv3d(in_channels=32,   out_channels=32,  kernel_size=4, dilation=1,  stride=2, padding=1)
         self.down_1_conv2 = nn.Conv3d(in_channels=1,  out_channels=32,  kernel_size=3, dilation=1,  stride=1, padding=1)
+        self.down_1_bn1 = nn.BatchNorm3d(32)
         
         self.down_2_conv1 = nn.Conv3d(in_channels=64,  out_channels=64,  kernel_size=4, dilation=1,  stride=2, padding=1)
         self.down_2_conv2 = nn.Conv3d(in_channels=32,  out_channels=64,  kernel_size=3, dilation=1,  stride=1, padding=1)
+        self.down_2_bn1 = nn.BatchNorm3d(64)
         
         self.down_3_conv1 = nn.Conv3d(in_channels=128,  out_channels=128, kernel_size=4, dilation=1,  stride=2, padding=1)
         self.down_3_conv2 = nn.Conv3d(in_channels=64, out_channels=128, kernel_size=3, dilation=1,  stride=1, padding=1)
+        self.down_3_bn1 = nn.BatchNorm3d(128)
         
         self.down_4_conv1 = nn.Conv3d(in_channels=256, out_channels=256, kernel_size=4, dilation=1,  stride=2, padding=1)
         self.down_4_conv2 = nn.Conv3d(in_channels=128, out_channels=256, kernel_size=3, dilation=1,  stride=1, padding=1)
+        self.down_4_bn1 = nn.BatchNorm3d(256)
 
         self.pool1 = nn.MaxPool3d(kernel_size=4, dilation=1,  stride=2, padding=1)
         self.pool2 = nn.MaxPool3d(kernel_size=4, dilation=1,  stride=2, padding=1)
@@ -123,7 +127,7 @@ class UNet_v2(nn.Module):
         
         self.up_1_tconv = nn.ConvTranspose3d(in_channels=32, out_channels=1,kernel_size=4,stride=2,padding=1)
         self.up_1_VS = VoxelShuffle(in_channels=32,  out_channels=1,    upscale_factor=2)
-        self.up_1_conv = nn.Conv3d(in_channels=2,    out_channels=1,    kernel_size=3, dilation=1,  stride=1, padding=1)
+        self.up_1_conv = nn.Conv3d(in_channels=1,    out_channels=1,    kernel_size=3, dilation=1,  stride=1, padding=1)
         self.up_1_conv11 = nn.Conv3d(in_channels=32,  out_channels=1,  kernel_size=1, dilation=1,  stride=1, padding=0)
         self.up_1_tri_linear = nn.Upsample(scale_factor=2,mode="trilinear",align_corners=False)
 
@@ -133,7 +137,7 @@ class UNet_v2(nn.Module):
         res_x = x
 
         # Conv + ReLU (down sample)
-        out=self.activate_fun(self.down_1_conv2(x))
+        out=self.activate_fun(self.down_1_bn1(self.down_1_conv2(x)))
         # print("layer1_conv1",out.shape)
         out=self.activate_fun(self.pool1(out))
         # print("layer1_conv2",out.shape)
@@ -143,7 +147,7 @@ class UNet_v2(nn.Module):
                 tools.saveRawFile10(f"{dataSavePath}/#down_64",f"testRAW_{i}",out[0, i, :, :, :])
 
         
-        out=self.activate_fun(self.down_2_conv2(out))
+        out=self.activate_fun(self.down_2_bn1(self.down_2_conv2(out)))
         # print("layer2_conv1",out.shape)
         out=self.activate_fun(self.pool2(out))
         # print("layer2_conv2",out.shape)
@@ -153,7 +157,7 @@ class UNet_v2(nn.Module):
                 tools.saveRawFile10(f"{dataSavePath}/#down_32",f"testRAW_{i}",out[0, i, :, :, :])
 
         
-        out=self.activate_fun(self.down_3_conv2(out))
+        out=self.activate_fun(self.down_3_bn1(self.down_3_conv2(out)))
         # print("layer3_conv1",out.shape)
         out=self.activate_fun(self.pool3(out))
         # print("layer3_conv2",out.shape)
@@ -163,7 +167,7 @@ class UNet_v2(nn.Module):
                 tools.saveRawFile10(f"{dataSavePath}/#down_16",f"testRAW_{i}",out[0, i, :, :, :])
 
         
-        out=self.activate_fun(self.down_4_conv2(out))
+        out=self.activate_fun(self.down_4_bn1(self.down_4_conv2(out)))
         # print("layer4_conv1",out.shape)
         out=self.activate_fun(self.pool4(out))
         # print("layer4_conv2",out.shape,"\n")
@@ -234,7 +238,7 @@ class UNet_v2(nn.Module):
             # out=self.activate_fun(self.up_1_tconv(out))
             out=self.activate_fun(self.up_1_conv11(self.up_1_tri_linear(out)))
         # print("layer1_VS",out.shape)
-        out=torch.cat([out, res_x], dim=1)
+        # out=torch.cat([out, res_x], dim=1)
         out=self.final_activate_fun(self.up_1_conv(out))
         # print("layer1_conv(final)",out.shape)
         
