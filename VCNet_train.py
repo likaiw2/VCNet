@@ -87,10 +87,10 @@ f_epochs = 100          # for fine tune     # 微调
 input_dim = 1
 real_dim = 1
 batch_size = 2          #原模型参数 10
-# lr = 5e-3             #learn rate 原模型参数 5e-3(0.005)
-lr = 1e-6
+lr = 5e-3             #learn rate 原模型参数 5e-3(0.005)
+# lr = 1e-6
 weight_decay_adv = 0.001
-weight_decay_rec = 1
+weight_decay_rec = 1e-4
 
 # display_step = np.ceil(np.ceil(max_train_index / batch_size) * n_epochs / 20)   #一共输出20个epoch，供判断用
 
@@ -104,6 +104,7 @@ disc_opt = torch.optim.Adam(disc.parameters(), lr=lr,betas=(0.9,0.999),weight_de
 
 # 4) parameters for loss function
 Loss_G_rec = tools.WeightedMSELoss().to(device)
+# Loss_G_rec = nn.CrossEntropyLoss().to(device)
 Loss_G_Adv = tools.AdversarialGLoss(disc).to(device)
 Loss_D_Adv = tools.AdversarialDLoss(disc).to(device)
 
@@ -122,7 +123,7 @@ else:
     
 def pre_train(save_model=True,p_epochs=400):
     test_mode = True
-    VS_upscale = False
+    VS_upscale = False                            
     
     # read the start time
     ot = time.time()
@@ -152,16 +153,17 @@ def pre_train(save_model=True,p_epochs=400):
                                 VS_upscale,
                                 dataSavePath)
             
+            gen_opt.zero_grad()  # Zero out the gradient before back propagation
             # update the generator only
-            gen_loss = Loss_G_rec(real_volume.detach(),output_volume,mask)
+            # gen_loss = Loss_G_rec(real_volume.detach(),output_volume,mask)
+            gen_loss = Loss_G_rec(output_volume,real_volume.detach())
             if not gen_loss.requires_grad:
                 gen_loss.clone().detach().requires_grad_(True)
 
             # print("    Weighted MSE Loss:", gen_loss.item())
-            
             gen_loss.backward()
             gen_opt.step()
-            gen_opt.zero_grad()  # Zero out the gradient before back propagation
+            
             
             ### save model and generated volume(if need) ###
             if (cur_step+1) % display_step == 0 or cur_step == 1:

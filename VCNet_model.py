@@ -68,7 +68,7 @@ class ResidualBlock(nn.Module):
 class UNet_v2(nn.Module):
     def __init__(self, in_channel=1):   #n_classes 不知道干啥用的我给删掉了
         super(UNet_v2, self).__init__()
-        input_feathure = [2,1,128,128,128]
+        input_feathure = ["batch_size",1,128,128,128]
                              
         # self.activate_fun = nn.ReLU(inplace=True)   # 原地修改数据，可以节省空间
         self.activate_fun = nn.Sigmoid()   # 原地修改数据，可以节省空间
@@ -153,7 +153,7 @@ class UNet_v2(nn.Module):
         # print("layer2_conv2",out.shape)
         res_2 = out
         if test_mode:
-            for i in range(32):
+            for i in range(64):
                 tools.saveRawFile10(f"{dataSavePath}/#down_32",f"testRAW_{i}",out[0, i, :, :, :])
 
         
@@ -174,6 +174,7 @@ class UNet_v2(nn.Module):
         if test_mode:
             for i in range(32):
                 tools.saveRawFile10(f"{dataSavePath}/#down_8",f"testRAW_{i}",out[0, i, :, :, :])
+        
         
         # dilated conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
         out=self.mid_middle1(out)
@@ -201,19 +202,19 @@ class UNet_v2(nn.Module):
                 tools.saveRawFile10(f"{dataSavePath}/#up_16",f"testRAW_{i}",out[0, i, :, :, :])
         # print("layer4_conv",out.shape)
         
+        
         if VS_upscale:
             out=self.activate_fun(self.up_3_VS(out))
         else:
             # out=self.activate_fun(self.up_3_tconv(out))
             out=self.activate_fun(self.up_3_conv11(self.up_3_tri_linear(out)))
-
         # print("layer3_VS",out.shape)
         out=torch.cat([out, res_2], dim=1)
         # print("layer3_cat",out.shape)
         out=self.activate_fun(self.up_3_conv(out))
         # print("layer3_conv",out.shape)
         if test_mode:
-            for i in range(32):
+            for i in range(64):
                 tools.saveRawFile10(f"{dataSavePath}/#up_32",f"testRAW_{i}",out[0, i, :, :, :])
         
         
@@ -243,7 +244,6 @@ class UNet_v2(nn.Module):
         # print("layer1_conv(final)",out.shape)
         
         return out
-    
     
     
 class Dis_VCNet(nn.Module):
