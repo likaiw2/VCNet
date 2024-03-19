@@ -82,7 +82,7 @@ class DownSampleBlock(nn.Module):
         self.bn1 = nn.BatchNorm3d(out_channels)
         self.bn2 = nn.BatchNorm3d(out_channels)
         self.pool = nn.MaxPool3d(kernel_size=4, dilation=1,  stride=2, padding=1)
-        self.activation = nn.Sigmoid()
+        self.activation = nn.LeakyReLU()
 
         nn.init.xavier_uniform_(self.conv1.weight, gain = np.sqrt(2.0))
         nn.init.constant_(self.conv1.bias,0)
@@ -103,7 +103,7 @@ class UpSampleBlock_T_conv(nn.Module):
         # transposition for upscale
         self.up_t_conv = nn.ConvTranspose3d(in_channels, out_channels,kernel_size=4,stride=2,padding=1)
         self.bn = nn.BatchNorm3d(out_channels)
-        self.activation = nn.Sigmoid()
+        self.activation = nn.LeakyReLU()
         
         nn.init.xavier_uniform_(self.up_t_conv.weight, gain = np.sqrt(2.0))
         nn.init.constant_(self.up_t_conv.bias,0)
@@ -120,7 +120,7 @@ class UpSampleBlock_VS(nn.Module):
         # voxel shuffle
         self.up_VS = VoxelShuffle(in_channels, out_channels,  upscale_factor=2)
         self.bn = nn.BatchNorm3d(out_channels)
-        self.activation = nn.Sigmoid()
+        self.activation = nn.LeakyReLU()
             
     def forward(self, x):
         out=self.activation(self.bn(self.up_VS(x)))
@@ -135,7 +135,7 @@ class UpSampleBlock_Trilinear(nn.Module):
         self.up_conv11 = nn.Conv3d(in_channels, out_channels, kernel_size=1, dilation=1,  stride=1, padding=0)
         self.up_tri_linear = nn.Upsample(scale_factor=2,mode="trilinear",align_corners=False)
         self.bn = nn.BatchNorm3d(out_channels)
-        self.activation = nn.Sigmoid()
+        self.activation = nn.LeakyReLU()
         
         nn.init.xavier_uniform_(self.up_conv11.weight, gain = np.sqrt(2.0))
         nn.init.constant_(self.up_conv11.bias,0)

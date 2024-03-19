@@ -1,3 +1,4 @@
+import os
 from torchvision.utils import make_grid
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
@@ -7,9 +8,7 @@ import datetime
 import tools
 import numpy as np
 import torch
-# to draw loss graph
-import matplotlib
-matplotlib.use('agg')
+# to draw loss
 import matplotlib.pyplot as plt
 
 # dim = (160, 224, 168)   # [depth, height, width]. brain
@@ -34,10 +33,11 @@ device=torch.device("cuda:0")
 
 torch.autograd.set_detect_anomaly(True)
 
-print("pytorch version:",torch.__version__)  # 检查 PyTorch 版本
-print("cuda version:",torch.version.cuda)  # 检查 CUDA 版本
-print("cuda available:",torch.cuda.is_available())  # 检查是否可用 GPU
-print("available cuda number:",torch.cuda.device_count())  # 检查 GPU 数量
+# print("pytorch version:",torch.__version__)  # 检查 PyTorch 版本
+# print("cuda version:",torch.version.cuda)  # 检查 CUDA 版本
+# print("cuda available:",torch.cuda.is_available())  # 检查是否可用 GPU
+# print("available cuda number:",torch.cuda.device_count())  # 检查 GPU 数量
+# print()
 
 # clear cuda memory
 torch.cuda.empty_cache()
@@ -139,11 +139,15 @@ def pre_train(save_model=True,p_epochs=400):
     
     display_step = np.ceil(np.ceil(max_train_index / batch_size) * p_epochs / 20)   #一共输出20个epoch，供判断用
     cur_step = 0
-
+    epoch_losses=[]
+    
     for epoch in range(p_epochs):
         # if epoch == 1:
             # sys.exit()
+        epoch_loss = []
+        iter=0
         # Dataloader returns the batches
+        # each iter
         for real_volume,masked_volume,mask,index in dataloader:
             # wrap them into torch.tensor
             real_volume = real_volume.clone().detach().requires_grad_(True).float().to(device)
@@ -168,6 +172,7 @@ def pre_train(save_model=True,p_epochs=400):
             # print("    Weighted MSE Loss:", gen_loss.item())
             gen_loss.backward()
             gen_opt.step()
+            epoch_loss.append(gen_loss.detach().item()) #每一个批次的损失
             
             
             ### save model and generated volume(if need) ###
@@ -205,14 +210,36 @@ def pre_train(save_model=True,p_epochs=400):
                                 'disc': disc.state_dict(),
                                 'disc_opt': disc_opt.state_dict(),
                                 }, fileName)
-                    
+                
             cur_step += 1
+            iter += 1
+            
+        average_epoch_loss=sum(epoch_loss)/len(epoch_loss)
+        epoch_losses.append(average_epoch_loss)
         
         # compute time
         dt = time.time() - ot
         elapsedTime = str(datetime.timedelta(seconds=dt))
         per_epoch = str(datetime.timedelta(seconds=dt / (epoch+1)))
-        print(f"    epoch = {epoch}/{p_epochs}     dt={elapsedTime}    per-epoch={per_epoch}")    
+        print(f"    Epoch = {epoch}/{p_epochs}     dt={elapsedTime}    per-epoch={per_epoch}    loss {average_epoch_loss:.4f}")
+        
+        plt.switch_backend('Agg')
+        plt.figure()
+        plt.plot(epoch_loss,'b',label = 'loss')
+        plt.ylabel('loss')
+        plt.xlabel('iter')
+        plt.legend()        #个性化图例（颜色、形状等）
+        plt.savefig(os.path.join(dataSavePath,f"epoch{epoch}_loss.jpg")) #保存图片 路径：/imgPath/
+        
+    # draw loss
+    plt.switch_backend('Agg')
+    plt.figure()
+    plt.plot(epoch_losses,'b',label = 'loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend()        #个性化图例（颜色、形状等）
+    plt.savefig(os.path.join(dataSavePath,"epoch_loss.jpg")) #保存图片 路径：/imgPath/
+
 
     t2 = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
     print("##train finished##  time:",t2)
@@ -303,5 +330,5 @@ def fine_tune(save_model=True,f_epochs=100):
 
             
 # when to train? how to swift train mode???????
-pre_train(True,400)
-fine_tune(True,400)
+pre_train(True,200)
+# fine_tune(True,200)
