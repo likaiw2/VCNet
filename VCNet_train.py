@@ -155,8 +155,8 @@ def pre_train(save_model=True,p_epochs=400):
             
             gen_opt.zero_grad()  # Zero out the gradient before back propagation
             # update the generator only
-            # gen_loss = Loss_G_rec(real_volume.detach(),output_volume,mask)
-            gen_loss = Loss_G_rec(output_volume,real_volume.detach())
+            gen_loss = Loss_G_rec(real_volume.detach(),output_volume,mask)
+            # gen_loss = Loss_G_rec(output_volume,real_volume.detach())
             if not gen_loss.requires_grad:
                 gen_loss.clone().detach().requires_grad_(True)
 
