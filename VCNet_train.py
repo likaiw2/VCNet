@@ -7,7 +7,10 @@ import datetime
 import tools
 import numpy as np
 import torch
-import sys
+# to draw loss graph
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
 
 # dim = (160, 224, 168)   # [depth, height, width]. brain
 # dim = (96, 240, 384)    # [depth, height, width]. pelvic
@@ -91,12 +94,13 @@ lr = 5e-3             #learn rate 原模型参数 5e-3(0.005)
 # lr = 1e-6
 weight_decay_adv = 0.001
 weight_decay_rec = 1e-4
+test_mode = True 
 
 # display_step = np.ceil(np.ceil(max_train_index / batch_size) * n_epochs / 20)   #一共输出20个epoch，供判断用
 
 
 # 3) send parameters to cuda
-gen = UNet_v2(in_channel=1).to(device)
+gen = UNet_v2(up_mode=3).to(device)
 gen_opt = torch.optim.Adam(gen.parameters(), lr=lr,betas=(0.9,0.999),weight_decay=weight_decay_rec)
 
 disc = Dis_VCNet().to(device)
@@ -121,9 +125,7 @@ else:
     gen = gen.apply(weights_init)
     disc = disc.apply(weights_init)
     
-def pre_train(save_model=True,p_epochs=400):
-    test_mode = True
-    VS_upscale = False                            
+def pre_train(save_model=True,p_epochs=400):                          
     
     # read the start time
     ot = time.time()
@@ -150,12 +152,15 @@ def pre_train(save_model=True,p_epochs=400):
             
             output_volume = gen(masked_volume,
                                 test_mode,
-                                VS_upscale,
                                 dataSavePath)
+            
+            real_volume_Variable = Variable(real_volume)
+            masked_volume_Variable = Variable(masked_volume)
+            output_volume_Variable = Variable(output_volume)
             
             gen_opt.zero_grad()  # Zero out the gradient before back propagation
             # update the generator only
-            gen_loss = Loss_G_rec(real_volume.detach(),output_volume,mask)
+            gen_loss = Loss_G_rec(real_volume_Variable.detach(),output_volume_Variable,mask)
             # gen_loss = Loss_G_rec(output_volume,real_volume.detach())
             if not gen_loss.requires_grad:
                 gen_loss.clone().detach().requires_grad_(True)
