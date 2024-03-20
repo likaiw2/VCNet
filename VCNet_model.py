@@ -41,7 +41,7 @@ class Dilated_Block(nn.Module):
         self.conv3 = nn.Conv3d(in_channels=in_channels,out_channels=out_channels,kernel_size=3,stride=1,dilation=8,padding=8)
         self.bn3 = nn.BatchNorm3d(out_channels)
         
-        self.activation = nn.Sigmoid()
+        self.activation = nn.LeakyReLU()
         
         nn.init.xavier_uniform_(self.conv1.weight, gain = np.sqrt(2.0))
         nn.init.constant_(self.conv1.bias,0)
@@ -67,7 +67,7 @@ class Dilated_Block(nn.Module):
 
         # out += identity   #这个会报错，很呆，会产生inplace问题
         out = identity + out
-        out = self.relu(out)
+        out = self.activation(out)
 
         return out
 
@@ -249,11 +249,11 @@ class UNet_v2(nn.Module):
                 tools.saveRawFile10(f"{dataSavePath}/#down_8",f"testRAW_{i}",out[0, i, :, :, :])
         
         # mid conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
-        out=self.mid_1(out)
+        # out=self.mid_1(out)
         # print("mid_1",out.shape)
-        out=self.mid_2(out)
+        # out=self.mid_2(out)
         # print("mid_2",out.shape)
-        out=self.mid_3(out)
+        # out=self.mid_3(out)
         # print("mid_3", out.shape, "\n")
         
         # up_sample_4       256,8,8->128,16,16
