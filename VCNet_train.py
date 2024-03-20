@@ -341,7 +341,7 @@ def fine_tune(save_model=True,f_epochs=100):
         dt = time.time() - ot
         elapsedTime = str(datetime.timedelta(seconds=dt))
         per_epoch = str(datetime.timedelta(seconds=dt / (epoch+1)))
-        print(f"    Epoch = {epoch}/{p_epochs}     dt={elapsedTime}    per-epoch={per_epoch}\n    gen_loss={average_gen_loss:.4f}    disc_loss={average_disc_loss:.4f}")
+        print(f"    Epoch = {epoch}/{p_epochs}     dt={elapsedTime}    per-epoch={per_epoch}    gen_loss={average_gen_loss:.4f}    disc_loss={average_disc_loss:.4f}")
         
         plt.switch_backend('Agg')
         plt.figure()
@@ -370,5 +370,5 @@ def fine_tune(save_model=True,f_epochs=100):
     print("end:",t2)
             
 # when to train? how to swift train mode???????
-# pre_train(True,800)
+pre_train(True,800)
 fine_tune(True,200)
