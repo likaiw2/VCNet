@@ -212,7 +212,7 @@ class UNet_v2(nn.Module):
         self.up_bn3=nn.BatchNorm3d(32)
         self.up_bn4=nn.BatchNorm3d(1)
 
-        self.final_activate_fun = nn.Tanh()
+        self.final_activate_fun = nn.Sigmoid()
         
     def forward(self, x, test_mode=False, dataSavePath="/home/dell/storage/WANGLIKAI/VCNet/output"):
         res_x = x
