@@ -94,13 +94,14 @@ lr = 5e-3             #learn rate 原模型参数 5e-3(0.005)
 # lr = 1e-6
 weight_decay_adv = 0.001
 weight_decay_rec = 1e-4
-test_mode = True 
+test_mode = True
+up_mode = 1
 
 # display_step = np.ceil(np.ceil(max_train_index / batch_size) * n_epochs / 20)   #一共输出20个epoch，供判断用
 
 
 # 3) send parameters to cuda
-gen = UNet_v2(up_mode=2).to(device)
+gen = UNet_v2(up_mode=up_mode).to(device)
 gen_opt = torch.optim.Adam(gen.parameters(), lr=lr,betas=(0.9,0.999),weight_decay=weight_decay_rec)
 
 disc = Dis_VCNet().to(device)
