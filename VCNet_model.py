@@ -76,9 +76,9 @@ class DownSampleBlock(nn.Module):
         super(DownSampleBlock, self).__init__()
         
         # this conv is for down sample
-        self.conv1 = nn.Conv3d(out_channels, out_channels, kernel_size=4, dilation=1, stride=2, padding=1)
+        self.conv1 = nn.Conv3d(in_channels, out_channels, kernel_size=4, dilation=1, stride=2, padding=1)
         # this conv is for add channels
-        self.conv2 = nn.Conv3d(in_channels, out_channels, kernel_size=3, dilation=1, stride=1, padding=1)
+        self.conv2 = nn.Conv3d(out_channels, out_channels, kernel_size=3, dilation=1, stride=1, padding=1)
         self.bn1 = nn.BatchNorm3d(out_channels)
         self.bn2 = nn.BatchNorm3d(out_channels)
         self.pool = nn.MaxPool3d(kernel_size=4, dilation=1,  stride=2, padding=1)
@@ -91,9 +91,10 @@ class DownSampleBlock(nn.Module):
         
     def forward(self, x):
         # out = self.activation(self.bn1(self.conv1(x)))
-        out = self.activation(self.bn2(self.conv2(x)))
-        out = self.activation(self.pool(out))
-
+        # out = self.activation(self.bn2(self.conv2(x)))
+        # out = self.activation(self.pool(out))
+        out = self.activation(self.conv1(x))
+        out = self.activation(self.conv2(out))
         return out
 
 class UpSampleBlock_T_conv(nn.Module):
@@ -155,7 +156,7 @@ class UpSampleBlock_Trilinear(nn.Module):
 
 
 class UNet_v2(nn.Module):
-    def __init__(self, down_mode=3, up_mode=3):   #n_classes 不知道干啥用的我给删掉了
+    def __init__(self, down_mode=3, up_mode=3):
         super(UNet_v2, self).__init__()
         # input = ["batch_size",1,128,128,128] 
         
@@ -248,18 +249,19 @@ class UNet_v2(nn.Module):
                 tools.saveRawFile10(f"{dataSavePath}/#down_8",f"testRAW_{i}",out[0, i, :, :, :])
         
         # mid conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
-        # out=self.mid_1(out)
+        out=self.mid_1(out)
         # print("mid_1",out.shape)
-        # out=self.mid_2(out)
+        out=self.mid_2(out)
         # print("mid_2",out.shape)
-        # out=self.mid_3(out)
+        out=self.mid_3(out)
         # print("mid_3", out.shape, "\n")
         
         # up_sample_4       256,8,8->128,16,16
         out=self.up_sample_4(out)
         # print("up_sample_4:",out.shape)
         out=torch.cat([out, res_3], dim=1)
-        out=self.activate_fun(self.bn4(self.up_res_conv_4(out)))
+        # out=self.activate_fun(self.bn4(self.up_res_conv_4(out)))
+        out=self.activate_fun(self.up_res_conv_4(out))
         if test_mode:
             for i in range(32):
                 tools.saveRawFile10(f"{dataSavePath}/#up_16",f"up_16_{i}",out[0, i, :, :, :])
@@ -269,7 +271,8 @@ class UNet_v2(nn.Module):
         out=self.up_sample_3(out)
         out=torch.cat([out, res_2], dim=1)
         # print("layer3_cat",out.shape)
-        out=self.activate_fun(self.bn3(self.up_res_conv_3(out)))
+        # out=self.activate_fun(self.bn3(self.up_res_conv_3(out)))
+        out=self.activate_fun(self.up_res_conv_3(out))
         # print("layer3_conv",out.shape)
         if test_mode:
             for i in range(32):
@@ -279,7 +282,8 @@ class UNet_v2(nn.Module):
         out=self.up_sample_2(out)
         out=torch.cat([out, res_1], dim=1)
         # print("layer2_cat",out.shape)
-        out=self.activate_fun(self.bn2(self.up_res_conv_2(out)))
+        # out=self.activate_fun(self.bn2(self.up_res_conv_2(out)))
+        out=self.activate_fun(self.up_res_conv_2(out))
         # print("layer2_conv",out.shape)
         if test_mode:
             for i in range(32):
@@ -289,7 +293,8 @@ class UNet_v2(nn.Module):
         out=self.up_sample_1(out)
         # print("up_sample_1:",out.shape)
         # out=torch.cat([out, res_x], dim=1)
-        out=self.final_activate_fun(self.bn1(self.up_res_conv_1(out)))
+        # out=self.final_activate_fun(self.bn1(self.up_res_conv_1(out)))
+        out=self.final_activate_fun(self.up_res_conv_1(out))
         # print("layer1_conv(final)",out.shape)
         
         return out

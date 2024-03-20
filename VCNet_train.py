@@ -100,7 +100,7 @@ test_mode = True
 
 
 # 3) send parameters to cuda
-gen = UNet_v2(up_mode=3).to(device)
+gen = UNet_v2(up_mode=2).to(device)
 gen_opt = torch.optim.Adam(gen.parameters(), lr=lr,betas=(0.9,0.999),weight_decay=weight_decay_rec)
 
 disc = Dis_VCNet().to(device)
