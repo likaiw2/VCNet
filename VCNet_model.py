@@ -54,15 +54,15 @@ class Dilated_Block(nn.Module):
         identity = x
 
         out = self.conv1(x)
-        out = self.bn1(out)
+        # out = self.bn1(out)
         out = self.activation(out)
 
         out = self.conv2(out)
-        out = self.bn2(out)
+        # out = self.bn2(out)
         out = self.activation(out)
 
         out = self.conv3(out)
-        out = self.bn3(out)
+        # out = self.bn3(out)
         out = self.activation(out)
 
         # out += identity   #这个会报错，很呆，会产生inplace问题
