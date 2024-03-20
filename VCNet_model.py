@@ -205,6 +205,11 @@ class UNet_v2(nn.Module):
         nn.init.constant_(self.up_res_conv_3.bias,0)
         nn.init.constant_(self.up_res_conv_2.bias,0)
         nn.init.constant_(self.up_res_conv_1.bias,0)
+        
+        self.up_bn1=nn.BatchNorm3d(128)
+        self.up_bn2=nn.BatchNorm3d(64)
+        self.up_bn3=nn.BatchNorm3d(32)
+        self.up_bn4=nn.BatchNorm3d(1)
 
         self.final_activate_fun = nn.Tanh()
         
@@ -254,7 +259,7 @@ class UNet_v2(nn.Module):
         out=self.up_sample_4(out)
         # print("up_sample_4:",out.shape)
         out=torch.cat([out, res_3], dim=1)
-        out=self.activate_fun(self.up_res_conv_4(out))
+        out=self.activate_fun(self.bn4(self.up_res_conv_4(out)))
         if test_mode:
             for i in range(32):
                 tools.saveRawFile10(f"{dataSavePath}/#up_16",f"up_16_{i}",out[0, i, :, :, :])
@@ -264,7 +269,7 @@ class UNet_v2(nn.Module):
         out=self.up_sample_3(out)
         out=torch.cat([out, res_2], dim=1)
         # print("layer3_cat",out.shape)
-        out=self.activate_fun(self.up_res_conv_3(out))
+        out=self.activate_fun(self.bn3(self.up_res_conv_3(out)))
         # print("layer3_conv",out.shape)
         if test_mode:
             for i in range(32):
@@ -274,7 +279,7 @@ class UNet_v2(nn.Module):
         out=self.up_sample_2(out)
         out=torch.cat([out, res_1], dim=1)
         # print("layer2_cat",out.shape)
-        out=self.activate_fun(self.up_res_conv_2(out))
+        out=self.activate_fun(self.bn2(self.up_res_conv_2(out)))
         # print("layer2_conv",out.shape)
         if test_mode:
             for i in range(32):
@@ -284,7 +289,7 @@ class UNet_v2(nn.Module):
         out=self.up_sample_1(out)
         # print("up_sample_1:",out.shape)
         # out=torch.cat([out, res_x], dim=1)
-        out=self.final_activate_fun(self.up_res_conv_1(out))
+        out=self.final_activate_fun(self.bn1(self.up_res_conv_1(out)))
         # print("layer1_conv(final)",out.shape)
         
         return out

@@ -229,16 +229,16 @@ def pre_train(save_model=True,p_epochs=400):
         plt.ylabel('loss')
         plt.xlabel('iter')
         plt.legend()        #个性化图例（颜色、形状等）
-        plt.savefig(os.path.join(dataSavePath,f"epoch{epoch}_loss.jpg")) #保存图片 路径：/imgPath/
+        plt.savefig(os.path.join(dataSavePath,f"loss/epoch{epoch}_loss.jpg")) #保存图片 路径：/imgPath/
         
-    # draw loss
-    plt.switch_backend('Agg')
-    plt.figure()
-    plt.plot(epoch_losses,'b',label = 'loss')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend()        #个性化图例（颜色、形状等）
-    plt.savefig(os.path.join(dataSavePath,"epoch_loss.jpg")) #保存图片 路径：/imgPath/
+        # draw loss
+        plt.switch_backend('Agg')
+        plt.figure()
+        plt.plot(epoch_losses,'b',label = 'loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend()        #个性化图例（颜色、形状等）
+        plt.savefig(os.path.join(dataSavePath,"loss/epoch_loss.jpg")) #保存图片 路径：/imgPath/
 
 
     t2 = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
