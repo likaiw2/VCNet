@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 
 # set path(for windows test)
 dataSourcePath = r"C:\Files\Research\dataSet2"
-
 dataSavePath = r"C:\Files\Research\VCNet\dataSave"
 
 # set path(for macbook test)
@@ -26,6 +25,9 @@ dataSavePath = r"C:\Files\Research\VCNet\dataSave"
 # set path(for linux Server)
 # dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"
 # dataSavePath = "/home/dell/storage/WANGLIKAI/VCNet/output"
+
+if not os.path.exists(f"{dataSavePath}/loss"):
+        os.makedirs(f"{dataSavePath}/loss")
 
 pthLoadPath = ""
 device=torch.device("cuda:0")
@@ -92,10 +94,12 @@ real_dim = 1
 batch_size = 2          #原模型参数 10
 lr = 5e-3             #learn rate 原模型参数 5e-3(0.005)
 # lr = 1e-6
-weight_decay_adv = 0.001
+weight_decay_adv = 1e-4
 weight_decay_rec = 1e-4
+lambda_adv = 1e-3
+lambda_rec = 1
 test_mode = True
-up_mode = 1
+up_mode = 3
 
 # display_step = np.ceil(np.ceil(max_train_index / batch_size) * n_epochs / 20)   #一共输出20个epoch，供判断用
 
@@ -200,9 +204,6 @@ def pre_train(save_model=True,p_epochs=400):
                                     f"vol_{cur_step:03d}_masked",
                                     masked_volume[0, 0, :, :, :])
 
-
-                mean_generator_loss = 0
-                mean_discriminator_loss = 0
                 # You can change save_model to True if you'd like to save the model
                 if save_model:
                     fileName = f"{dataSavePath}/P_VCNet_{epoch}.pth"
@@ -262,46 +263,49 @@ def fine_tune(save_model=True,f_epochs=100):
     
     display_step = np.ceil(np.ceil(max_train_index / batch_size) * p_epochs / 20)   #一共输出20个epoch，供判断用
     cur_step = 0
-
+    epoch_gen_losses=[]
+    epoch_disc_losses=[]
     for epoch in range(f_epochs):
+        epoch_gen_loss = []
+        epoch_disc_loss = []
+        iter=0
         # Dataloader returns the batches
         for real_volume,masked_volume,mask,index in dataloader:
 
             # wrap them into torch.tensor
-            real_volume = torch.tensor(real_volume,requires_grad=True).float().to(device)
-            masked_volume = torch.tensor(masked_volume,requires_grad=True).float().to(device)
-            mask = torch.tensor(mask,requires_grad=True).to(device)
-            output_volume = gen(masked_volume).to(device)
+            real_volume = real_volume.clone().detach().requires_grad_(True).float().to(device)
+            masked_volume = masked_volume.clone().detach().requires_grad_(True).float().to(device)
+            mask = mask.clone().detach().requires_grad_(True).float().to(device)
+            
+            output_volume = gen(masked_volume,
+                                test_mode,
+                                dataSavePath)
+            
+            real_volume_Variable = Variable(real_volume)
+            masked_volume_Variable = Variable(masked_volume)
+            output_volume_Variable = Variable(output_volume)
             
             # update disc
-            disc_loss = Loss_D_Adv(real_volume,output_volume,mask)
+            disc_opt.zero_grad()  # Zero out the gradient before back propagation
+            disc_loss = Loss_D_Adv(real_volume_Variable,output_volume_Variable,mask)
             # total_disc_loss.append(disc_loss)
             # print("Adv Disc Loss:", disc_loss.item())
-            
-            disc_opt.zero_grad()  # Zero out the gradient before back propagation
             disc_loss.backward()
             disc_opt.step()
+            epoch_disc_loss.append(disc_loss.detach().item()) #每一个批次的损失
             
             # update gen
-            gen_loss = Loss_G_Adv(real_volume,output_volume,mask)
+            gen_opt.zero_grad()
+            gen_loss = lambda_adv*Loss_G_Adv(real_volume,output_volume,mask) + lambda_rec*Loss_G_rec(real_volume_Variable.detach(),output_volume_Variable,mask)
             # total_gen_loss.append(gen_loss)
             # print("Adv Gen Loss:", gen_loss.item())
-            
-            gen_opt.zero_grad()
             gen_loss.backward()
             gen_opt.step()
+            epoch_gen_loss.append(gen_loss.detach().item())
             
             ## save model and generated volume(if need) ###
             if (cur_step+1) % display_step == 0 or cur_step == 2:
-
-                t = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-
-                # compute time
-                dt = time.time() - ot
-                elapsedTime = str(datetime.timedelta(seconds=dt))
-                per_epoch = str(datetime.timedelta(seconds=dt / (epoch+1)))
-                print(f"    epoch = {epoch}     dt={elapsedTime}    per-epoch={per_epoch}")
-
+                print(f"    (save)")
                 # save generated volume
                 tools.saveRawFile10(f"{dataSavePath}/F_VCNet_{epoch}",
                                     f"vol_{cur_step:03d}_fake",
@@ -315,9 +319,6 @@ def fine_tune(save_model=True,f_epochs=100):
                                     f"vol_{cur_step:03d}_masked",
                                     masked_volume[0, 0, :, :, :])
 
-
-                mean_generator_loss = 0
-                mean_discriminator_loss = 0
                 # You can change save_model to True if you'd like to save the model
                 if save_model:
                     fileName = f"{dataSavePath}/F_VCNet_{epoch}.pth"
@@ -328,8 +329,45 @@ def fine_tune(save_model=True,f_epochs=100):
                                 }, fileName)
                     
             cur_step += 1
+            iter += 1
 
+        average_gen_loss=sum(epoch_gen_loss)/len(epoch_gen_loss)
+        average_disc_loss=sum(epoch_disc_loss)/len(epoch_disc_loss)
+        epoch_gen_losses.append(average_gen_loss)
+        epoch_disc_losses.append(average_disc_loss)
+        
+        # compute time
+        dt = time.time() - ot
+        elapsedTime = str(datetime.timedelta(seconds=dt))
+        per_epoch = str(datetime.timedelta(seconds=dt / (epoch+1)))
+        print(f"    Epoch = {epoch}/{p_epochs}     dt={elapsedTime}    per-epoch={per_epoch}\n    gen_loss={average_gen_loss:.4f}    disc_loss={average_disc_loss:.4f}")
+        
+        plt.switch_backend('Agg')
+        plt.figure()
+        plt.plot(epoch_gen_losses,'b',label = 'gen loss')
+        plt.plot(epoch_disc_losses,'r',label = 'disc loss')
+        plt.ylabel('loss')
+        plt.xlabel('iter')
+        plt.legend()        #个性化图例（颜色、形状等）
+        plt.savefig(os.path.join(dataSavePath,f"loss/epoch{epoch}_loss.jpg")) #保存图片 路径：/imgPath/
+        
+        # draw loss
+        plt.switch_backend('Agg')
+        plt.figure()
+        plt.plot(epoch_gen_loss,'b',label = 'loss')
+        plt.plot(epoch_disc_loss,'r',label = 'disc loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend()        #个性化图例（颜色、形状等）
+        plt.savefig(os.path.join(dataSavePath,"loss/epoch_loss.jpg")) #保存图片 路径：/imgPath/
+
+
+    t2 = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+    print("##train finished##  time:",t2)
+    print("total train time:")
+    print("start:",t1)
+    print("end:",t2)
             
 # when to train? how to swift train mode???????
-pre_train(True,200)
+pre_train(True,800)
 # fine_tune(True,200)

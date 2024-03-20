@@ -310,6 +310,7 @@ class Dis_VCNet(nn.Module):
         self.down_3_conv = nn.Conv3d(in_channels=64,  out_channels=128,  kernel_size=4, dilation=1,  stride=2)
         self.down_4_conv = nn.Conv3d(in_channels=128,   out_channels=1,  kernel_size=4, dilation=1,  stride=2)
         self.avg = nn.AdaptiveAvgPool3d(output_size=1)
+        self.activate_fun = nn.Sigmoid()
 
     def forward(self,x):
         out = self.activate_fun(self.down_1_conv(x))
@@ -318,6 +319,7 @@ class Dis_VCNet(nn.Module):
         out = self.activate_fun(self.down_4_conv(out))
         
         out = self.avg(out)
+        out = self.activate_fun(out)
         
         return out
     
