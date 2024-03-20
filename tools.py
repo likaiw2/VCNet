@@ -307,9 +307,10 @@ class DataSet(Dataset): #定义Dataset类的名称
             mask_volume,mask = generate_mask(volume_shape=self.volume_shape, shape_type=mask_index)
             masked_volume_data = volume_data * (1 - mask_volume)
             
-        # mask_volume = torch.from_numpy(mask_volume)
+        mask_volume = torch.from_numpy(mask_volume)
         volume_data = volume_data.view([1, self.volume_shape[0], self.volume_shape[1], self.volume_shape[2]])   # reshape into [channels, depth, height, width].
         masked_volume_data = masked_volume_data.view([1, self.volume_shape[0], self.volume_shape[1], self.volume_shape[2]])   # reshape into [channels, depth, height, width].
+        mask_volume = mask_volume.view([1, self.volume_shape[0], self.volume_shape[1], self.volume_shape[2]])   # reshape into [channels, depth, height, width].
         
         return volume_data,masked_volume_data,mask_volume,index
 
@@ -329,7 +330,7 @@ class WeightedMSELoss(nn.Module):
         for i in range(batch_size):
             V_ground_truth = ground_truth[i][0]
             V_net_output = net_output[i][0]
-            V_mask = mask[i]
+            V_mask = mask[i][0]
             diff = V_net_output - V_ground_truth
             valuable_part = V_mask * diff
             # valuable_part_norm = np.linalg.norm(valuable_part,ord=2)
@@ -361,7 +362,7 @@ class AdversarialGLoss(nn.Module):
             mixed_data = V_mask * V_net_output + (1 - V_mask) * V_ground_truth
             dis_output = self.discriminator(mixed_data)
             
-            log_dis = torch.log10(dis_output)
+            log_dis = torch.log10(dis_output).cpu().detach().numpy()
             
             iter_norm.append(log_dis)
             
@@ -377,6 +378,7 @@ class AdversarialDLoss(nn.Module):
         self.discriminator = discriminator
 
     def forward(self, ground_truth, net_output,mask):
+        v_mask=mask
         batch_size = ground_truth.shape[0]
         # print(mask.shape)
         exp1 = []
@@ -385,16 +387,15 @@ class AdversarialDLoss(nn.Module):
         for i in range(batch_size):
             V_ground_truth = ground_truth[i][0]
             V_net_output = net_output[i][0]
-            V_mask = mask[i]
+            V_mask = mask[i][0]
             
-            log_dis1 = torch.log10(self.discriminator(V_ground_truth))
+            log_dis1 = torch.log10(self.discriminator(ground_truth)).cpu().detach().numpy()
             exp1.append(log_dis1)
             
-            mixed_data = V_mask * V_net_output + (1 - V_mask) * V_ground_truth
+            mixed_data = mask * net_output + (1 - mask) * ground_truth
             dis_output = self.discriminator(mixed_data)
             
-            log_dis2 = torch.log10(1 - dis_output)
-            
+            log_dis2 = torch.log10(1 - dis_output).cpu().detach().numpy()
             exp2.append(log_dis2)
             
         exp1 = np.array(exp1)

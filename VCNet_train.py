@@ -158,6 +158,7 @@ def pre_train(save_model=True,p_epochs=400):
             real_volume = real_volume.clone().detach().requires_grad_(True).float().to(device)
             masked_volume = masked_volume.clone().detach().requires_grad_(True).float().to(device)
             mask = mask.clone().detach().requires_grad_(True).float().to(device)
+            # print(mask.shape)
             
             output_volume = gen(masked_volume,
                                 test_mode,
@@ -254,7 +255,7 @@ def fine_tune(save_model=True,f_epochs=100):
     # read the start time
     ot = time.time()
     t1 = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-    print("## pre train start ##  time:",t1)
+    print("## fine tune start ##  time:",t1)
     
     # dataloader = DataLoader(trainDataset, batch_size=batch_size, shuffle=True, drop_last=True)
     dataloader = DataLoader(trainDataset, batch_size=batch_size, drop_last=True)
@@ -369,5 +370,5 @@ def fine_tune(save_model=True,f_epochs=100):
     print("end:",t2)
             
 # when to train? how to swift train mode???????
-pre_train(True,800)
-# fine_tune(True,200)
+# pre_train(True,800)
+fine_tune(True,200)
