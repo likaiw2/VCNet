@@ -326,7 +326,7 @@ class Dis_VCNet(nn.Module):
 
     def forward(self,x):
         # out = self.activate_fun(self.start_conv(x))
-        
+        # print("x:",x.shape)
         out = self.activate_fun(self.down_1_conv(x))
         # out = self.pool1(out)
         out = self.activate_fun(self.down_2_conv(out))

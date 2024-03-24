@@ -15,16 +15,16 @@ import matplotlib.pyplot as plt
 # dim = (96, 240, 384)    # [depth, height, width]. pelvic
 
 # set path(for windows test)
-dataSourcePath = r"C:\Files\Research\dataSet2"
-dataSavePath = r"C:\Files\Research\VCNet\dataSave"
+# dataSourcePath = r"C:\Files\Research\dataSet2"
+# dataSavePath = r"C:\Files\Research\VCNet\dataSave"
 
 # set path(for macbook test)
 # dataSourcePath = "/Users/wanglikai/Codes/Volume_Complete/dataSet1"
 # dataSavePath = "/Users/wanglikai/Codes/Volume_Complete/VCNet/dataSave"
 
 # set path(for linux Server)
-# dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"
-# dataSavePath = "/home/dell/storage/WANGLIKAI/VCNet/output"
+dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"
+dataSavePath = "/home/dell/storage/WANGLIKAI/VCNet/output"
 
 if not os.path.exists(f"{dataSavePath}/loss"):
         os.makedirs(f"{dataSavePath}/loss")
@@ -297,7 +297,9 @@ def fine_tune(save_model=True,f_epochs=100):
             
             # update gen
             gen_opt.zero_grad()
-            gen_loss = lambda_adv*Loss_G_Adv(real_volume,output_volume,mask) + lambda_rec*Loss_G_rec(real_volume_Variable.detach(),output_volume_Variable,mask)
+            # print("update gen")
+            gen_loss = lambda_adv*Loss_G_Adv(real_volume_Variable,output_volume_Variable,mask) + \
+                       lambda_rec*Loss_G_rec(real_volume_Variable,output_volume_Variable,mask)
             # total_gen_loss.append(gen_loss)
             # print("Adv Gen Loss:", gen_loss.item())
             gen_loss.backward()
@@ -371,4 +373,4 @@ def fine_tune(save_model=True,f_epochs=100):
             
 # when to train? how to swift train mode???????
 # pre_train(True,800)
-fine_tune(True,800)
+fine_tune(True,200)

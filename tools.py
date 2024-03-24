@@ -355,11 +355,11 @@ class AdversarialGLoss(nn.Module):
         iter_norm = []
         
         for i in range(batch_size):
-            V_ground_truth = ground_truth[i][0]
-            V_net_output = net_output[i][0]
-            V_mask = mask[i]
+            # V_ground_truth = ground_truth[i][0]
+            # V_net_output = net_output[i][0]
+            # V_mask = mask[i]
             
-            mixed_data = V_mask * V_net_output + (1 - V_mask) * V_ground_truth
+            mixed_data = mask * net_output + (1 - mask) * ground_truth
             dis_output = self.discriminator(mixed_data)
             
             log_dis = torch.log10(dis_output).cpu().detach().numpy()
@@ -385,15 +385,13 @@ class AdversarialDLoss(nn.Module):
         exp2 = []
         
         for i in range(batch_size):
-            V_ground_truth = ground_truth[i][0]
-            V_net_output = net_output[i][0]
-            V_mask = mask[i][0]
-            
+
+            # print("net_output:",net_output.shape)
             log_dis1 = torch.log10(self.discriminator(ground_truth)).cpu().detach().numpy()
             exp1.append(log_dis1)
             
             mixed_data = mask * net_output + (1 - mask) * ground_truth
-            # print(mixed_data.shape)
+            # print("mixed_data:",mixed_data.shape)
             dis_output = self.discriminator(mixed_data)
             
             log_dis2 = torch.log10(1 - dis_output).cpu().detach().numpy()
