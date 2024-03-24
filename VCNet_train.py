@@ -370,5 +370,5 @@ def fine_tune(save_model=True,f_epochs=100):
     print("end:",t2)
             
 # when to train? how to swift train mode???????
-pre_train(True,800)
-fine_tune(True,200)
+# pre_train(True,800)
+fine_tune(True,800)
