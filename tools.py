@@ -393,6 +393,7 @@ class AdversarialDLoss(nn.Module):
             exp1.append(log_dis1)
             
             mixed_data = mask * net_output + (1 - mask) * ground_truth
+            # print(mixed_data.shape)
             dis_output = self.discriminator(mixed_data)
             
             log_dis2 = torch.log10(1 - dis_output).cpu().detach().numpy()

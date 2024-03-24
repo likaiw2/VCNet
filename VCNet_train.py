@@ -341,12 +341,12 @@ def fine_tune(save_model=True,f_epochs=100):
         dt = time.time() - ot
         elapsedTime = str(datetime.timedelta(seconds=dt))
         per_epoch = str(datetime.timedelta(seconds=dt / (epoch+1)))
-        print(f"    Epoch = {epoch}/{p_epochs}     dt={elapsedTime}    per-epoch={per_epoch}    gen_loss={average_gen_loss:.4f}    disc_loss={average_disc_loss:.4f}")
+        print(f"    Epoch = {epoch}/{f_epochs}     dt={elapsedTime}    per-epoch={per_epoch}    gen_loss={average_gen_loss:.4f}    disc_loss={average_disc_loss:.4f}")
         
         plt.switch_backend('Agg')
         plt.figure()
-        plt.plot(epoch_gen_losses,'b',label = 'gen loss')
-        plt.plot(epoch_disc_losses,'r',label = 'disc loss')
+        plt.plot(epoch_gen_loss,'b',label = 'gen loss')
+        plt.plot(epoch_disc_loss,'r',label = 'disc loss')
         plt.ylabel('loss')
         plt.xlabel('iter')
         plt.legend()        #个性化图例（颜色、形状等）
@@ -355,12 +355,12 @@ def fine_tune(save_model=True,f_epochs=100):
         # draw loss
         plt.switch_backend('Agg')
         plt.figure()
-        plt.plot(epoch_gen_loss,'b',label = 'loss')
-        plt.plot(epoch_disc_loss,'r',label = 'disc loss')
+        plt.plot(epoch_gen_losses,'b',label = 'loss')
+        plt.plot(epoch_disc_losses,'r',label = 'disc loss')
         plt.ylabel('loss')
         plt.xlabel('epoch')
         plt.legend()        #个性化图例（颜色、形状等）
-        plt.savefig(os.path.join(dataSavePath,"loss/epoch_loss.jpg")) #保存图片 路径：/imgPath/
+        plt.savefig(os.path.join(dataSavePath,"loss/epoch_losses.jpg")) #保存图片 路径：/imgPath/
 
 
     t2 = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())

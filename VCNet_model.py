@@ -43,26 +43,26 @@ class Dilated_Block(nn.Module):
         
         self.activation = nn.LeakyReLU()
         
-        nn.init.xavier_uniform_(self.conv1.weight, gain = np.sqrt(2.0))
-        nn.init.constant_(self.conv1.bias,0)
-        nn.init.xavier_uniform_(self.conv2.weight, gain = np.sqrt(2.0))
-        nn.init.constant_(self.conv2.bias,0)
-        nn.init.xavier_uniform_(self.conv3.weight, gain = np.sqrt(2.0))
-        nn.init.constant_(self.conv3.bias,0)
+        # nn.init.xavier_uniform_(self.conv1.weight, gain = np.sqrt(2.0))
+        # nn.init.constant_(self.conv1.bias,0)
+        # nn.init.xavier_uniform_(self.conv2.weight, gain = np.sqrt(2.0))
+        # nn.init.constant_(self.conv2.bias,0)
+        # nn.init.xavier_uniform_(self.conv3.weight, gain = np.sqrt(2.0))
+        # nn.init.constant_(self.conv3.bias,0)
 
     def forward(self, x):
         identity = x
 
         out = self.conv1(x)
-        # out = self.bn1(out)
+        out = self.bn1(out)
         out = self.activation(out)
 
         out = self.conv2(out)
-        # out = self.bn2(out)
+        out = self.bn2(out)
         out = self.activation(out)
 
         out = self.conv3(out)
-        # out = self.bn3(out)
+        out = self.bn3(out)
         out = self.activation(out)
 
         # out += identity   #这个会报错，很呆，会产生inplace问题
@@ -76,25 +76,26 @@ class DownSampleBlock(nn.Module):
         super(DownSampleBlock, self).__init__()
         
         # this conv is for down sample
-        self.conv1 = nn.Conv3d(in_channels, out_channels, kernel_size=4, dilation=1, stride=2, padding=1)
+        self.conv1 = nn.Conv3d(out_channels, out_channels, kernel_size=4, dilation=1, stride=2, padding=1)
         # this conv is for add channels
-        self.conv2 = nn.Conv3d(out_channels, out_channels, kernel_size=3, dilation=1, stride=1, padding=1)
+        self.conv2 = nn.Conv3d(in_channels, out_channels, kernel_size=3, dilation=1, stride=1, padding=1)
         self.bn1 = nn.BatchNorm3d(out_channels)
         self.bn2 = nn.BatchNorm3d(out_channels)
         self.pool = nn.MaxPool3d(kernel_size=4, dilation=1,  stride=2, padding=1)
         self.activation = nn.LeakyReLU()
 
-        nn.init.xavier_uniform_(self.conv1.weight, gain = np.sqrt(2.0))
-        nn.init.constant_(self.conv1.bias,0)
-        nn.init.xavier_uniform_(self.conv2.weight, gain = np.sqrt(2.0))
-        nn.init.constant_(self.conv2.bias,0)
+        # nn.init.xavier_uniform_(self.conv1.weight, gain = np.sqrt(2.0))
+        # nn.init.constant_(self.conv1.bias,0)
+        # nn.init.xavier_uniform_(self.conv2.weight, gain = np.sqrt(2.0))
+        # nn.init.constant_(self.conv2.bias,0)
         
     def forward(self, x):
         # out = self.activation(self.bn1(self.conv1(x)))
-        # out = self.activation(self.bn2(self.conv2(x)))
-        # out = self.activation(self.pool(out))
-        out = self.activation(self.conv1(x))
-        out = self.activation(self.conv2(out))
+        out = self.activation(self.bn2(self.conv2(x)))
+        # out = self.activation(self.bn1(self.conv1(out)))
+        out = self.activation(self.pool(out))
+        # out = self.activation(self.conv1(x))
+        # out = self.activation(self.conv2(out))
         return out
 
 class UpSampleBlock_T_conv(nn.Module):
@@ -106,8 +107,8 @@ class UpSampleBlock_T_conv(nn.Module):
         self.bn = nn.BatchNorm3d(out_channels)
         self.activation = nn.LeakyReLU()
         
-        nn.init.xavier_uniform_(self.up_t_conv.weight, gain = np.sqrt(2.0))
-        nn.init.constant_(self.up_t_conv.bias,0)
+        # nn.init.xavier_uniform_(self.up_t_conv.weight, gain = np.sqrt(2.0))
+        # nn.init.constant_(self.up_t_conv.bias,0)
 
         
     def forward(self,x):
@@ -138,8 +139,8 @@ class UpSampleBlock_Trilinear(nn.Module):
         self.bn = nn.BatchNorm3d(out_channels)
         self.activation = nn.LeakyReLU()
         
-        nn.init.xavier_uniform_(self.up_conv11.weight, gain = np.sqrt(2.0))
-        nn.init.constant_(self.up_conv11.bias,0)
+        # nn.init.xavier_uniform_(self.up_conv11.weight, gain = np.sqrt(2.0))
+        # nn.init.constant_(self.up_conv11.bias,0)
         
     def forward(self,x):
         # print("x:",x.shape)
@@ -160,7 +161,7 @@ class UNet_v2(nn.Module):
         super(UNet_v2, self).__init__()
         # input = ["batch_size",1,128,128,128] 
         
-        self.activate_fun = nn.Sigmoid()
+        self.activate_fun = nn.LeakyReLU()
         # Conv + ReLU (down sample)
         self.down_sample_1 = DownSampleBlock(in_channels=1,  out_channels=32)
         self.down_sample_2 = DownSampleBlock(in_channels=32, out_channels=64)
@@ -197,20 +198,20 @@ class UNet_v2(nn.Module):
         self.up_res_conv_4 = nn.Conv3d(in_channels=256,  out_channels=128,  kernel_size=3, dilation=1,  stride=1, padding=1)
         self.up_res_conv_3 = nn.Conv3d(in_channels=128,  out_channels=64,  kernel_size=3, dilation=1,  stride=1, padding=1)
         self.up_res_conv_2 = nn.Conv3d(in_channels=64,  out_channels=32,  kernel_size=3, dilation=1,  stride=1, padding=1)
-        self.up_res_conv_1 = nn.Conv3d(in_channels=1,  out_channels=1,  kernel_size=3, dilation=1,  stride=1, padding=1)
-        nn.init.xavier_uniform_(self.up_res_conv_4.weight, gain = np.sqrt(2.0))
-        nn.init.xavier_uniform_(self.up_res_conv_3.weight, gain = np.sqrt(2.0))
-        nn.init.xavier_uniform_(self.up_res_conv_2.weight, gain = np.sqrt(2.0))
-        nn.init.xavier_uniform_(self.up_res_conv_1.weight, gain = np.sqrt(2.0))
-        nn.init.constant_(self.up_res_conv_4.bias,0)
-        nn.init.constant_(self.up_res_conv_3.bias,0)
-        nn.init.constant_(self.up_res_conv_2.bias,0)
-        nn.init.constant_(self.up_res_conv_1.bias,0)
+        self.up_res_conv_1 = nn.Conv3d(in_channels=2,  out_channels=1,  kernel_size=3, dilation=1,  stride=1, padding=1)
+        # nn.init.xavier_uniform_(self.up_res_conv_4.weight, gain = np.sqrt(2.0))
+        # nn.init.xavier_uniform_(self.up_res_conv_3.weight, gain = np.sqrt(2.0))
+        # nn.init.xavier_uniform_(self.up_res_conv_2.weight, gain = np.sqrt(2.0))
+        # nn.init.xavier_uniform_(self.up_res_conv_1.weight, gain = np.sqrt(2.0))
+        # nn.init.constant_(self.up_res_conv_4.bias,0)
+        # nn.init.constant_(self.up_res_conv_3.bias,0)
+        # nn.init.constant_(self.up_res_conv_2.bias,0)
+        # nn.init.constant_(self.up_res_conv_1.bias,0)
         
-        self.up_bn1=nn.BatchNorm3d(128)
-        self.up_bn2=nn.BatchNorm3d(64)
-        self.up_bn3=nn.BatchNorm3d(32)
-        self.up_bn4=nn.BatchNorm3d(1)
+        self.up_bn4=nn.BatchNorm3d(128)
+        self.up_bn3=nn.BatchNorm3d(64)
+        self.up_bn2=nn.BatchNorm3d(32)
+        self.up_bn1=nn.BatchNorm3d(1)
 
         self.final_activate_fun = nn.Sigmoid()
         
@@ -261,7 +262,7 @@ class UNet_v2(nn.Module):
         # print("up_sample_4:",out.shape)
         out=torch.cat([out, res_3], dim=1)
         # out=self.activate_fun(self.bn4(self.up_res_conv_4(out)))
-        out=self.activate_fun(self.up_res_conv_4(out))
+        out=self.activate_fun(self.up_bn4(self.up_res_conv_4(out)))
         if test_mode:
             for i in range(32):
                 tools.saveRawFile10(f"{dataSavePath}/#up_16",f"up_16_{i}",out[0, i, :, :, :])
@@ -272,7 +273,7 @@ class UNet_v2(nn.Module):
         out=torch.cat([out, res_2], dim=1)
         # print("layer3_cat",out.shape)
         # out=self.activate_fun(self.bn3(self.up_res_conv_3(out)))
-        out=self.activate_fun(self.up_res_conv_3(out))
+        out=self.activate_fun(self.up_bn3(self.up_res_conv_3(out)))
         # print("layer3_conv",out.shape)
         if test_mode:
             for i in range(32):
@@ -283,7 +284,7 @@ class UNet_v2(nn.Module):
         out=torch.cat([out, res_1], dim=1)
         # print("layer2_cat",out.shape)
         # out=self.activate_fun(self.bn2(self.up_res_conv_2(out)))
-        out=self.activate_fun(self.up_res_conv_2(out))
+        out=self.activate_fun(self.up_bn2(self.up_res_conv_2(out)))
         # print("layer2_conv",out.shape)
         if test_mode:
             for i in range(32):
@@ -292,9 +293,9 @@ class UNet_v2(nn.Module):
         # up_sample_1       32,64,64->1,128,128
         out=self.up_sample_1(out)
         # print("up_sample_1:",out.shape)
-        # out=torch.cat([out, res_x], dim=1)
-        # out=self.final_activate_fun(self.bn1(self.up_res_conv_1(out)))
-        out=self.final_activate_fun(self.up_res_conv_1(out))
+        out=torch.cat([out, res_x], dim=1)
+        out=self.final_activate_fun(self.up_bn1(self.up_res_conv_1(out)))
+        # out=self.final_activate_fun(self.up_bn1(self.up_res_conv_1(out)))
         # print("layer1_conv(final)",out.shape)
         
         return out
@@ -305,19 +306,35 @@ class Dis_VCNet(nn.Module):
 
         self.activate_fun = nn.ReLU(inplace=True)   # 原地修改数据，可以节省空间
 
+        self.start_conv = nn.Conv3d(in_channels=1,   out_channels=32, kernel_size=1)
         self.down_1_conv = nn.Conv3d(in_channels=1,   out_channels=32,  kernel_size=4, dilation=1,  stride=2)
         self.down_2_conv = nn.Conv3d(in_channels=32,  out_channels=64,  kernel_size=4, dilation=1,  stride=2)
         self.down_3_conv = nn.Conv3d(in_channels=64,  out_channels=128,  kernel_size=4, dilation=1,  stride=2)
         self.down_4_conv = nn.Conv3d(in_channels=128,   out_channels=1,  kernel_size=4, dilation=1,  stride=2)
         self.avg = nn.AdaptiveAvgPool3d(output_size=1)
-        self.activate_fun = nn.Sigmoid()
+        
+        self.pool1 = nn.MaxPool3d(kernel_size=4,stride=2)
+        self.pool2 = nn.MaxPool3d(kernel_size=4,stride=2)
+        self.pool3 = nn.MaxPool3d(kernel_size=4,stride=2)
+        self.pool4 = nn.MaxPool3d(kernel_size=4,stride=2)
+        
+        self.bn1 = nn.BatchNorm3d(32)
+        self.bn2 = nn.BatchNorm3d(64)
+        self.bn3 = nn.BatchNorm3d(128)
+        self.bn4 = nn.BatchNorm3d(1)
+        self.activate_fun = nn.LeakyReLU()
 
     def forward(self,x):
-        out = self.activate_fun(self.down_1_conv(x))
-        out = self.activate_fun(self.down_2_conv(out))
-        out = self.activate_fun(self.down_3_conv(out))
-        out = self.activate_fun(self.down_4_conv(out))
+        # out = self.activate_fun(self.start_conv(x))
         
+        out = self.activate_fun(self.down_1_conv(x))
+        # out = self.pool1(out)
+        out = self.activate_fun(self.down_2_conv(out))
+        # out = self.pool2(out)
+        out = self.activate_fun(self.down_3_conv(out))
+        # out = self.pool3(out)
+        out = self.activate_fun(self.down_4_conv(out))
+        # out = self.pool4(out)
         out = self.avg(out)
         out = self.activate_fun(out)
         
