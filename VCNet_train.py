@@ -15,16 +15,16 @@ import matplotlib.pyplot as plt
 # dim = (96, 240, 384)    # [depth, height, width]. pelvic
 
 # set path(for windows test)
-# dataSourcePath = r"C:\Files\Research\dataSet2"
-# dataSavePath = r"C:\Files\Research\VCNet\dataSave"
+dataSourcePath = r"C:\Files\Research\dataSet2"
+dataSavePath = r"C:\Files\Research\VCNet\dataSave"
 
 # set path(for macbook test)
 # dataSourcePath = "/Users/wanglikai/Codes/Volume_Complete/dataSet1"
 # dataSavePath = "/Users/wanglikai/Codes/Volume_Complete/VCNet/dataSave"
 
 # set path(for linux Server)
-dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"
-dataSavePath = "/home/dell/storage/WANGLIKAI/VCNet/output"
+# dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"
+# dataSavePath = "/home/dell/storage/WANGLIKAI/VCNet/output"
 
 if not os.path.exists(f"{dataSavePath}/loss"):
         os.makedirs(f"{dataSavePath}/loss")
@@ -92,7 +92,7 @@ f_epochs = 100          # for fine tune     # 微调
 input_dim = 1
 real_dim = 1
 batch_size = 2          #原模型参数 10
-lr = 5e-3             #learn rate 原模型参数 5e-3(0.005)
+lr = 5e-4             #learn rate 原模型参数 5e-3(0.005)
 # lr = 1e-6
 weight_decay_adv = 1e-4
 weight_decay_rec = 1e-4
@@ -154,13 +154,19 @@ def pre_train(save_model=True,p_epochs=400):
         # Dataloader returns the batches
         # each iter
         for real_volume,masked_volume,mask,index in dataloader:
+            
+            noise = np.random.normal(loc=0.5, scale=0.15, size=masked_volume.shape)
+            input_volume = masked_volume + mask*noise
+            input_volume = np.clip(input_volume,0.2,0.8)
+            input_volume = input_volume.clone().detach().requires_grad_(True).float().to(device)
+            
             # wrap them into torch.tensor
             real_volume = real_volume.clone().detach().requires_grad_(True).float().to(device)
             masked_volume = masked_volume.clone().detach().requires_grad_(True).float().to(device)
             mask = mask.clone().detach().requires_grad_(True).float().to(device)
             # print(mask.shape)
             
-            output_volume = gen(masked_volume,
+            output_volume = gen(input_volume,
                                 test_mode,
                                 dataSavePath)
             
@@ -372,5 +378,5 @@ def fine_tune(save_model=True,f_epochs=100):
     print("end:",t2)
             
 # when to train? how to swift train mode???????
-# pre_train(True,800)
-fine_tune(True,200)
+pre_train(True,800)
+# fine_tune(True,200)

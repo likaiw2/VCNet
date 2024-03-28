@@ -199,14 +199,6 @@ class UNet_v2(nn.Module):
         self.up_res_conv_3 = nn.Conv3d(in_channels=128,  out_channels=64,  kernel_size=3, dilation=1,  stride=1, padding=1)
         self.up_res_conv_2 = nn.Conv3d(in_channels=64,  out_channels=32,  kernel_size=3, dilation=1,  stride=1, padding=1)
         self.up_res_conv_1 = nn.Conv3d(in_channels=2,  out_channels=1,  kernel_size=3, dilation=1,  stride=1, padding=1)
-        # nn.init.xavier_uniform_(self.up_res_conv_4.weight, gain = np.sqrt(2.0))
-        # nn.init.xavier_uniform_(self.up_res_conv_3.weight, gain = np.sqrt(2.0))
-        # nn.init.xavier_uniform_(self.up_res_conv_2.weight, gain = np.sqrt(2.0))
-        # nn.init.xavier_uniform_(self.up_res_conv_1.weight, gain = np.sqrt(2.0))
-        # nn.init.constant_(self.up_res_conv_4.bias,0)
-        # nn.init.constant_(self.up_res_conv_3.bias,0)
-        # nn.init.constant_(self.up_res_conv_2.bias,0)
-        # nn.init.constant_(self.up_res_conv_1.bias,0)
         
         self.up_bn4=nn.BatchNorm3d(128)
         self.up_bn3=nn.BatchNorm3d(64)
@@ -214,6 +206,7 @@ class UNet_v2(nn.Module):
         self.up_bn1=nn.BatchNorm3d(1)
 
         self.final_activate_fun = nn.Sigmoid()
+        # self.final_activate_fun = tools.Swish(0.5)
         
     def forward(self, x, test_mode=False, dataSavePath="/home/dell/storage/WANGLIKAI/VCNet/output"):
         res_x = x
