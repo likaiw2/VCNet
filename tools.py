@@ -81,9 +81,9 @@ def generate_mask(volume_shape:[int,int,int],shape_type:int):
     mask = []       # meshgrid vector
     
     # to make sure the biggest size is smaller than 50%
-    max_x = volume_shape[0]*0.5
-    max_y = volume_shape[1]*0.5
-    max_z = volume_shape[2]*0.5
+    max_x = volume_shape[0]*0.3
+    max_y = volume_shape[1]*0.3
+    max_z = volume_shape[2]*0.3
     
     # make empty mask
     mask_volume = np.zeros(volume_shape)
@@ -284,7 +284,7 @@ class DataSet(Dataset): #定义Dataset类的名称
         
         elif (self.mask_type == "train"):
             # mask when train
-            mask_index = random.randint(1,3)              #123
+            mask_index = random.randint(1,4)              #1234
             mask_name = self.mask_name[mask_index]
             mask_volume,mask = generate_mask(volume_shape=self.volume_shape, shape_type=mask_index)
             volume_data = volume_data.view([self.volume_shape[0], self.volume_shape[1], self.volume_shape[2]])   # reshape into [depth, height, width].
@@ -302,14 +302,15 @@ class DataSet(Dataset): #定义Dataset类的名称
             
         elif (self.mask_type == "predict"):
             # mask when predict
-            mask_index = random.randint(3,9)              #3456789
+            mask_index = random.randint(4,9)              #3456789
             mask_name = self.mask_name[mask_index]
             mask_volume,mask = generate_mask(volume_shape=self.volume_shape, shape_type=mask_index)
             masked_volume_data = volume_data * (1 - mask_volume)
             
-        # mask_volume = torch.from_numpy(mask_volume)
+        mask_volume = torch.from_numpy(mask_volume)
         volume_data = volume_data.view([1, self.volume_shape[0], self.volume_shape[1], self.volume_shape[2]])   # reshape into [channels, depth, height, width].
         masked_volume_data = masked_volume_data.view([1, self.volume_shape[0], self.volume_shape[1], self.volume_shape[2]])   # reshape into [channels, depth, height, width].
+        mask_volume = mask_volume.view([1, self.volume_shape[0], self.volume_shape[1], self.volume_shape[2]])   # reshape into [channels, depth, height, width].
         
         return volume_data,masked_volume_data,mask_volume,index
 
@@ -329,7 +330,7 @@ class WeightedMSELoss(nn.Module):
         for i in range(batch_size):
             V_ground_truth = ground_truth[i][0]
             V_net_output = net_output[i][0]
-            V_mask = mask[i]
+            V_mask = mask[i][0]
             diff = V_net_output - V_ground_truth
             valuable_part = V_mask * diff
             # valuable_part_norm = np.linalg.norm(valuable_part,ord=2)
@@ -354,14 +355,14 @@ class AdversarialGLoss(nn.Module):
         iter_norm = []
         
         for i in range(batch_size):
-            V_ground_truth = ground_truth[i][0]
-            V_net_output = net_output[i][0]
-            V_mask = mask[i]
+            # V_ground_truth = ground_truth[i][0]
+            # V_net_output = net_output[i][0]
+            # V_mask = mask[i]
             
-            mixed_data = V_mask * V_net_output + (1 - V_mask) * V_ground_truth
+            mixed_data = mask * net_output + (1 - mask) * ground_truth
             dis_output = self.discriminator(mixed_data)
             
-            log_dis = torch.log10(dis_output)
+            log_dis = torch.log10(dis_output).cpu().detach().numpy()
             
             iter_norm.append(log_dis)
             
@@ -377,24 +378,23 @@ class AdversarialDLoss(nn.Module):
         self.discriminator = discriminator
 
     def forward(self, ground_truth, net_output,mask):
+        v_mask=mask
         batch_size = ground_truth.shape[0]
         # print(mask.shape)
         exp1 = []
         exp2 = []
         
         for i in range(batch_size):
-            V_ground_truth = ground_truth[i][0]
-            V_net_output = net_output[i][0]
-            V_mask = mask[i]
-            
-            log_dis1 = torch.log10(self.discriminator(V_ground_truth))
+
+            # print("net_output:",net_output.shape)
+            log_dis1 = torch.log10(self.discriminator(ground_truth)).cpu().detach().numpy()
             exp1.append(log_dis1)
             
-            mixed_data = V_mask * V_net_output + (1 - V_mask) * V_ground_truth
+            mixed_data = mask * net_output + (1 - mask) * ground_truth
+            # print("mixed_data:",mixed_data.shape)
             dis_output = self.discriminator(mixed_data)
             
-            log_dis2 = torch.log10(1 - dis_output)
-            
+            log_dis2 = torch.log10(1 - dis_output).cpu().detach().numpy()
             exp2.append(log_dis2)
             
         exp1 = np.array(exp1)
@@ -407,7 +407,14 @@ class AdversarialDLoss(nn.Module):
         return adversarial_loss
 
 
+# activate function
+class Swish(nn.Module):
+    def __init__(self,beta=1.0):
+        super().__init__()
+        self.beta = beta
 
+    def forward(self,x):
+        return x*torch.sigmoid(self.beta*x)
 
 
 
