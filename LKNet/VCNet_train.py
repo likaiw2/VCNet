@@ -30,8 +30,8 @@ if not os.path.exists(f"{dataSavePath}/loss"):
         os.makedirs(f"{dataSavePath}/loss")
 
 pthLoadPath = ""
-device=torch.device("cuda:0")
-# device=torch.device("cpu")
+# device=torch.device("cuda:0")
+device=torch.device("cpu")
 
 torch.autograd.set_detect_anomaly(True)
 
