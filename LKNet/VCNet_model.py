@@ -209,8 +209,8 @@ class UNet_v2(nn.Module):
         # self.final_activate_fun = tools.Swish(0.5)
         
     def forward(self, x,mask, test_mode=False, dataSavePath="/home/dell/storage/WANGLIKAI/VCNet/output"):
-        x = torch.cat([x, mask], dim=1)
         res_x = x
+        x = torch.cat([x, mask], dim=1)
         
         # down_sample_1     2,128,128->32,64,64
         out = self.down_sample_1(x)
