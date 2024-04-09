@@ -15,12 +15,12 @@ import matplotlib.pyplot as plt
 # dim = (96, 240, 384)    # [depth, height, width]. pelvic
 
 # set path(for windows test)
-dataSourcePath = r"C:\Files\Research\dataSet2"
-dataSavePath = r"C:\Files\Research\VCNet\dataSave"
+# dataSourcePath = r"C:\Files\Research\dataSet2"
+# dataSavePath = r"C:\Files\Research\VCNet\dataSave"
 
 # set path(for macbook test)
-# dataSourcePath = "/Users/wanglikai/Codes/Volume_Complete/dataSet1"
-# dataSavePath = "/Users/wanglikai/Codes/Volume_Complete/VCNet/dataSave"
+dataSourcePath = "/Users/wanglikai/Codes/Volume_Complete/dataSet1"
+dataSavePath = "/Users/wanglikai/Codes/Volume_Complete/VCNet/dataSave"
 
 # set path(for linux Server)
 # dataSourcePath = "/home/dell/storage/WANGLIKAI/dataSet/dataSet1"
@@ -155,9 +155,9 @@ def pre_train(save_model=True,p_epochs=400):
         # each iter
         for real_volume,masked_volume,mask,index in dataloader:
             
-            noise = np.random.normal(loc=0.5, scale=0.15, size=masked_volume.shape)
-            input_volume = masked_volume + mask*noise
-            input_volume = np.clip(input_volume,0.2,0.8)
+            # noise = np.random.normal(loc=0.5, scale=0.15, size=masked_volume.shape)
+            # input_volume = masked_volume + mask*noise
+            # input_volume = np.clip(input_volume,0.2,0.8)
             input_volume = input_volume.clone().detach().requires_grad_(True).float().to(device)
             
             # wrap them into torch.tensor
@@ -166,7 +166,7 @@ def pre_train(save_model=True,p_epochs=400):
             mask = mask.clone().detach().requires_grad_(True).float().to(device)
             # print(mask.shape)
             
-            output_volume = gen(input_volume,
+            output_volume = gen(input_volume,mask,
                                 test_mode,
                                 dataSavePath)
             
