@@ -163,7 +163,7 @@ class UNet_v2(nn.Module):
         
         self.activate_fun = nn.LeakyReLU()
         # Conv + ReLU (down sample)
-        self.down_sample_1 = DownSampleBlock(in_channels=1,  out_channels=32)
+        self.down_sample_1 = DownSampleBlock(in_channels=2,  out_channels=32)
         self.down_sample_2 = DownSampleBlock(in_channels=32, out_channels=64)
         self.down_sample_3 = DownSampleBlock(in_channels=64, out_channels=128)
         self.down_sample_4 = DownSampleBlock(in_channels=128,out_channels=256)
@@ -208,10 +208,11 @@ class UNet_v2(nn.Module):
         self.final_activate_fun = nn.Sigmoid()
         # self.final_activate_fun = tools.Swish(0.5)
         
-    def forward(self, x, test_mode=False, dataSavePath="/home/dell/storage/WANGLIKAI/VCNet/output"):
+    def forward(self, x,mask, test_mode=False, dataSavePath="/home/dell/storage/WANGLIKAI/VCNet/output"):
         res_x = x
+        x = torch.cat([x, mask], dim=1)
         
-        # down_sample_1     1,128,128->32,64,64
+        # down_sample_1     2,128,128->32,64,64
         out = self.down_sample_1(x)
         # print("down_sample_1:",out.shape)
         res_1 = out

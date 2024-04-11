@@ -3,4 +3,5 @@ LKNet/__pycache__/
 vcnet-blind-image-inpainting/
 StrDiffusion/
 medicaldiffusion/
+pytorch-inpainting-with-partial-conv
 .DS_Store
