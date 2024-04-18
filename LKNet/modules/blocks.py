@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-
 from modules.normalization import PCN
 
 
@@ -91,8 +90,13 @@ class PCBlock(nn.Module):
 
 
 if __name__ == '__main__':
-    pcb = PCBlock(channels_in=3, channels_out=32, kernel_size=5, stride=1, padding=2)
-    inp = torch.rand((4, 3, 256, 256))
-    mask = torch.rand((4, 1, 256, 256))
-    out = pcb(inp, mask)
-    print(out.size())
+    # pcb = PCBlock(channels_in=3, channels_out=32, kernel_size=5, stride=1, padding=2)
+    # inp = torch.rand((4, 3, 256, 256))
+    # mask = torch.rand((4, 1, 256, 256))
+    # out = pcb(inp, mask)
+    # print(out.size())
+    
+    rb_test = torch.rand((2, 3, 256, 256))
+    rb = ResBlock(channels_in=3, channels_out=64, kernel_size=5, stride=2, padding=2, dilation=1)
+    out = rb(rb_test)
+    print(out.shape)

@@ -25,6 +25,12 @@ class Trainer:
         self.model_name = f"{self.opt.MODEL.NAME}_{self.opt.DATASET.NAME}+
                           _{self.opt.TRAIN.NUM_TOTAL_STEP}step_{self.opt.TRAIN.BATCH_SIZE}bs + 
                           _{self.opt.MODEL.JOINT.LR}lr"
+                          
+        # 设置wandb的日志目录
+        self.opt.WANDB.LOG_DIR = os.path.join("./logs/", self.model_name)
+        # 初始化wandb，用于实验跟踪和可视化
+        self.wandb = wandb
+        self.wandb.init(project=self.opt.WANDB.PROJECT_NAME, resume=self.opt.TRAIN.RESUME, notes=self.opt.WANDB.LOG_DIR, config=self.opt, entity=self.opt.WANDB.ENTITY)
         
         # 定义图像预处理流程
         self.transform = transforms.Compose([transforms.Resize(self.opt.DATASET.SIZE),
@@ -103,7 +109,7 @@ class Trainer:
         while self.num_step < self.opt.TRAIN.NUM_TOTAL_STEP:
             # 增加训练步数并打印进度信息
             self.num_step += 1
-            info = " [Step: {}/{} ({}%)] ".format(self.num_step, self.opt.TRAIN.NUM_TOTAL_STEP, 100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP)
+            info = f" [Step: {self.num_step}/{self.opt.TRAIN.NUM_TOTAL_STEP} ({100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP}%)] "
 
             # 从数据加载器中获取一批图像
             imgs, _ = next(iter(self.image_loader))
