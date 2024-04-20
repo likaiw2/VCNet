@@ -22,15 +22,14 @@ class Trainer:
     def __init__(self, cfg):
         self.opt = cfg
         # 根据配置参数构造模型名称
-        self.model_name = f"{self.opt.MODEL.NAME}_{self.opt.DATASET.NAME}+
-                          _{self.opt.TRAIN.NUM_TOTAL_STEP}step_{self.opt.TRAIN.BATCH_SIZE}bs + 
-                          _{self.opt.MODEL.JOINT.LR}lr"
+        self.model_name = f"{self.opt.MODEL.NAME}_{self.opt.DATASET.NAME}_{self.opt.TRAIN.NUM_TOTAL_STEP}step_{self.opt.TRAIN.BATCH_SIZE}bs + _{self.opt.MODEL.JOINT.LR}lr"
                           
         # 设置wandb的日志目录
         self.opt.WANDB.LOG_DIR = os.path.join("./logs/", self.model_name)
         # 初始化wandb，用于实验跟踪和可视化
         self.wandb = wandb
-        self.wandb.init(project=self.opt.WANDB.PROJECT_NAME, resume=self.opt.TRAIN.RESUME, notes=self.opt.WANDB.LOG_DIR, config=self.opt, entity=self.opt.WANDB.ENTITY)
+        # self.wandb.init(project=self.opt.WANDB.PROJECT_NAME, resume=self.opt.TRAIN.RESUME, notes=self.opt.WANDB.LOG_DIR, config=self.opt, entity=self.opt.WANDB.ENTITY)
+        self.wandb.init(project=self.opt.WANDB.PROJECT_NAME, resume=self.opt.TRAIN.RESUME, notes=self.opt.WANDB.LOG_DIR, config=self.opt)
         
         # 定义图像预处理流程
         self.transform = transforms.Compose([transforms.Resize(self.opt.DATASET.SIZE),
@@ -45,7 +44,8 @@ class Trainer:
                                             batch_size=self.opt.TRAIN.BATCH_SIZE, 
                                             shuffle=self.opt.TRAIN.SHUFFLE, 
                                             num_workers=self.opt.SYSTEM.NUM_WORKERS)
-        # 定义另一个图像预处理流程，用于content images
+        
+        # 定义另一个图像预处理流程，用于content images(masked image)
         self.imagenet_transform = transforms.Compose([transforms.RandomCrop(self.opt.DATASET.SIZE, pad_if_needed=True, padding_mode="reflect"),
                                                       transforms.RandomHorizontalFlip(),
                                                       transforms.ToTensor(),
@@ -61,7 +61,7 @@ class Trainer:
         #     self.cont_dataset = ImageFolder(root=self.opt.DATASET.CONT_ROOT, transform=self.imagenet_transform)
         self.cont_dataset = ImageFolder(root=self.opt.DATASET.CONT_ROOT, transform=self.imagenet_transform)
         
-        # 创建content images的数据加载器
+        # 创建content images的数据加载器 
         self.cont_image_loader = data.DataLoader(dataset=self.cont_dataset, 
                                                  batch_size=self.opt.TRAIN.BATCH_SIZE, 
                                                  shuffle=self.opt.TRAIN.SHUFFLE, 
