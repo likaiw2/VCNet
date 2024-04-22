@@ -1,2 +1,6 @@
 SYSTEM:
-  NUM_GPUS: 2
+  NUM_GPU: 1
+
+DATASET:
+  PATH: C:\Files\Research\dataSet\ImageNet\class1
+  CONT_ROOT: C:\Files\Research\dataSet\ImageNet\for_train

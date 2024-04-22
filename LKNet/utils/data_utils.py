@@ -1,9 +1,12 @@
 import torch
 import random
 import string
-
 from torch.autograd import Variable
 from torch.utils import data
+import os
+from PIL import Image
+from torchvision import transforms
+from utils.config import get_cfg_defaults
 
 
 class UnNormalize(object):
@@ -22,7 +25,6 @@ class UnNormalize(object):
             t.mul_(s).add_(m)
             # The normalize code -> t.sub_(m).div_(s)
         return tensor
-
 
 def unnormalize_batch(batch, mean_, std_, div_factor=1.0):
     """
@@ -48,26 +50,16 @@ def unnormalize_batch(batch, mean_, std_, div_factor=1.0):
     batch = torch.add(batch, Variable(mean))
     return batch
 
-
 def get_random_string(length):
     letters = string.ascii_lowercase
     result_str = ''.join(random.choice(letters) for i in range(length))
     return result_str
 
-
 def linear_scaling(x):
     return (x * 255.) / 127.5 - 1.
 
-
 def linear_unscaling(x):
     return (x + 1.) * 127.5 / 255.
-
-
-import os
-from PIL import Image
-from torchvision import transforms
-from utils.config import get_cfg_defaults
-
 
 class RaindropDataset(data.Dataset):
     def __init__(self, root, transform=None, target_transform=None):
@@ -105,6 +97,21 @@ class RaindropDataset(data.Dataset):
     def _read_img(self, im_path):
         return Image.open(im_path).convert("RGB")
 
+class NormalDataset(data.Dataset):
+    def __init__(self,root="", transform = None): 
+        self.data_path = root
+        self.transform = transform
+        self.images = os.listdir(root)
+
+    def __len__(self):
+        return len(self.images)
+    
+    def __getitem__(self,idx):
+        img_name = os.path.join(self.image_dir, self.images[idx])
+        image = Image.open(img_name)
+        if self.transform:
+            image = self.transform(image)
+        return image
 
 if __name__ == '__main__':
     cfg = get_cfg_defaults()

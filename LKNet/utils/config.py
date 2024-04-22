@@ -8,19 +8,19 @@ _C = CN()
 # 在_C下创建新的配置节点_C.SYSTEM
 _C.SYSTEM = CN()
 _C.SYSTEM.NUM_GPU = 2
-_C.SYSTEM.NUM_WORKERS = 1
+_C.SYSTEM.NUM_WORKERS = 0
 
 _C.WANDB = CN()
 _C.WANDB.PROJECT_NAME = "vcnet"
 # _C.WANDB.ENTITY = "vvgl-ozu"
-_C.WANDB.RUN = 16
+_C.WANDB.RUN = 1
 _C.WANDB.LOG_DIR = ""
 _C.WANDB.NUM_ROW = 0
 
 _C.TRAIN = CN()
 _C.TRAIN.NUM_TOTAL_STEP = 2000
 _C.TRAIN.START_STEP = 0
-_C.TRAIN.BATCH_SIZE = 4
+_C.TRAIN.BATCH_SIZE = 128
 _C.TRAIN.SHUFFLE = True
 _C.TRAIN.NUM_STEPS_FOR_JOINT = 20000
 _C.TRAIN.LOG_INTERVAL = 200
@@ -29,6 +29,7 @@ _C.TRAIN.SAVE_DIR = "./weights"
 _C.TRAIN.RESUME = True
 _C.TRAIN.VISUALIZE_INTERVAL = 200
 _C.TRAIN.TUNE = False
+_C.TRAIN.MASKED_PIC_PATH=
 
 _C.MODEL = CN()
 _C.MODEL.NAME = "LKNet"
@@ -87,7 +88,7 @@ _C.MODEL.JOINT.DECAY_RATE = 0.5
 
 _C.DATASET = CN()
 _C.DATASET.NAME = "ImageNet"
-_C.DATASET.PATH = "/Users/wanglikai/Codes/DataSets/ImageNet/class1"
+_C.DATASET.ROOT = "/Users/wanglikai/Codes/DataSets/ImageNet/class1"
 _C.DATASET.CONT_ROOT = "/Users/wanglikai/Codes/DataSets/ImageNet/for_train"
 # _C.DATASET.IMAGENET = "./datasets/ImageNet/"
 # _C.DATASET.RAINDROP_ROOT = "./datasets/raindrop/train20/train"

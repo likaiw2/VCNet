@@ -1,3 +1,6 @@
+import sys
+print(sys.version)
+
 import glog as log  # Google的日志库
 import argparse  # 用于解析命令行参数
 from engine.trainer import Trainer, RaindropTrainer  # 导入训练器类
@@ -6,10 +9,10 @@ from utils.config import get_cfg_defaults  # 导入获取默认配置的函数
 
 # 获取默认配置
 cfg = get_cfg_defaults()
-# cfg.merge_from_file("utils/configs/exp1.yaml")
+cfg.merge_from_file(r"LKNet\utils\configs\exp1.yaml")
 # cfg.freeze()
 
-print(cfg)  # 打印配置信息
+# print(cfg)  # 打印配置信息
 
 if cfg.MODEL.IS_TRAIN:
     # 创建训练器对象并开始训练

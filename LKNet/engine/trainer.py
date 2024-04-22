@@ -13,7 +13,7 @@ from losses.bce import WeightedBCELoss
 from losses.consistency import SemanticConsistencyLoss, IDMRFLoss
 from losses.adversarial import compute_gradient_penalty
 from utils.mask_utils import MaskGenerator, ConfidenceDrivenMaskLayer, COLORS
-from utils.data_utils import linear_scaling, linear_unscaling, get_random_string, RaindropDataset
+from utils.data_utils import linear_scaling, linear_unscaling, get_random_string, RaindropDataset, NormalDataset
 
 # torch.autograd.set_detect_anomaly(True)
 
@@ -22,10 +22,12 @@ class Trainer:
     def __init__(self, cfg):
         self.opt = cfg
         # 根据配置参数构造模型名称
-        self.model_name = f"{self.opt.MODEL.NAME}_{self.opt.DATASET.NAME}_{self.opt.TRAIN.NUM_TOTAL_STEP}step_{self.opt.TRAIN.BATCH_SIZE}bs + _{self.opt.MODEL.JOINT.LR}lr"
+        self.model_name = f"{self.opt.MODEL.NAME}_{self.opt.DATASET.NAME}_{self.opt.TRAIN.NUM_TOTAL_STEP}step_{self.opt.TRAIN.BATCH_SIZE}bs_{self.opt.MODEL.JOINT.LR}lr"
                           
         # 设置wandb的日志目录
         self.opt.WANDB.LOG_DIR = os.path.join("./logs/", self.model_name)
+        cfg.freeze()
+        
         # 初始化wandb，用于实验跟踪和可视化
         self.wandb = wandb
         # self.wandb.init(project=self.opt.WANDB.PROJECT_NAME, resume=self.opt.TRAIN.RESUME, notes=self.opt.WANDB.LOG_DIR, config=self.opt, entity=self.opt.WANDB.ENTITY)
@@ -45,7 +47,7 @@ class Trainer:
                                             shuffle=self.opt.TRAIN.SHUFFLE, 
                                             num_workers=self.opt.SYSTEM.NUM_WORKERS)
         
-        # 定义另一个图像预处理流程，用于content images(masked image)
+        # 定义另一个图像预处理流程，用于content images(用来填充mask区域的图像)
         self.imagenet_transform = transforms.Compose([transforms.RandomCrop(self.opt.DATASET.SIZE, pad_if_needed=True, padding_mode="reflect"),
                                                       transforms.RandomHorizontalFlip(),
                                                       transforms.ToTensor(),
@@ -59,7 +61,8 @@ class Trainer:
         # else:
         #     # 创建单一数据集
         #     self.cont_dataset = ImageFolder(root=self.opt.DATASET.CONT_ROOT, transform=self.imagenet_transform)
-        self.cont_dataset = ImageFolder(root=self.opt.DATASET.CONT_ROOT, transform=self.imagenet_transform)
+        # self.cont_dataset = ImageFolder(root=self.opt.DATASET.CONT_ROOT, transform=self.imagenet_transform)
+        self.cont_dataset = NormalDataset(root=self.opt.DATASET.CONT_ROOT, transform=self.imagenet_transform)
         
         # 创建content images的数据加载器 
         self.cont_image_loader = data.DataLoader(dataset=self.cont_dataset, 
@@ -110,6 +113,7 @@ class Trainer:
             # 增加训练步数并打印进度信息
             self.num_step += 1
             info = f" [Step: {self.num_step}/{self.opt.TRAIN.NUM_TOTAL_STEP} ({100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP}%)] "
+            print(info)
 
             # 从数据加载器中获取一批图像
             imgs, _ = next(iter(self.image_loader))
@@ -132,6 +136,7 @@ class Trainer:
 
             # 根据遮罩合成图像
             masked_imgs = cont_imgs * smooth_masks + imgs * (1. - smooth_masks)
+            
             self.unknown_pixel_ratio = torch.sum(masks.view(batch_size, -1), dim=1).mean() / (h * w)
 
             # 训练判别器
@@ -409,6 +414,7 @@ class RaindropTrainer(Trainer):
         self.texture_consistency_loss = IDMRFLoss().cuda()
 
     def run(self):
+        print("start run!")
         while self.num_step < self.opt.TRAIN.NUM_TOTAL_STEP:
             self.num_step += 1
             info = " [Step: {}/{} ({}%)] ".format(self.num_step, self.opt.TRAIN.NUM_TOTAL_STEP, 100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP)
@@ -524,3 +530,4 @@ class RaindropTrainer(Trainer):
             for k, v in state.items():
                 if isinstance(v, torch.Tensor):
                     state[k] = v.cuda()
+
