@@ -2,5 +2,8 @@ SYSTEM:
   NUM_GPU: 1
 
 DATASET:
-  PATH: C:\Files\Research\dataSet\ImageNet\class1
-  CONT_ROOT: C:\Files\Research\dataSet\ImageNet\for_train
+  ROOT: C:\Files\Research\dataSet\ImageNet\class1
+  CONT_ROOT: C:\Files\Research\dataSet\ImageNet\class2
+
+TRAIN:
+  MASKED_PIC_PATH: C:\Files\Research\dataSet\ImageNet\masked_pic

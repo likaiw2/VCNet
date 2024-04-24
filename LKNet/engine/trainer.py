@@ -7,6 +7,7 @@ import numpy as np
 from torch.utils import data
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
+from torchvision.utils import save_image
 
 from modeling.architecture import MPN, RIN, Discriminator, PatchDiscriminator
 from losses.bce import WeightedBCELoss
@@ -31,7 +32,11 @@ class Trainer:
         # 初始化wandb，用于实验跟踪和可视化
         self.wandb = wandb
         # self.wandb.init(project=self.opt.WANDB.PROJECT_NAME, resume=self.opt.TRAIN.RESUME, notes=self.opt.WANDB.LOG_DIR, config=self.opt, entity=self.opt.WANDB.ENTITY)
-        self.wandb.init(project=self.opt.WANDB.PROJECT_NAME, resume=self.opt.TRAIN.RESUME, notes=self.opt.WANDB.LOG_DIR, config=self.opt)
+        self.wandb.init(project=self.opt.WANDB.PROJECT_NAME, 
+                        resume=self.opt.TRAIN.RESUME, 
+                        notes=self.opt.WANDB.LOG_DIR, 
+                        config=self.opt,
+                        mode=self.opt.WANDB.MODE)
         
         # 定义图像预处理流程
         self.transform = transforms.Compose([transforms.Resize(self.opt.DATASET.SIZE),
@@ -40,16 +45,18 @@ class Trainer:
                                              # transforms.Normalize(self.opt.DATASET.MEAN, self.opt.DATASET.STD)
                                              ])
         # 创建一个图像数据集
-        self.dataset = ImageFolder(root=self.opt.DATASET.PATH, transform=self.transform)
+        self.dataset = ImageFolder(root=self.opt.DATASET.ROOT, transform=self.transform)
         # 创建一个图像数据加载器
         self.image_loader = data.DataLoader(dataset=self.dataset, 
                                             batch_size=self.opt.TRAIN.BATCH_SIZE, 
                                             shuffle=self.opt.TRAIN.SHUFFLE, 
                                             num_workers=self.opt.SYSTEM.NUM_WORKERS)
+        self.data_size = len(self.image_loader)
         
         # 定义另一个图像预处理流程，用于content images(用来填充mask区域的图像)
         self.imagenet_transform = transforms.Compose([transforms.RandomCrop(self.opt.DATASET.SIZE, pad_if_needed=True, padding_mode="reflect"),
                                                       transforms.RandomHorizontalFlip(),
+                                                      transforms.Grayscale(num_output_channels=3),
                                                       transforms.ToTensor(),
                                                       # transforms.Normalize(self.opt.DATASET.MEAN, self.opt.DATASET.STD)
                                                       ])
@@ -62,7 +69,8 @@ class Trainer:
         #     # 创建单一数据集
         #     self.cont_dataset = ImageFolder(root=self.opt.DATASET.CONT_ROOT, transform=self.imagenet_transform)
         # self.cont_dataset = ImageFolder(root=self.opt.DATASET.CONT_ROOT, transform=self.imagenet_transform)
-        self.cont_dataset = NormalDataset(root=self.opt.DATASET.CONT_ROOT, transform=self.imagenet_transform)
+        self.cont_dataset = NormalDataset(root=self.opt.DATASET.CONT_ROOT, 
+                                          transform=self.imagenet_transform)
         
         # 创建content images的数据加载器 
         self.cont_image_loader = data.DataLoader(dataset=self.cont_dataset, 
@@ -125,7 +133,7 @@ class Trainer:
             masks = torch.from_numpy(self.mask_generator.generate(h, w)).repeat([batch_size, 1, 1, 1]).float().cuda()
 
             # 从content数据加载器中获取一批图像
-            cont_imgs, _ = next(iter(self.cont_image_loader))
+            cont_imgs = next(iter(self.cont_image_loader))
             cont_imgs = linear_scaling(cont_imgs.float().cuda())
             if cont_imgs.size(0) != imgs.size(0):
                 cont_imgs = cont_imgs[:imgs.size(0)]
@@ -136,9 +144,15 @@ class Trainer:
 
             # 根据遮罩合成图像
             masked_imgs = cont_imgs * smooth_masks + imgs * (1. - smooth_masks)
-            
             self.unknown_pixel_ratio = torch.sum(masks.view(batch_size, -1), dim=1).mean() / (h * w)
-
+            # 我想保存maskedpic 但是还没做 TODO
+            # print(imgs.shape)
+            # print(cont_imgs.shape)
+            # print(masked_imgs.shape)
+            # print(smooth_masks.shape)
+            # print()
+            
+                        
             # 训练判别器
             for _ in range(self.opt.MODEL.D.NUM_CRITICS):
                 d_loss = self.train_D(masked_imgs, masks, y_imgs)
@@ -146,8 +160,8 @@ class Trainer:
 
             # 训练生成器
             m_loss, g_loss, pred_masks, output = self.train_G(masked_imgs, masks, y_imgs)
-            info += "M Loss: {} G Loss: {} ".format(m_loss, g_loss)
-
+            info += f"M Loss: {m_loss} G Loss: {g_loss} "
+            
             # 记录日志
             if self.num_step % self.opt.TRAIN.LOG_INTERVAL == 0:
                 log.info(info)
@@ -166,8 +180,8 @@ class Trainer:
                 ]}, commit=False)
             self.wandb.log({})
             # 保存检查点
-            if self.num_step % self.opt.TRAIN.SAVE_INTERVAL == 0 and self.num_step != 0:
-                self.do_checkpoint(self.num_step)
+            if (self.num_step % self.opt.TRAIN.SAVE_INTERVAL == 0 and self.num_step != 0) or self.num_step==1:
+                self.do_checkpoint(self.num_step,imgs,cont_imgs,masked_imgs,smooth_masks)
 
     def train_D(self, x, y_masks, y):
         '''
@@ -311,10 +325,10 @@ class Trainer:
             self.patch_discriminator = self.patch_discriminator.cuda()
             self.mask_smoother = self.mask_smoother.cuda()
 
-    def do_checkpoint(self, num_step):
+    def do_checkpoint(self, num_step,imgs,cont_imgs,masked_imgs,smooth_masks):
         # 创建保存检查点的目录
-        if not os.path.exists("./{}/{}".format(self.opt.TRAIN.SAVE_DIR, self.model_name)):
-            os.makedirs("./{}/{}".format(self.opt.TRAIN.SAVE_DIR, self.model_name), exist_ok=True)
+        if not os.path.exists("./{}/{}/checkpoint-{}".format(self.opt.TRAIN.SAVE_DIR, self.model_name, num_step)):
+            os.makedirs("./{}/{}/checkpoint-{}".format(self.opt.TRAIN.SAVE_DIR, self.model_name,num_step), exist_ok=True)
 
         # 创建检查点字典
         checkpoint = {
@@ -332,8 +346,19 @@ class Trainer:
             # 'scheduler_joint': self.scheduler_joint.state_dict(),
             # 'scheduler_D': self.scheduler_discriminator.state_dict(),
         }
-        torch.save(checkpoint, "./{}/{}/checkpoint-{}.pth".format(self.opt.TRAIN.SAVE_DIR, self.model_name, num_step))
+        torch.save(checkpoint, "./{}/{}/checkpoint-{}/checkpoint-{}.pth".format(self.opt.TRAIN.SAVE_DIR, self.model_name, num_step,num_step))
 
+        # 保存图片作参考
+        for i in range(self.opt.TRAIN.BATCH_SIZE):
+            save_path = f"./{self.opt.TRAIN.SAVE_DIR}/{self.model_name}/checkpoint-{num_step}"
+            current_batch=int(num_step//(self.data_size/self.opt.TRAIN.BATCH_SIZE))
+            
+            save_image(imgs[i],f"{save_path}/epoch{current_batch}_batch_{i}_gt.jpg")
+            save_image(cont_imgs[i],f"{save_path}/epoch{current_batch}_batch_{i}_cont_img.jpg")
+            save_image(masked_imgs[i],f"{save_path}/epoch{current_batch}_batch_{i}_masked_img.jpg")
+            save_image(smooth_masks[i],f"{save_path}/epoch{current_batch}_batch_{i}_smooth_masks.jpg")
+            
+            
     def load_checkpoints(self, num_step):
         checkpoints = torch.load("./{}/{}/checkpoint-{}.pth".format(self.opt.TRAIN.SAVE_DIR, self.model_name, num_step))
         self.num_step = checkpoints["num_step"]

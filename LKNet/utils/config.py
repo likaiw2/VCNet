@@ -16,20 +16,21 @@ _C.WANDB.PROJECT_NAME = "vcnet"
 _C.WANDB.RUN = 1
 _C.WANDB.LOG_DIR = ""
 _C.WANDB.NUM_ROW = 0
+_C.WANDB.MODE = "offline"
 
 _C.TRAIN = CN()
-_C.TRAIN.NUM_TOTAL_STEP = 2000
+_C.TRAIN.NUM_TOTAL_STEP = 20000
 _C.TRAIN.START_STEP = 0
-_C.TRAIN.BATCH_SIZE = 128
+_C.TRAIN.BATCH_SIZE = 4
 _C.TRAIN.SHUFFLE = True
-_C.TRAIN.NUM_STEPS_FOR_JOINT = 20000
+_C.TRAIN.NUM_STEPS_FOR_JOINT = 10000
 _C.TRAIN.LOG_INTERVAL = 200
-_C.TRAIN.SAVE_INTERVAL = 10000
+_C.TRAIN.SAVE_INTERVAL = 500
 _C.TRAIN.SAVE_DIR = "./weights"
 _C.TRAIN.RESUME = True
 _C.TRAIN.VISUALIZE_INTERVAL = 200
 _C.TRAIN.TUNE = False
-_C.TRAIN.MASKED_PIC_PATH=
+_C.TRAIN.MASKED_PIC_PATH=""
 
 _C.MODEL = CN()
 _C.MODEL.NAME = "LKNet"
@@ -78,13 +79,13 @@ _C.MODEL.JOINT.BETAS = (0.5, 0.9)
 _C.MODEL.JOINT.SCHEDULER = []
 _C.MODEL.JOINT.DECAY_RATE = 0.5
 
-# _C.OPTIM = CN()
-# _C.OPTIM.GP = 10
-# _C.OPTIM.MASK = 1
-# _C.OPTIM.RECON = 1.4
-# _C.OPTIM.SEMANTIC = 1e-4
-# _C.OPTIM.TEXTURE = 1e-3
-# _C.OPTIM.ADVERSARIAL = 1e-3
+_C.OPTIM = CN()
+_C.OPTIM.GP = 10
+_C.OPTIM.MASK = 1
+_C.OPTIM.RECON = 1.4
+_C.OPTIM.SEMANTIC = 1e-4
+_C.OPTIM.TEXTURE = 1e-3
+_C.OPTIM.ADVERSARIAL = 1e-3
 
 _C.DATASET = CN()
 _C.DATASET.NAME = "ImageNet"
@@ -92,7 +93,7 @@ _C.DATASET.ROOT = "/Users/wanglikai/Codes/DataSets/ImageNet/class1"
 _C.DATASET.CONT_ROOT = "/Users/wanglikai/Codes/DataSets/ImageNet/for_train"
 # _C.DATASET.IMAGENET = "./datasets/ImageNet/"
 # _C.DATASET.RAINDROP_ROOT = "./datasets/raindrop/train20/train"
-_C.DATASET.SIZE = 256
+_C.DATASET.SIZE = (256,256)
 _C.DATASET.MEAN = [0.5, 0.5, 0.5]
 _C.DATASET.STD = [0.5, 0.5, 0.5]
 
@@ -109,20 +110,20 @@ _C.MASK.MAX_REMOVAL_RATIO = 0.5
 _C.MASK.GAUS_K_SIZE = 15
 _C.MASK.SIGMA = 4
 
-# _C.TEST = CN()
-# _C.TEST.OUTPUT_DIR = "./outputs"
-# _C.TEST.ABLATION = False
-# _C.TEST.WEIGHTS = ""
-# _C.TEST.BATCH_SIZE = 64
-# _C.TEST.ITER = 4
-# _C.TEST.MODE = 7
-# _C.TEST.IMG_ID = 52
-# _C.TEST.C_IMG_ID = 38
-# _C.TEST.BRUSH_COLOR = "RED"
-# _C.TEST.GRAFFITI_PATH = "./datasets/graffiti-dataset/dataset/graffiti_sample/000001ff0013ffff.p"
-# _C.TEST.TEXT = "hello world"
-# _C.TEST.FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-# _C.TEST.FONT_SIZE = 24
+_C.TEST = CN()
+_C.TEST.OUTPUT_DIR = "./outputs"
+_C.TEST.ABLATION = False
+_C.TEST.WEIGHTS = ""
+_C.TEST.BATCH_SIZE = 16
+_C.TEST.ITER = 4
+_C.TEST.MODE = 7
+_C.TEST.IMG_ID = 52
+_C.TEST.C_IMG_ID = 38
+_C.TEST.BRUSH_COLOR = "RED"
+_C.TEST.GRAFFITI_PATH = "./datasets/graffiti-dataset/dataset/graffiti_sample/000001ff0013ffff.p"
+_C.TEST.TEXT = "hello world"
+_C.TEST.FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+_C.TEST.FONT_SIZE = 24
 
 
 def get_cfg_defaults():

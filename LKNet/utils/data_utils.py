@@ -107,7 +107,7 @@ class NormalDataset(data.Dataset):
         return len(self.images)
     
     def __getitem__(self,idx):
-        img_name = os.path.join(self.image_dir, self.images[idx])
+        img_name = os.path.join(self.data_path, self.images[idx])
         image = Image.open(img_name)
         if self.transform:
             image = self.transform(image)
