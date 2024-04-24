@@ -10,8 +10,6 @@ LKNet/losses/__pycache__/
 LKNet/modeling/__pycache__/
 LKNet/modules/__pycache__/
 LKNet/utils/__pycache__/
+
 weights/
-
-
 wandb/
-weights/LKNet_ImageNet_20000step_4bs_0.0002lr/checkpoint-1/epoch0_batch_0_cont_img.jpg
