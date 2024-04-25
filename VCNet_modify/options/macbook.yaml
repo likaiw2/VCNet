@@ -1,0 +1,3 @@
+DATASET:
+  ROOT: /Users/wanglikai/Codes/Volume_Complete/dataSet1
+  CONT_ROOT: /Users/wanglikai/Codes/Volume_Complete/VCNet/dataSave

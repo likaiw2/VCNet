@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import numpy as np
 import torch.nn.functional as F
-import tools
+import Volume_Inpainting.VCNet_modify.utils.tools as tools
 
 class VoxelShuffle(nn.Module):
     def __init__(self,in_channels,out_channels,upscale_factor):

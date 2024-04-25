@@ -2,8 +2,8 @@ import torch
 from torch import nn
 import numpy as np
 import torch.nn.functional as F
-import tools
-from blocks import * 
+import Volume_Inpainting.VCNet_modify.utils.tools as tools
+from Volume_Inpainting.VCNet_modify.model.blocks import * 
 
 class UNet_v2(nn.Module):
     def __init__(self, down_mode=3, up_mode=3):
@@ -56,7 +56,7 @@ class UNet_v2(nn.Module):
         res_1 = out
         if test_mode:
             for i in range(32):
-                tools.saveRawFile10(f"{dataSavePath}/#down_64",f"down_64_{i}",out[0, i, :, :, :])
+                Volume_Inpainting.VCNet_modify.utils.tools.saveRawFile10(f"{dataSavePath}/#down_64",f"down_64_{i}",out[0, i, :, :, :])
         
         # down_sample_2     32,64,64->64,32,32
         out = self.down_sample_2(out)
@@ -64,7 +64,7 @@ class UNet_v2(nn.Module):
         res_2 = out
         if test_mode:
             for i in range(32):
-                tools.saveRawFile10(f"{dataSavePath}/#down_32",f"down_32{i}",out[0, i, :, :, :])
+                Volume_Inpainting.VCNet_modify.utils.tools.saveRawFile10(f"{dataSavePath}/#down_32",f"down_32{i}",out[0, i, :, :, :])
         
         # down_sample_3     64,32,32->128,16,16
         out = self.down_sample_3(out)
@@ -72,7 +72,7 @@ class UNet_v2(nn.Module):
         res_3 = out
         if test_mode:
             for i in range(32):
-                tools.saveRawFile10(f"{dataSavePath}/#down_16",f"down_16{i}",out[0, i, :, :, :])
+                Volume_Inpainting.VCNet_modify.utils.tools.saveRawFile10(f"{dataSavePath}/#down_16",f"down_16{i}",out[0, i, :, :, :])
 
         # mid conv + RB 作者表述不清不楚，目前暂定三个 dilated RB 一模一样
         out=self.mid_1(out)
@@ -84,14 +84,14 @@ class UNet_v2(nn.Module):
         # print("layer3_conv",out.shape)
         if test_mode:
             for i in range(32):
-                tools.saveRawFile10(f"{dataSavePath}/#up_32",f"up_32_{i}",out[0, i, :, :, :])
+                Volume_Inpainting.VCNet_modify.utils.tools.saveRawFile10(f"{dataSavePath}/#up_32",f"up_32_{i}",out[0, i, :, :, :])
         
         # up_sample_2       64,32,32->32,64,64
         out=self.up_sample_2(out,res_2)
         # print("layer2_conv",out.shape)
         if test_mode:
             for i in range(32):
-                tools.saveRawFile10(f"{dataSavePath}/#up_64",f"up_64_{i}",out[0, i, :, :, :])
+                Volume_Inpainting.VCNet_modify.utils.tools.saveRawFile10(f"{dataSavePath}/#up_64",f"up_64_{i}",out[0, i, :, :, :])
         
         # up_sample_1       32,64,64->1,128,128
         out=self.up_sample_1(out,res_1)
