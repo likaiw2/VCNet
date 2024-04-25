@@ -9,3 +9,4 @@ LKNet/utils/__pycache__/
 
 weights/
 wandb/
+.DS_Store
