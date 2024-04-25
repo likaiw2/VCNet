@@ -1,6 +1,6 @@
 LKNet/dataSave/
 LKNet/__pycache__/
-.DS_Store
+
 LKNet/engine/__pycache__/
 LKNet/losses/__pycache__/
 LKNet/modeling/__pycache__/
@@ -9,4 +9,4 @@ LKNet/utils/__pycache__/
 
 weights/
 wandb/
-.DS_Store
+
