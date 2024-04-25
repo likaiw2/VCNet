@@ -66,10 +66,9 @@ class Trainer:
         self.saveRAW = tools.saveRAW()
 
         # 创建模型组件
-        self.mpn = MPN(base_n_channels=self.opt.MODEL.MPN.NUM_CHANNELS, 
-                       neck_n_channels=self.opt.MODEL.MPN.NECK_CHANNELS)
-        self.rin = RIN(base_n_channels=self.opt.MODEL.RIN.NUM_CHANNELS, 
-                       neck_n_channels=self.opt.MODEL.MPN.NECK_CHANNELS)
+        self.gen = PConvUNet()
+        
+        # TODO
         self.discriminator = Discriminator(base_n_channels=self.opt.MODEL.D.NUM_CHANNELS)
         self.patch_discriminator = PatchDiscriminator(base_n_channels=self.opt.MODEL.D.NUM_CHANNELS)
 
