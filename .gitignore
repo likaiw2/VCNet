@@ -1,9 +1,5 @@
 LKNet/dataSave/
 LKNet/__pycache__/
-vcnet-blind-image-inpainting/
-StrDiffusion/
-medicaldiffusion/
-pytorch-inpainting-with-partial-conv/
 .DS_Store
 LKNet/engine/__pycache__/
 LKNet/losses/__pycache__/
