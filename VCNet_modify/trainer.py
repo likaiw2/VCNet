@@ -6,67 +6,13 @@ from torch.utils import data
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
 
-from model.net import *
-from options.config import get_cfg_defaults  # 导入获取默认配置的函数
+from model.model import *
+from configs.config import get_cfg_defaults  # 导入获取默认配置的函数
 import utils.tools as tools
 
 # 获取默认配置
 cfg = get_cfg_defaults()
 cfg.merge_from_file("options/macbook.yaml")
-
-
-dataSourcePth=cfg.RUN.DATA_PATH
-dataTempPath=cfg.RUN.TEMP_PATH
-dataSavePath=cfg.RUN.SAVE_PATH
-
-if not os.path.exists(f"{dataSavePath}/loss"):
-        os.makedirs(f"{dataSavePath}/loss")
-
-device=torch.device(cfg.SYSTEM.DEVICE)
-
-# init
-torch.autograd.set_detect_anomaly(True)
-torch.cuda.empty_cache()
-torch.manual_seed(0)
-
-# initialize weight of network
-def weights_init(m):
-    if isinstance(m, nn.Conv3d) or isinstance(m, nn.ConvTranspose3d):
-        torch.nn.init.normal_(m.weight, 0.0, 0.02)
-    if isinstance(m, nn.BatchNorm3d):
-        torch.nn.init.normal_(m.weight, 0.0, 0.02)
-        torch.nn.init.constant_(m.bias, 0)
-
-# Feel free to change pretrained to False if you're training the model from scratch
-pretrained = False
-save_model = True
-
-total_gen_loss = []
-total_disc_loss = []
-
-
-trainDataset = tools.DataSet(data_path=cfg.RUN.DATA_PATH,
-                             volume_shape=cfg.DATASET.DATA_TYPE,
-                             mask_type="train",
-                             prefix="original_volume_",
-                             data_type="raw",
-                             float32DataType=cfg.DATASET.DATA_TYPE,
-                             max_index=70)
-
-# 3) send parameters to cuda
-gen = UNet_v2(up_mode=cfg.TRAIN.UP_MODE).to(device)
-gen_opt = torch.optim.Adam(gen.parameters(), lr=lr,betas=(0.9,0.999),weight_decay=cfg.TRAIN.LAMBDA_REC)
-
-disc = Dis_VCNet().to(device)
-disc_opt = torch.optim.Adam(disc.parameters(), lr=lr,betas=(0.9,0.999),weight_decay=cfg.TRAIN.LAMBDA_ADV)
-
-# 4) parameters for loss function
-Loss_G_rec = tools.WeightedMSELoss().to(device)
-# Loss_G_rec = nn.CrossEntropyLoss().to(device)
-Loss_G_Adv = tools.AdversarialGLoss(disc).to(device)
-Loss_D_Adv = tools.AdversarialDLoss(disc).to(device)
-
-print("## initialize finished ##")
 
 #---------------------------------training------------------------
 if pretrained:
@@ -104,38 +50,26 @@ class Trainer:
                         config=self.opt,
                         mode=self.opt.WANDB.MODE)
         
-        self.dataset = tools.DataSet(data_path=self.opt.
-                                     volume_shape=
-                                     target_shape=
-                                     mask_type=
-                                     data_type=)
+        self.dataset = tools.DataSet(data_path = self.opt.PATH.SOURCE_PATH,
+                                     volume_shape = self.opt.DATASET.ORIGIN_SHAPE,
+                                     target_shape = self.opt.DATASET.TARGET_SHAPE,
+                                     mask_type = self.opt.RUN.TYPE,
+                                     data_type=self.opt.DATA_TYPE)
 
         # 创建一个图像数据加载器
-        self.image_loader = DataLoader(dataset=self.dataset, 
+        self.image_loader = data.DataLoader(dataset=self.dataset, 
                                        batch_size=self.opt.TRAIN.BATCH_SIZE, 
-                                       shuffle=self.opt.TRAIN.SHUFFLE, 
+                                       shuffle=self.opt.DATASET.SHUFFLE, 
                                        num_workers=self.opt.SYSTEM.NUM_WORKERS)
         self.data_size = len(self.image_loader)
-        
-        # 定义另一个图像预处理流程，用于content images(用来填充mask区域的图像)
-        self.imagenet_transform = transforms.Compose([transforms.RandomCrop(self.opt.DATASET.SIZE, pad_if_needed=True, padding_mode="reflect"),
-                                                      transforms.RandomHorizontalFlip(),
-                                                      transforms.Grayscale(num_output_channels=3),
-                                                      transforms.ToTensor(),
-                                                      # transforms.Normalize(self.opt.DATASET.MEAN, self.opt.DATASET.STD)
-                                                      ])
 
-        # 创建遮罩生成器和平滑器
-        self.mask_generator = MaskGenerator(self.opt.MASK)
-        self.mask_smoother = ConfidenceDrivenMaskLayer(self.opt.MASK.GAUS_K_SIZE, self.opt.MASK.SIGMA)
-        # self.mask_smoother = GaussianSmoothing(1, 5, 1/40)
-        
-        # 定义将张量转换为PIL图像的函数
-        self.to_pil = transforms.ToPILImage()
+        self.saveRAW = tools.saveRAW()
 
         # 创建模型组件
-        self.mpn = MPN(base_n_channels=self.opt.MODEL.MPN.NUM_CHANNELS, neck_n_channels=self.opt.MODEL.MPN.NECK_CHANNELS)
-        self.rin = RIN(base_n_channels=self.opt.MODEL.RIN.NUM_CHANNELS, neck_n_channels=self.opt.MODEL.MPN.NECK_CHANNELS)
+        self.mpn = MPN(base_n_channels=self.opt.MODEL.MPN.NUM_CHANNELS, 
+                       neck_n_channels=self.opt.MODEL.MPN.NECK_CHANNELS)
+        self.rin = RIN(base_n_channels=self.opt.MODEL.RIN.NUM_CHANNELS, 
+                       neck_n_channels=self.opt.MODEL.MPN.NECK_CHANNELS)
         self.discriminator = Discriminator(base_n_channels=self.opt.MODEL.D.NUM_CHANNELS)
         self.patch_discriminator = PatchDiscriminator(base_n_channels=self.opt.MODEL.D.NUM_CHANNELS)
 

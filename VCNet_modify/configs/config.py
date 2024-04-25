@@ -7,6 +7,7 @@ _C = CN()
 
 _C.SYSTEM = CN()
 _C.SYSTEM.DEVICE = "cpu"
+_C.SYSTEM.NUM_WORKERS = 0
 
 _C.MODEL.NAME = "VCnet_3D"
 
@@ -24,7 +25,9 @@ _C.PATH.PTH_SAVE=""
 
 # 在_C下创建新的配置节点_C.SYSTEM
 _C.DATASET = CN()
-_C.DATASET.DATA_SHAPE = (128,128,128)     #[depth, height, width]
+# _C.DATASET.ORIGIN_SHAPE = (160,224,168)     #[depth, height, width]
+_C.DATASET.ORIGIN_SHAPE = (128,128,128)     #[depth, height, width]
+_C.DATASET.TARGET_SHAPE = (128,128,128)     #[depth, height, width]
 _C.DATASET.DATA_TYPE = np.float32
 _C.DATASET.MEAN = [0.5, 0.5, 0.5]
 _C.DATASET.STD = [0.5, 0.5, 0.5]

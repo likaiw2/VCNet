@@ -11,11 +11,10 @@ from torch.utils.data import Dataset
 from enum import Enum
 
 # saveRawFile10 --> not test assume good    --2024.1.22
-def saveRawFile10(dataSavePath, fileName, volume):
+def saveRAW(dataSavePath, fileName, volume):
     if not os.path.exists(dataSavePath):
         os.makedirs(dataSavePath)
     fileName = f"{dataSavePath}/{fileName}.raw"
-
     # copy tensor from gpu to cpu.
     volume = volume.cpu()
     # convert tensor to numpy ndarray.
