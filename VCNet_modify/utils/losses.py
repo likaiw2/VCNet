@@ -252,7 +252,7 @@ class WMSELoss(nn.Module):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
     def forward(self,mask, y_pred, y_true):
-        return torch.mean((mask * (y_true - y_pred)) ** 2)
+        return torch.mean(((1-mask) * (y_true - y_pred)) ** 2)
 
 
 

@@ -360,7 +360,7 @@ class GAN_Trainer:
 class UnetTrainer:
     def __init__(self,cfg,model=PConvUNet()):
         self.opt=cfg
-        self.model_name = f"{self.opt.RUN.MODEL}_{self.opt.TRAIN.INTERVAL_TOTAL}step"
+        self.model_name = f"{self.opt.RUN.MODEL}"
         
         
         self.dataset = tools.DataSet(data_path = self.opt.PATH.DATA_PATH,
@@ -386,9 +386,6 @@ class UnetTrainer:
         
         
         
-        
-        
-        
         # 初始化模型和优化器
         self.model=model.to(self.device)
         self.optimizer = torch.optim.Adam(model.parameters(), lr=self.opt.TRAIN.LEARN_RATE)
@@ -411,9 +408,11 @@ class UnetTrainer:
     def run(self):
         global_iter=0
         for epoch_idx in tqdm(range(self.epoch_total)):
-            for i in range(len(self.dataset)):
-                # model.train()
-                gt,mask = [x.to(self.device) for x in next(self.data_iter)]
+            for gt,mask in self.data_loader:
+                
+                gt = gt.to(self.device)
+                mask = mask.to(self.device)
+
                 input = gt*mask
                 output, _ = self.model(input, mask)
                 loss_dict = self.loss_function(mask, output, gt)
@@ -433,12 +432,13 @@ class UnetTrainer:
                 self.optimizer.step()
 
                 if self.opt.RUN.SAVE_PTH:
-                    if (global_iter + 1) % self.interval_save == 0 or (global_iter + 1) == self.interval_total:
+                    if (global_iter + 1) % self.interval_save == 0 or (global_iter + 1) == self.interval_total or global_iter==0:
                         # save weights
                         fileName = f"{self.pth_save_path}/{self.model_name}_{global_iter+1}iter.pth"
-                        os.makedirs(fileName) if not os.path.exists(fileName) else None
-                        torch.save({'model', self.model,
-                                    'optimizer', self.optimizer,}, fileName)
+                        os.makedirs(self.pth_save_path) if not os.path.exists(self.pth_save_path) else None
+                        
+                        torch.save({'model': self.model.state_dict(),
+                                    'optimizer': self.optimizer.state_dict(),}, fileName)
                         
                         # save images
                         tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{global_iter+1}iter",

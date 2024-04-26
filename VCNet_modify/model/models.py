@@ -184,14 +184,15 @@ class PConvUNet(nn.Module):
         h_dict['h_4'], h_mask_dict['h_4'] = self.enc_4(h_dict['h_3'], h_mask_dict['h_3'])
         h_dict['h_5'], h_mask_dict['h_5'] = self.enc_5(h_dict['h_4'], h_mask_dict['h_4'])
         h_dict['h_6'], h_mask_dict['h_6'] = self.enc_6(h_dict['h_5'], h_mask_dict['h_5'])
-        h_dict['h_7'], h_mask_dict['h_7'] = self.enc_7(h_dict['h_6'], h_mask_dict['h_6'])
+        # h_dict['h_7'], h_mask_dict['h_7'] = self.enc_7(h_dict['h_6'], h_mask_dict['h_6'])
         
         # 保存一下，第七层就是最底层
-        h, h_mask = h_dict['h_7'], h_mask_dict['h_7']
+        # h, h_mask = h_dict['h_7'], h_mask_dict['h_7']
+        h, h_mask = h_dict['h_6'], h_mask_dict['h_6']
 
         # 解码器
-        h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_6')
-        h,h_mask = self.dec_7(h, h_mask)
+        # h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_6')
+        # h,h_mask = self.dec_7(h, h_mask)
         
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_5')
         h, h_mask = self.dec_6(h, h_mask)
