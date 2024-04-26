@@ -16,3 +16,4 @@ VCNet_modify/utils/__pycache__/
 
 weights/
 wandb/
+VCNet_modify/weight/vgg16-397923af.pth
