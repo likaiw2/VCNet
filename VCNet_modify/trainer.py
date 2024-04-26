@@ -1,43 +1,27 @@
 import os
 import wandb
 import torch
+from tqdm import tqdm
 import numpy as np
 from torch.utils import data
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
 
-from model.model import *
+from model.models import *
 from configs.config import get_cfg_defaults  # 导入获取默认配置的函数
 import utils.tools as tools
+import utils.losses as losses
 
-# 获取默认配置
 cfg = get_cfg_defaults()
-cfg.merge_from_file("options/macbook.yaml")
-
-#---------------------------------training------------------------
-if pretrained:
-    loaded_state = torch.load(cfg.PATH.PTH_LOAD)
-    gen.load_state_dict(loaded_state["gen"])
-    gen_opt.load_state_dict(loaded_state["gen_opt"])
-    disc.load_state_dict(loaded_state["disc"])
-    disc_opt.load_state_dict(loaded_state["disc_opt"])
-else:
-    gen = gen.apply(weights_init)
-    disc = disc.apply(weights_init)
-    
+cfg.merge_from_file("/Users/wanglikai/Codes/Volume_Inpainting/VCNet_modify/configs/macbook.yaml")
+# cfg.freeze()
 
 
-
-
-
-
-
-
-class Trainer:
+class GAN_Trainer:
     def __init__(self, cfg):
         self.opt = cfg
         # 根据配置参数构造模型名称
-        self.model_name = f"{self.opt.MODEL.NAME}_{self.opt.TRAIN.NUM_TOTAL_STEP}step"
+        self.model_name = f"{self.opt.RUN.MODEL}_{self.opt.TRAIN.NUM_TOTAL_STEP}step"
                           
         # 初始化wandb，用于实验跟踪和可视化
         self.opt.WANDB.LOG_DIR = os.path.join("./logs/", self.model_name)
@@ -377,162 +361,83 @@ class Trainer:
                     state[k] = v.cuda()
 
 
-class RaindropTrainer(Trainer):
-    def __init__(self, opt):
-        self.opt = opt
-        assert self.opt.DATASET.NAME.lower() == "raindrop"
-
-        self.model_name = "{}_{}".format(self.opt.MODEL.NAME, self.opt.DATASET.NAME) + \
-                          "_{}step_{}bs".format(self.opt.TRAIN.NUM_TOTAL_STEP, self.opt.TRAIN.BATCH_SIZE) + \
-                          "_{}lr_{}gpu".format(self.opt.MODEL.JOINT.LR, self.opt.SYSTEM.NUM_GPU) + \
-                          "_{}run".format(self.opt.WANDB.RUN)
-
-        self.opt.WANDB.LOG_DIR = os.path.join("./logs/", self.model_name)
-        self.wandb = wandb
-        self.wandb.init(project=self.opt.WANDB.PROJECT_NAME, resume=self.opt.TRAIN.RESUME, notes=self.opt.WANDB.LOG_DIR, config=self.opt, entity=self.opt.WANDB.ENTITY)
-
-        self.transform = transforms.Compose([transforms.Resize(self.opt.DATASET.SIZE),
-                                             transforms.CenterCrop(self.opt.DATASET.SIZE),
-                                             transforms.ToTensor()
-                                             ])
-        self.dataset = RaindropDataset(root=self.opt.DATASET.RAINDROP_ROOT, transform=self.transform, target_transform=self.transform)
-        self.image_loader = data.DataLoader(dataset=self.dataset, batch_size=self.opt.TRAIN.BATCH_SIZE, shuffle=self.opt.TRAIN.SHUFFLE, num_workers=self.opt.SYSTEM.NUM_WORKERS)
-
-        self.to_pil = transforms.ToPILImage()
-
-        self.mpn = MPN(base_n_channels=self.opt.MODEL.MPN.NUM_CHANNELS, neck_n_channels=self.opt.MODEL.MPN.NECK_CHANNELS)
-        self.rin = RIN(base_n_channels=self.opt.MODEL.RIN.NUM_CHANNELS, neck_n_channels=self.opt.MODEL.MPN.NECK_CHANNELS)
-        self.discriminator = Discriminator(base_n_channels=self.opt.MODEL.D.NUM_CHANNELS)
-
-        self.optimizer_discriminator = torch.optim.Adam(list(self.discriminator.parameters()), lr=self.opt.MODEL.D.LR, betas=self.opt.MODEL.D.BETAS)
-        self.optimizer_joint = torch.optim.Adam(list(self.mpn.parameters()) + list(self.rin.parameters()), lr=self.opt.MODEL.JOINT.LR, betas=self.opt.MODEL.JOINT.BETAS)
-
-        self.num_step = self.opt.TRAIN.START_STEP
-
-        log.info("Checkpoints loading...")
-        self.load_checkpoints(self.opt.TRAIN.START_STEP)
-
-        self.check_and_use_multi_gpu()
-
-        self.reconstruction_loss = torch.nn.L1Loss().cuda()
-        self.semantic_consistency_loss = SemanticConsistencyLoss().cuda()
-        self.texture_consistency_loss = IDMRFLoss().cuda()
-
+class UnetTrainer:
+    def __init__(self,cfg,model=PConvUNet()):
+        self.opt=cfg
+        
+        self.model_name = f"{self.opt.RUN.MODEL}_{self.opt.TRAIN.INTERVAL_TOTAL}step"
+        
+        
+        self.device=torch.device(self.opt.SYSTEM.DEVICE)
+        self.interval_start=self.opt.TRAIN.INTERVAL_START
+        self.interval_total=self.opt.TRAIN.INTERVAL_TOTAL
+        self.interval_save=self.opt.TRAIN.INTERVAL_SAVE
+        self.save_path=self.opt.PATH.SAVE_PATH
+        
+        
+        self.dataset = tools.DataSet(data_path = self.opt.PATH.DATA_PATH,
+                                     volume_shape = self.opt.DATASET.ORIGIN_SHAPE,
+                                     target_shape = self.opt.DATASET.TARGET_SHAPE,
+                                     mask_type = self.opt.RUN.TYPE,
+                                     data_type = np.float32)
+        
+        self.data_loader = data.DataLoader(dataset=self.dataset, 
+                                       batch_size=self.opt.TRAIN.BATCH_SIZE, 
+                                       shuffle=self.opt.DATASET.SHUFFLE, 
+                                       num_workers=self.opt.SYSTEM.NUM_WORKERS)
+        self.data_iter = iter(self.data_loader)
+        
+        
+        self.model=model
+        self.optimizer = torch.optim.Adam(model.parameters(), 
+                                          lr=self.opt.TRAIN.LEARN_RATE)
+        self.loss_function = losses.InpaintingLoss(tools.VGG16FeatureExtractor(pth_path=self.opt.PATH.VGG16_PATH)).to(self.device)
+        
+        
+        
     def run(self):
-        print("start run!")
-        while self.num_step < self.opt.TRAIN.NUM_TOTAL_STEP:
-            self.num_step += 1
-            info = " [Step: {}/{} ({}%)] ".format(self.num_step, self.opt.TRAIN.NUM_TOTAL_STEP, 100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP)
+        for i in tqdm(range(self.interval_start, self.interval_total)):
+            # model.train()
 
-            imgs, y_imgs = next(iter(self.image_loader))
-            imgs = linear_scaling(imgs.float().cuda())
-            y_imgs = y_imgs.float().cuda()
+            gt,mask = [x.to(self.device) for x in next(self.data_iter)]
+            image = gt*mask
+            output, _ = self.model(image, mask)
+            loss_dict = self.loss_function(image, mask, output, gt)
 
-            for _ in range(self.opt.MODEL.D.NUM_CRITICS):
-                self.optimizer_discriminator.zero_grad()
+            # 加权计算并输出损失
+            loss = 0.0
+            lambda_dict = {'valid': 1.0, 'hole': 6.0, 'tv': 0.1, 'prc': 0.05, 'style': 120.0}
+            for key, coef in lambda_dict.items():
+                value = coef * loss_dict[key]
+                loss += value
+                # if (i + 1) % args.log_interval == 0:
+                #     writer.add_scalar('loss_{:s}'.format(key), value.item(), i + 1)
 
-                pred_masks, neck = self.mpn(imgs)
-                output = self.rin(imgs, pred_masks, neck)
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
 
-                real_validity = self.discriminator(y_imgs).mean()
-                fake_validity = self.discriminator(output.detach()).mean()
-                gp = compute_gradient_penalty(self.discriminator, output.data, y_imgs.data)
+            if (i + 1) % self.interval_save == 0 or (i + 1) == self.interval_total:
+                tools.save_pth('{:s}/ckpt/{:d}.pth'.format(self.save_path, i + 1),
+                               [('model', self.model)], 
+                               [('optimizer', self.optimizer)], 
+                               i + 1)
 
-                d_loss = -real_validity + fake_validity + self.opt.OPTIM.GP * gp
-                d_loss.backward()
-                self.optimizer_discriminator.step()
+            # 用于输出测试数据
+            # if (i + 1) % self.interval_save == 0:
+            #     # model.eval()
+            #     tools.evaluate(self.model, 
+            #                    dataset_val, 
+            #                    device,
+            #                    '{:s}/images/test_{:d}.jpg'.format(args.save_dir, i + 1))
+                
 
-                self.wandb.log({"real_validity": -real_validity.item(),
-                                "fake_validity": fake_validity.item(),
-                                "gp": gp.item()}, commit=False)
-
-            self.optimizer_joint.zero_grad()
-            pred_masks, neck = self.mpn(imgs)
-            if self.opt.MODEL.RIN.EMBRACE:
-                x_embraced = imgs.detach() * (1 - pred_masks.detach())
-                output = self.rin(x_embraced, pred_masks.detach(), neck.detach())
-            else:
-                output = self.rin(imgs, pred_masks.detach(), neck.detach())
-            recon_loss = self.reconstruction_loss(output, y_imgs)
-            sem_const_loss = self.semantic_consistency_loss(output, y_imgs)
-            tex_const_loss = self.texture_consistency_loss(output, y_imgs)
-            adv_loss = -self.discriminator(output).mean()
-
-            g_loss = self.opt.OPTIM.RECON * recon_loss + \
-                     self.opt.OPTIM.SEMANTIC * sem_const_loss + \
-                     self.opt.OPTIM.TEXTURE * tex_const_loss + \
-                     self.opt.OPTIM.ADVERSARIAL * adv_loss
-
-            g_loss.backward()
-            self.optimizer_joint.step()
-            self.wandb.log({"recon_loss": recon_loss.item(),
-                            "sem_const_loss": sem_const_loss.item(),
-                            "tex_const_loss": tex_const_loss.item(),
-                            "adv_loss": adv_loss.item()}, commit=False)
-
-            info += "D Loss: {} ".format(d_loss)
-            info += "G Loss: {} ".format(g_loss)
-
-            if self.num_step % self.opt.MODEL.RAINDROP_LOG_INTERVAL == 0:
-                log.info(info)
-
-            if self.num_step % self.opt.MODEL.RAINDROP_VISUALIZE_INTERVAL == 0:
-                idx = self.opt.WANDB.NUM_ROW
-                self.wandb.log({"examples": [
-                    self.wandb.Image(self.to_pil(y_imgs[idx].cpu()), caption="original_image"),
-                    self.wandb.Image(self.to_pil(linear_unscaling(imgs[idx]).cpu()), caption="masked_image"),
-                    self.wandb.Image(self.to_pil(pred_masks[idx].cpu()), caption="predicted_masks"),
-                    self.wandb.Image(self.to_pil(torch.clamp(output, min=0., max=1.)[idx].cpu()), caption="output")
-                ]}, commit=False)
-            self.wandb.log({})
-            if self.num_step % self.opt.MODEL.RAINDROP_SAVE_INTERVAL == 0 and self.num_step != 0:
-                self.do_checkpoint(self.num_step)
-
-    def do_checkpoint(self, num_step):
-        if not os.path.exists("./{}/{}".format(self.opt.TRAIN.SAVE_DIR, self.model_name)):
-            os.makedirs("./{}/{}".format(self.opt.TRAIN.SAVE_DIR, self.model_name), exist_ok=True)
-
-        checkpoint = {
-            'num_step': num_step,
-            'mpn': self.mpn.state_dict(),
-            'rin': self.rin.state_dict(),
-            'D': self.discriminator.state_dict(),
-            'optimizer_joint': self.optimizer_joint.state_dict(),
-            'optimizer_D': self.optimizer_discriminator.state_dict(),
-            # 'scheduler_mpn': self.scheduler_mpn.state_dict(),
-            # 'scheduler_rin': self.scheduler_rin.state_dict(),
-            # 'scheduler_joint': self.scheduler_joint.state_dict(),
-            # 'scheduler_D': self.scheduler_discriminator.state_dict(),
-        }
-        torch.save(checkpoint, "./{}/{}/checkpoint-{}.pth".format(self.opt.TRAIN.SAVE_DIR, self.model_name, num_step))
-
-    def load_checkpoints(self, num_step):
-        checkpoints = torch.load(self.opt.MODEL.RAINDROP_WEIGHTS)
-        self.num_step = checkpoints["num_step"]
-        self.mpn.load_state_dict(checkpoints["mpn"])
-        self.rin.load_state_dict(checkpoints["rin"])
-        self.discriminator.load_state_dict(checkpoints["D"])
-        self.optimizers_to_cuda()
-
-    def check_and_use_multi_gpu(self):
-        if torch.cuda.device_count() > 1 and self.opt.SYSTEM.NUM_GPU > 1:
-            log.info("Using {} GPUs...".format(torch.cuda.device_count()))
-            self.mpn = torch.nn.DataParallel(self.mpn).cuda()
-            self.rin = torch.nn.DataParallel(self.rin).cuda()
-            self.discriminator = torch.nn.DataParallel(self.discriminator).cuda()
-        else:
-            log.info("GPU ID: {}".format(torch.cuda.current_device()))
-            self.mpn = self.mpn.cuda()
-            self.rin = self.rin.cuda()
-            self.discriminator = self.discriminator.cuda()
-
-    def optimizers_to_cuda(self):
-        for state in self.optimizer_discriminator.state.values():
-            for k, v in state.items():
-                if isinstance(v, torch.Tensor):
-                    state[k] = v.cuda()
-        for state in self.optimizer_joint.state.values():
-            for k, v in state.items():
-                if isinstance(v, torch.Tensor):
-                    state[k] = v.cuda()
-
+if __name__ == '__main__':
+    trainer=UnetTrainer(cfg)
+    loader = trainer.data_loader
+    imgs, mask= next(iter(loader))
+    print(imgs.shape)
+    print(mask.shape)
+                
+                
+                

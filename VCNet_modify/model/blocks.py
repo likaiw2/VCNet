@@ -3,7 +3,9 @@ import torch
 from torch import nn
 import numpy as np
 import torch.nn.functional as F
-import Volume_Inpainting.VCNet_modify.utils.tools as tools
+import utils.tools as tools
+
+
 
 class VoxelShuffle(nn.Module):
     def __init__(self,in_channels,out_channels,upscale_factor):
@@ -189,8 +191,7 @@ class gated_conv(torch.nn.Module):
 def weights_init(init_type='gaussian'):
     def init_fun(m):
         classname = m.__class__.__name__
-        if (classname.find('Conv') == 0 or classname.find(
-                'Linear') == 0) and hasattr(m, 'weight'):
+        if (classname.find('Conv') == 0 or classname.find('Linear') == 0) and hasattr(m, 'weight'):
             if init_type == 'gaussian':
                 nn.init.normal_(m.weight, 0.0, 0.02)
             elif init_type == 'xavier':
@@ -228,7 +229,8 @@ class PartialConv(nn.Module):
         # http://masc.cs.gmu.edu/wiki/partialconv
         # C(X) = W^T * X + b, C(0) = b, D(M) = 1 * M + 0 = sum(M)
         # W^T* (M .* X) / sum(M) + b = [C(M .* X) – C(0)] / D(M) + C(0)
-
+        # print(input.dtype)
+        # print(mask.dtype)
         output = self.input_conv(input * mask)
         if self.input_conv.bias is not None:
             output_bias = self.input_conv.bias.view(1, -1, 1, 1).expand_as(

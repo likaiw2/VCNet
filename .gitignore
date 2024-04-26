@@ -7,6 +7,12 @@ LKNet/modeling/__pycache__/
 LKNet/modules/__pycache__/
 LKNet/utils/__pycache__/
 
+VCNet_modify/out
+
+VCNet_modify/__pycache__/
+VCNet_modify/configs/__pycache__/
+VCNet_modify/model/__pycache__/
+VCNet_modify/utils/__pycache__/
+
 weights/
 wandb/
-

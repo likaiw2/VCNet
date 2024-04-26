@@ -4,6 +4,8 @@ import numpy as np
 import torch.nn.functional as F
 import utils.tools as tools
 from model.blocks import * 
+from torchvision import models
+
 
 class UNet_v2(nn.Module):
     def __init__(self, down_mode=3, up_mode=3):
@@ -146,7 +148,7 @@ class Dis_VCNet(nn.Module):
     
 
 class PConvUNet(nn.Module):
-    def __init__(self, layer_size=7, input_channels=3, upsampling_mode='nearest'):
+    def __init__(self, layer_size=7, input_channels=1, upsampling_mode='nearest'):
         super().__init__()
         self.freeze_enc_bn = False
         self.upsample_mode = upsampling_mode
@@ -220,4 +222,5 @@ class PConvUNet(nn.Module):
         h_mask = torch.cat([h_mask, h_mask_dict[layer_name]], dim=1)
         
         return h,h_mask
+
 

@@ -6,9 +6,11 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
+from torch import nn
+
 
 from torch.utils.data import Dataset
-from enum import Enum
+from torchvision import models
 
 # saveRawFile10 --> not test assume good    --2024.1.22
 def saveRAW(dataSavePath, fileName, volume):
@@ -21,7 +23,65 @@ def saveRAW(dataSavePath, fileName, volume):
     volume = volume.detach().numpy()
     volume.astype('float32').tofile(fileName)
     
+def get_state_dict_on_cpu(obj):
+    cpu_device = torch.device('cpu')
+    state_dict = obj.state_dict()
+    for key in state_dict.keys():
+        state_dict[key] = state_dict[key].to(cpu_device)
+    return state_dict
+    
+def save_pth(path, models, optimizers, n_iter):
+    pth_dict = {'n_iter': n_iter}
+    for prefix, model in models:
+        pth_dict[prefix] = get_state_dict_on_cpu(model)
+
+    for prefix, optimizer in optimizers:
+        pth_dict[prefix] = optimizer.state_dict()
+    torch.save(pth_dict, path)
+
+
+def load_pth(path, models, optimizers=None):
+    pth_dict = torch.load(path)
+    for prefix, model in models:
+        assert isinstance(model, nn.Module)
+        model.load_state_dict(pth_dict[prefix], strict=False)
+    if optimizers is not None:
+        for prefix, optimizer in optimizers:
+            optimizer.load_state_dict(pth_dict[prefix])
+    return pth_dict['n_iter']
+    
+    
+    
 # def detect_mask(real_volume,masked_volume)
+
+
+class VGG16FeatureExtractor(nn.Module):
+    def __init__(self,pth_path):
+        super().__init__()
+        vgg16 = models.vgg16()
+        vgg16.load_state_dict(torch.load(pth_path))
+        
+        self.enc_1 = nn.Sequential(*vgg16.features[:5])
+        self.enc_2 = nn.Sequential(*vgg16.features[5:10])
+        self.enc_3 = nn.Sequential(*vgg16.features[10:17])
+
+        # fix the encoder
+        for i in range(3):
+            for param in getattr(self, 'enc_{:d}'.format(i + 1)).parameters():
+                param.requires_grad = False
+
+    def forward(self, image):
+        results = [image]
+        for i in range(3):
+            func = getattr(self, 'enc_{:d}'.format(i + 1))
+            results.append(func(results[-1]))
+        return results[1:]
+
+
+
+
+
+
 
 
 class DataSet(Dataset):
@@ -35,25 +95,30 @@ class DataSet(Dataset):
         self.volumes = os.listdir(data_path)
         
     def __len__(self):
-        return len(self.images)
+        return len(self.volumes)
         
     def __getitem__(self, idx=0): 
         assert(self.mask_type=="train" or self.mask_type=="test"),"input 'train' or 'test' as mask type !"
         file_name = os.path.join(self.data_path, self.volumes[idx])
         data = np.fromfile(file_name, dtype=self.data_type)
         data.resize(self.volume_shape)
+        # print(data.dtype)
         
         # resize to target shape
         if np.prod(data.shape)<np.prod(self.target_shape):
-            print("input size too small!!")
+            # print("input size too small!!")
+            pass
         elif np.prod(data.shape)>np.prod(self.target_shape):
-            print("crop!")
+            # print("crop!")
             data = self.crop(data,self.target_shape)
         
         #generate mask
         shape_type = random.randint(1,4) if self.mask_type=="train" else random.randint(4,9)
-        print(shape_type)
+        # print(shape_type)
         mask = self.generate_mask(self.target_shape,shape_type=4)
+        
+        data = data.reshape([1,self.target_shape[0],self.target_shape[1],self.target_shape[2]])
+        mask = mask.reshape([1,self.target_shape[0],self.target_shape[1],self.target_shape[2]])
         
         return data,mask
         
@@ -67,20 +132,28 @@ class DataSet(Dataset):
             image: image tensor of shape (batch size, channels, height, width)
             new_shape: a torch.Size object with the shape you want x to have
         '''
-        middle_depth=data.shape[0] //2
+        middle_depth = data.shape[0] // 2
         middle_height = data.shape[1] // 2
         middle_width = data.shape[2] // 2
+        
         starting_depth=middle_depth-new_shape[0]//2
         final_depth=starting_depth+new_shape[0]
+        
         starting_height = middle_height - new_shape[1] // 2
         final_height = starting_height + new_shape[1]
+        
         starting_width = middle_width - new_shape[2] // 2
         final_width = starting_width + new_shape[2]
-        cropped_image = data[starting_depth:final_depth, starting_height:final_height, starting_width:final_width]
+        
+        cropped_image = data[starting_depth:final_depth, 
+                             starting_height:final_height, 
+                             starting_width:final_width]
         return cropped_image
 
     def generate_mask(self,volume_shape:tuple[int,int,int],shape_type:int):
         '''
+            1 stands for real
+            0 stands for empty
             -------------------------
             Input:\n
             shape       -> [int,int,int]     the total size of the dataset\n
@@ -111,7 +184,7 @@ class DataSet(Dataset):
         max_z = volume_shape[2]*0.3
         
         # make empty mask
-        mask_volume = np.zeros(volume_shape)
+        mask_volume = np.ones(volume_shape,dtype=self.data_type)
         
         if shape_type == 0:         # do nothing
             pass
@@ -132,7 +205,7 @@ class DataSet(Dataset):
             mask_pos = [pos_x,pos_y,pos_z]
             
             for i in range(x.size):
-                mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 1
+                mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 0
 
         elif shape_type == 2:    # y-stack
             # make shape grid
@@ -151,7 +224,7 @@ class DataSet(Dataset):
             mask_pos = [pos_x,pos_y,pos_z]
             
             for i in range(x.size):
-                mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 1
+                mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 0
             
         elif shape_type == 3:    # z-stack
             # make shape grid
@@ -170,7 +243,7 @@ class DataSet(Dataset):
             mask_pos = [pos_x,pos_y,pos_z]
             
             for i in range(x.size):
-                mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 1
+                mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 0
 
         elif shape_type == 4:    # cuboid
             # make shape grid
@@ -189,7 +262,7 @@ class DataSet(Dataset):
             mask_pos = [pos_x,pos_y,pos_z]
             
             for i in range(x.size):
-                mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 1
+                mask_volume[mask[0][i],mask[1][i],mask[2][i]] = 0
             
         elif shape_type == 5:    # cylinder         圆柱体
             random_r,random_h = int(volume_shape[0]*random.random()),int(volume_shape[2]*random.random())
@@ -210,7 +283,7 @@ class DataSet(Dataset):
                 for j in range(volume_shape[1]):
                     for k in range(volume_shape[2]):
                         if ((i-pos_x)**2 + (j-pos_y)**2 <= random_r**2)and(k>=pos_z and k<=pos_z+random_h):
-                            mask_volume[i,j,k] = 1
+                            mask_volume[i,j,k] = 0
             
             mask = "cylinder"
             
@@ -235,7 +308,7 @@ class DataSet(Dataset):
                 for j in range(volume_shape[1]):
                     for k in range(volume_shape[2]):
                         if ((i-pos_x)**2 + (j-pos_y)**2 + (k-pos_z)**2 <= random_r**2):
-                            mask_volume[i,j,k] = 1
+                            mask_volume[i,j,k] = 0
                             
         elif shape_type == 7:    # sphere           球体
             random_r = int(volume_shape[0]*random.random())
@@ -258,7 +331,7 @@ class DataSet(Dataset):
                 for j in range(volume_shape[1]):
                     for k in range(volume_shape[2]):
                         if ((i-pos_x)**2 + (j-pos_y)**2 + (k-pos_z)**2 <= random_r**2):
-                            mask_volume[i,j,k] = 1
+                            mask_volume[i,j,k] = 0
                             
         elif shape_type == 8:    # tetrahedron      四面体
             ...
@@ -278,8 +351,8 @@ def test_dataset():
                       target_shape=(128,128,128),
                       mask_type="train")
     data,mask = dataset.__getitem__(1)
-    print(data.shape)
-    print(mask.shape)
+    # print(data.dtype)
+    # print(mask.dtype)
 
 
 if __name__ == '__main__':

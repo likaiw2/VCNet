@@ -1,3 +1,4 @@
-DATASET:
-  ROOT: /Users/wanglikai/Codes/Volume_Complete/dataSet1
-  CONT_ROOT: /Users/wanglikai/Codes/Volume_Complete/VCNet/dataSave
+PATH:
+  DATA_PATH: /Users/wanglikai/Codes/DataSets/VCNet_dataSet
+  SAVE_PATH: /Users/wanglikai/Codes/Volume_Inpainting/VCNet_modify/out
+  VGG16_PATH: /Users/wanglikai/Codes/Volume_Inpainting/VCNet_modify/weights/vgg16-397923af.pth

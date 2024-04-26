@@ -9,26 +9,27 @@ _C.SYSTEM = CN()
 _C.SYSTEM.DEVICE = "cpu"
 _C.SYSTEM.NUM_WORKERS = 0
 
-_C.MODEL.NAME = "VCnet_3D"
-
 _C.RUN = CN()
 _C.RUN.LOAD_PTH = False
 _C.RUN.SAVE_PTH = True
 _C.RUN.TYPE = "train"
+_C.RUN.MODEL = "PconvUnet"
 
 _C.PATH = CN()
-_C.PATH.SOURCE_PATH="/Users/wanglikai/Codes/Volume_Inpainting/dataSet1"
-_C.PATH.TEMP_PATH="/Users/wanglikai/Codes/Volume_Inpainting/VCNet_modify/temp_data"
-_C.PATH.SAVE_PATH="/Users/wanglikai/Codes/Volume_Inpainting/VCNet_modify/out"
-_C.PATH.PTH_LOAD=""
-_C.PATH.PTH_SAVE=""
+_C.PATH.DATA_PATH="Please set path in yaml"
+_C.PATH.CONT_PATH="Please set path in yaml"
+_C.PATH.TEMP_PATH="Please set path in yaml"
+_C.PATH.SAVE_PATH="Please set path in yaml"
+_C.PATH.PTH_LOAD_PATH="Please set path in yaml"
+_C.PATH.PTH_SAVE_PATH="Please set path in yaml"
+_C.PATH.VGG16_PATH="Please set path in yaml"
 
-# 在_C下创建新的配置节点_C.SYSTEM
+
 _C.DATASET = CN()
 # _C.DATASET.ORIGIN_SHAPE = (160,224,168)     #[depth, height, width]
 _C.DATASET.ORIGIN_SHAPE = (128,128,128)     #[depth, height, width]
 _C.DATASET.TARGET_SHAPE = (128,128,128)     #[depth, height, width]
-_C.DATASET.DATA_TYPE = np.float32
+_C.DATASET.DATA_TYPE = "np.float32"
 _C.DATASET.MEAN = [0.5, 0.5, 0.5]
 _C.DATASET.STD = [0.5, 0.5, 0.5]
 _C.DATASET.SHUFFLE = True
@@ -41,11 +42,11 @@ _C.WANDB.NUM_ROW = 0
 _C.WANDB.MODE = "offline"
 
 _C.TRAIN = CN()
-_C.TRAIN.START_STEP = 0
-_C.TRAIN.BATCH_SIZE = 4
+_C.TRAIN.BATCH_SIZE = 2
 _C.TRAIN.TEST_MODE=True
 _C.TRAIN.UP_MODE=3
 
+_C.TRAIN.INTERVAL_START = 0
 _C.TRAIN.INTERVAL_TOTAL = 2000
 _C.TRAIN.INTERVAL_JOINT = 1000
 _C.TRAIN.INTERVAL_LOG = 200
