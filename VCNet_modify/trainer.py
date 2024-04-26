@@ -403,7 +403,8 @@ class UnetTrainer:
         
         
         
-        self.loss_function = losses.InpaintingLoss(tools.VGG16FeatureExtractor(pth_path=self.opt.PATH.VGG16_PATH)).to(self.device)
+        # self.loss_function = losses.InpaintingLoss(tools.VGG16FeatureExtractor(pth_path=self.opt.PATH.VGG16_PATH)).to(self.device)
+        self.loss_function = losses.WMSELoss()
         
         
         
@@ -415,14 +416,15 @@ class UnetTrainer:
                 gt,mask = [x.to(self.device) for x in next(self.data_iter)]
                 input = gt*mask
                 output, _ = self.model(input, mask)
-                loss_dict = self.loss_function(input, mask, output, gt)
-
+                loss_dict = self.loss_function(mask, output, gt)
+                loss = loss_dict
+                
                 # 加权计算并输出损失
-                loss = 0.0
-                lambda_dict = {'valid': 1.0, 'hole': 6.0, 'tv': 0.1, 'prc': 0.05, 'style': 120.0}
-                for key, coef in lambda_dict.items():
-                    value = coef * loss_dict[key]
-                    loss += value
+                # loss = 0.0
+                # lambda_dict = {'valid': 1.0, 'hole': 6.0, 'tv': 0.1, 'prc': 0.05, 'style': 120.0}
+                # for key, coef in lambda_dict.items():
+                #     value = coef * loss_dict[key]
+                #     loss += value
                     # if (i + 1) % args.log_interval == 0:
                     #     writer.add_scalar('loss_{:s}'.format(key), value.item(), i + 1)
 
