@@ -14,3 +14,6 @@ VCNet_modify/configs/__pycache__/
 VCNet_modify/model/__pycache__/
 VCNet_modify/utils/__pycache__/
 VCNet_modify/weight/vgg16-397923af.pth
+
+wandb/
+weights/

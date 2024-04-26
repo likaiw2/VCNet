@@ -12,10 +12,6 @@ from configs.config import get_cfg_defaults  # 导入获取默认配置的函数
 import utils.tools as tools
 import utils.losses as losses
 
-cfg = get_cfg_defaults()
-cfg.merge_from_file("/Users/wanglikai/Codes/Volume_Inpainting/VCNet_modify/configs/macbook.yaml")
-# cfg.freeze()
-
 
 class GAN_Trainer:
     def __init__(self, cfg):
@@ -394,9 +390,8 @@ class UnetTrainer:
         
         
         # 初始化模型和优化器
-        self.model=model
-        self.optimizer = torch.optim.Adam(model.parameters(), 
-                                          lr=self.opt.TRAIN.LEARN_RATE)
+        self.model=model.to(self.device)
+        self.optimizer = torch.optim.Adam(model.parameters(), lr=self.opt.TRAIN.LEARN_RATE)
         if self.opt.RUN.LOAD_PTH:
             if os.path.exists(self.opt.PATH.PTH_LOAD_PATH):
                 loaded_state = torch.load(self.opt.PATH.PTH_LOAD_PATH)

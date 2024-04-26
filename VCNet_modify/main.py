@@ -1,12 +1,31 @@
 import glog as log  # Google的日志库
 import trainer
+import sys
 # from tester import Tester  # 导入测试器类
 from configs.config import get_cfg_defaults  # 导入获取默认配置的函数
 import model.models as models
 
 # 获取默认配置
 cfg = get_cfg_defaults()
-cfg.merge_from_file("/Users/wanglikai/Codes/Volume_Inpainting/VCNet_modify/configs/macbook.yaml")
+
+plat = sys.platform
+if plat=="darwin":      
+    # MacOS
+    print("MacOS")
+    cfg.merge_from_file("configs/macbook.yaml")
+elif plat=="linux":     
+    # linux server
+    print("linux server")
+    cfg.merge_from_file("configs/linuxserver.yaml")
+elif (plat=="win32" or plat=="cygwin"):                   
+    # windows
+    print("windows")
+    cfg.merge_from_file(r"Volume_Inpainting\VCNet_modify\configs\windows.yaml")
+else:
+    print("can't judge platform automatically,please check yaml path")
+    cfg.merge_from_file(None)
+
+
 # cfg.freeze()
 
 # print(cfg)  # 打印配置信息

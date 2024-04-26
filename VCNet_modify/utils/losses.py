@@ -95,8 +95,8 @@ class AdversarialDLoss(nn.Module):
         return adversarial_loss
 
 
-class InpaintingLoss(nn.Module):
-    def __init__(self, extractor=tools.VGG16FeatureExtractor):
+class InpaintingLoss3D(nn.Module):
+    def __init__(self, extractor=tools.VGG16FeatureExtractor3D):
         super().__init__()
         self.l1 = nn.L1Loss()
         self.extractor = extractor
@@ -105,48 +105,49 @@ class InpaintingLoss(nn.Module):
         loss_dict = {}
         output_comp = mask * input + (1 - mask) * output
 
-        loss_dict['hole'] = self.l1((1 - mask) * output, (1 - mask) * gt)
-        loss_dict['valid'] = self.l1(mask * output, mask * gt)
-
+        # 根据通道数判断是RGB还是单通道数据，并进行相应的处理
         if output.shape[1] == 3:
             feat_output_comp = self.extractor(output_comp)
             feat_output = self.extractor(output)
             feat_gt = self.extractor(gt)
-        elif output.shape[1] == 1:
-            feat_output_comp = self.extractor(torch.cat([output_comp]*3, 1))
-            feat_output = self.extractor(torch.cat([output]*3, 1))
-            feat_gt = self.extractor(torch.cat([gt]*3, 1))
         else:
-            raise ValueError('only gray an')
+            # 这里需要一个能够处理单通道数据并将其扩展到多通道的特征提取器
+            raise NotImplementedError('Single channel input is not implemented for 3D')
 
+        loss_dict['hole'] = self.l1((1 - mask) * output, (1 - mask) * gt)
+        loss_dict['valid'] = self.l1(mask * output, mask * gt)
+
+        # 计算特征损失
         loss_dict['prc'] = 0.0
-        for i in range(3):
+        for i in range(len(feat_output)):
             loss_dict['prc'] += self.l1(feat_output[i], feat_gt[i])
             loss_dict['prc'] += self.l1(feat_output_comp[i], feat_gt[i])
 
+        # 计算风格损失
         loss_dict['style'] = 0.0
-        for i in range(3):
+        for i in range(len(feat_output)):
             loss_dict['style'] += self.l1(self.gram_matrix(feat_output[i]),
-                                          self.gram_matrix(feat_gt[i]))
+                                            self.gram_matrix(feat_gt[i]))
             loss_dict['style'] += self.l1(self.gram_matrix(feat_output_comp[i]),
-                                          self.gram_matrix(feat_gt[i]))
+                                            self.gram_matrix(feat_gt[i]))
 
-        loss_dict['tv'] = self.total_variation_loss(output_comp)
+        # 计算总变分损失，考虑三维数据
+        loss_dict['tv'] = self.total_variation_loss_3d(output_comp)
 
         return loss_dict
-    
-    def gram_matrix(self,feat):
-        # https://github.com/pytorch/examples/blob/master/fast_neural_style/neural_style/utils.py
-        (b, ch, h, w) = feat.size()
-        feat = feat.view(b, ch, h * w)
+
+    def gram_matrix(self, feat):
+        (b, ch, d, h, w) = feat.size()
+        feat = feat.view(b, ch, d * h * w)
         feat_t = feat.transpose(1, 2)
-        gram = torch.bmm(feat, feat_t) / (ch * h * w)
+        gram = torch.bmm(feat, feat_t) / (ch * d * h * w)
         return gram
-    
-    def total_variation_loss(self,image):
-        # shift one pixel and get difference (for both x and y direction)
-        loss = torch.mean(torch.abs(image[:, :, :, :-1] - image[:, :, :, 1:])) + \
-            torch.mean(torch.abs(image[:, :, :-1, :] - image[:, :, 1:, :]))
+
+    def total_variation_loss_3d(self, image):
+        # 对三维数据计算总变分损失
+        loss = torch.mean(torch.abs(image[:, :, :, :, :-1] - image[:, :, :, :, 1:])) + \
+            torch.mean(torch.abs(image[:, :, :, :-1, :] - image[:, :, :, 1:, :])) + \
+            torch.mean(torch.abs(image[:, :, :-1, :, :] - image[:, :, 1:, :, :]))
         return loss
 
 
