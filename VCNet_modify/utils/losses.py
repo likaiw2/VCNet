@@ -95,8 +95,8 @@ class AdversarialDLoss(nn.Module):
         return adversarial_loss
 
 
-class InpaintingLoss3D(nn.Module):
-    def __init__(self, extractor=tools.VGG16FeatureExtractor3D):
+class InpaintingLoss2D(nn.Module):
+    def __init__(self, extractor=tools.VGG16FeatureExtractor):
         super().__init__()
         self.l1 = nn.L1Loss()
         self.extractor = extractor
@@ -149,5 +149,69 @@ class InpaintingLoss3D(nn.Module):
             torch.mean(torch.abs(image[:, :, :, :-1, :] - image[:, :, :, 1:, :])) + \
             torch.mean(torch.abs(image[:, :, :-1, :, :] - image[:, :, 1:, :, :]))
         return loss
+
+
+class L1Loss(nn.Module):
+    # 2D 3D 都可用
+    def __init__(self):
+        super(L1Loss, self).__init__()
+    
+    def forward(self, prediction, target):
+        return torch.mean(torch.abs(prediction - target))
+
+class MSELoss(nn.Module):
+    # 2D 3D 都可用
+    def __init__(self):
+        super(MSELoss, self).__init__()
+    
+    def forward(self, prediction, target):
+        return torch.mean((prediction - target) ** 2)
+
+class TotalVariationLoss3D(nn.Module):
+    def __init__(self):
+        super(TotalVariationLoss3D, self).__init__()
+    
+    def forward(self, x):
+        h = torch.mean(torch.abs(x[:, :, :-1] - x[:, :, 1:]))
+        w = torch.mean(torch.abs(x[:, :, :, :-1] - x[:, :, :, 1:]))
+        d = torch.mean(torch.abs(x[:, :, :-1, :-1] - x[:, :, 1:, 1:]))
+        return h + w + d
+
+class AdversarialLoss(nn.Module):
+    def __init__(self, discriminator):
+        super(AdversarialLoss, self).__init__()
+        self.discriminator = discriminator
+    
+    def forward(self, prediction, target, is_real):
+        outputs = self.discriminator(prediction)
+        real_outputs = self.discriminator(target)
+        if is_real:
+            return torch.mean((1 - outputs) ** 2) + torch.mean((1 - real_outputs) ** 2)
+        else:
+            return torch.mean(outputs ** 2) + torch.mean(real_outputs ** 2)
+
+
+
+class SSIMLoss(nn.Module):
+    def __init__(self):
+        super(SSIMLoss, self).__init__()
+    
+    def forward(self, prediction, target):
+        return 1 - self.ssim(prediction, target)
+    
+    def ssim(self,img1, img2, C1=0.01**2, C2=0.03**2):
+        mean1, mean2 = torch.mean(img1, [2, 3]), torch.mean(img2, [2, 3])
+        std1, std2 = torch.std(img1, unbiased=False, [2, 3]), torch.std(img2, unbiased=False, [2, 3])
+        cov = torch.mean((img1 - mean1) * (img2 - mean2), [2, 3])
+        ssim_n = (2 * mean1 * mean2 + C1) * (2 * cov + C2)
+        ssim_d = (mean1 ** 2 + mean2 ** 2 + C1) * (std1 ** 2 + std2 ** 2 + C2)
+        return ssim_n / ssim_d
+
+class WMSELoss(nn.Module):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+    def forward(self,y_true, y_pred, mask):
+        return torch.mean((mask * (y_true - y_pred)) ** 2)
+
 
 
