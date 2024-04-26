@@ -29,26 +29,17 @@ def get_state_dict_on_cpu(obj):
     for key in state_dict.keys():
         state_dict[key] = state_dict[key].to(cpu_device)
     return state_dict
-    
-def save_pth(path, models, optimizers, n_iter):
-    pth_dict = {'n_iter': n_iter}
-    for prefix, model in models:
-        pth_dict[prefix] = get_state_dict_on_cpu(model)
 
-    for prefix, optimizer in optimizers:
-        pth_dict[prefix] = optimizer.state_dict()
-    torch.save(pth_dict, path)
 
 
 def load_pth(path, models, optimizers=None):
-    pth_dict = torch.load(path)
-    for prefix, model in models:
-        assert isinstance(model, nn.Module)
-        model.load_state_dict(pth_dict[prefix], strict=False)
-    if optimizers is not None:
-        for prefix, optimizer in optimizers:
-            optimizer.load_state_dict(pth_dict[prefix])
-    return pth_dict['n_iter']
+    if os.path.exists(path):
+        loaded_state = torch.load(path)
+        models.load_state_dict(loaded_state["gen"])
+        optimizers.load_state_dict(loaded_state["gen_opt"])
+        print("Weight load success!")
+    else:
+        print("load weights failed!")
     
     
     
@@ -78,7 +69,30 @@ class VGG16FeatureExtractor(nn.Module):
         return results[1:]
 
 
+class MyRandomCrop3D3(object):
+    # 这个类，用于实现随机裁剪
+    def __init__(self, volume_sz, cropVolume_sz):
+        d, h, w = volume_sz                  # 输入体积大小
+        assert (d, h, w) >= cropVolume_sz
+        self.volume_sz = tuple((d, h, w))       #裁剪体积大小
+        self.cropVolume_sz = tuple(cropVolume_sz)
 
+    def __call__(self, volume_ct):
+        slice_dhw = [self._get_slice(i, k) for i, k in zip(self.volume_sz, self.cropVolume_sz)]     #记录裁剪的大小和位置
+        return self._crop(volume_ct, *slice_dhw)
+
+    @staticmethod
+    def _get_slice(volume_sz, cropVolume_sz):           # 随机生成所需裁剪的切片位置，并处理边界情况，确保切片范围在给定的 3D 体积数组内或返回 None来处理捕捉到的异常
+        try:
+            lower_bound = torch.randint(volume_sz - cropVolume_sz, (1,)).item()
+            return lower_bound, lower_bound + cropVolume_sz
+        except:
+            return (None, None)
+
+    # 返回裁切后的数据
+    @staticmethod
+    def _crop(volume_ct, slice_d, slice_h, slice_w):     
+        return volume_ct[slice_d[0]:slice_d[1], slice_h[0]:slice_h[1], slice_w[0]:slice_w[1]]
 
 
 
@@ -86,13 +100,15 @@ class VGG16FeatureExtractor(nn.Module):
 
 class DataSet(Dataset):
     # brain: [depth, height, width]. dim = (160, 224, 168)   
-    def __init__(self,data_path="",volume_shape=[128,128,128],target_shape=[128,128,128],mask_type="train",data_type=np.float32):
+    def __init__(self,data_path="",volume_shape=[128,128,128],target_shape=[128,128,128],mask_type="train",data_type=np.float32,transform=None):
         self.data_path = data_path
         self.volume_shape = volume_shape
         self.target_shape = target_shape
         self.mask_type = mask_type
         self.data_type = data_type
         self.volumes = os.listdir(data_path)
+        self.transform = MyRandomCrop3D3(volume_sz = self.volume_shape,
+                                         cropVolume_sz=self.target_shape)
         
     def __len__(self):
         return len(self.volumes)
@@ -110,7 +126,7 @@ class DataSet(Dataset):
             pass
         elif np.prod(data.shape)>np.prod(self.target_shape):
             # print("crop!")
-            data = self.crop(data,self.target_shape)
+            data = self.transform(data)
         
         #generate mask
         shape_type = random.randint(1,4) if self.mask_type=="train" else random.randint(4,9)
@@ -121,8 +137,7 @@ class DataSet(Dataset):
         mask = mask.reshape([1,self.target_shape[0],self.target_shape[1],self.target_shape[2]])
         
         return data,mask
-        
-        
+
     def crop(self,data, new_shape):
         '''
         Function for cropping an image tensor: Given an image tensor and the new shape,
@@ -345,14 +360,17 @@ class DataSet(Dataset):
         return mask_volume
 
 
+
+
 def test_dataset():
     dataset = DataSet(data_path="/Users/wanglikai/Codes/DataSets/dataSet0",
                       volume_shape=(160,224,168),
                       target_shape=(128,128,128),
                       mask_type="train")
+    print(len(dataset))
     data,mask = dataset.__getitem__(1)
-    # print(data.dtype)
-    # print(mask.dtype)
+    print(data.shape)
+    print(mask.shape)
 
 
 if __name__ == '__main__':

@@ -364,15 +364,7 @@ class GAN_Trainer:
 class UnetTrainer:
     def __init__(self,cfg,model=PConvUNet()):
         self.opt=cfg
-        
         self.model_name = f"{self.opt.RUN.MODEL}_{self.opt.TRAIN.INTERVAL_TOTAL}step"
-        
-        
-        self.device=torch.device(self.opt.SYSTEM.DEVICE)
-        self.interval_start=self.opt.TRAIN.INTERVAL_START
-        self.interval_total=self.opt.TRAIN.INTERVAL_TOTAL
-        self.interval_save=self.opt.TRAIN.INTERVAL_SAVE
-        self.save_path=self.opt.PATH.SAVE_PATH
         
         
         self.dataset = tools.DataSet(data_path = self.opt.PATH.DATA_PATH,
@@ -388,48 +380,84 @@ class UnetTrainer:
         self.data_iter = iter(self.data_loader)
         
         
+        self.device=torch.device(self.opt.SYSTEM.DEVICE)
+        self.epoch_total=self.opt.TRAIN.EPOCH_TOTAL
+        self.interval_start=self.opt.TRAIN.INTERVAL_START
+        self.interval_save=self.opt.TRAIN.INTERVAL_SAVE
+        self.save_path=self.opt.PATH.SAVE_PATH
+        self.pth_save_path=self.opt.PATH.PTH_SAVE_PATH
+        self.interval_total=self.epoch_total*len(self.dataset)
+        
+        
+        
+        
+        
+        
+        # 初始化模型和优化器
         self.model=model
         self.optimizer = torch.optim.Adam(model.parameters(), 
                                           lr=self.opt.TRAIN.LEARN_RATE)
+        if self.opt.RUN.LOAD_PTH:
+            if os.path.exists(self.opt.PATH.PTH_LOAD_PATH):
+                loaded_state = torch.load(self.opt.PATH.PTH_LOAD_PATH)
+                self.model.load_state_dict(loaded_state["model"])
+                self.optimizer.load_state_dict(loaded_state["optimizer"])
+                print("Weight load success!")
+            else:
+                print("load weights failed!")
+        
+        
+        
         self.loss_function = losses.InpaintingLoss(tools.VGG16FeatureExtractor(pth_path=self.opt.PATH.VGG16_PATH)).to(self.device)
         
         
         
     def run(self):
-        for i in tqdm(range(self.interval_start, self.interval_total)):
-            # model.train()
+        global_iter=0
+        for epoch_idx in tqdm(range(self.epoch_total)):
+            for i in range(len(self.dataset)):
+                # model.train()
+                gt,mask = [x.to(self.device) for x in next(self.data_iter)]
+                input = gt*mask
+                output, _ = self.model(input, mask)
+                loss_dict = self.loss_function(input, mask, output, gt)
 
-            gt,mask = [x.to(self.device) for x in next(self.data_iter)]
-            image = gt*mask
-            output, _ = self.model(image, mask)
-            loss_dict = self.loss_function(image, mask, output, gt)
+                # 加权计算并输出损失
+                loss = 0.0
+                lambda_dict = {'valid': 1.0, 'hole': 6.0, 'tv': 0.1, 'prc': 0.05, 'style': 120.0}
+                for key, coef in lambda_dict.items():
+                    value = coef * loss_dict[key]
+                    loss += value
+                    # if (i + 1) % args.log_interval == 0:
+                    #     writer.add_scalar('loss_{:s}'.format(key), value.item(), i + 1)
 
-            # 加权计算并输出损失
-            loss = 0.0
-            lambda_dict = {'valid': 1.0, 'hole': 6.0, 'tv': 0.1, 'prc': 0.05, 'style': 120.0}
-            for key, coef in lambda_dict.items():
-                value = coef * loss_dict[key]
-                loss += value
-                # if (i + 1) % args.log_interval == 0:
-                #     writer.add_scalar('loss_{:s}'.format(key), value.item(), i + 1)
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
 
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-
-            if (i + 1) % self.interval_save == 0 or (i + 1) == self.interval_total:
-                tools.save_pth('{:s}/ckpt/{:d}.pth'.format(self.save_path, i + 1),
-                               [('model', self.model)], 
-                               [('optimizer', self.optimizer)], 
-                               i + 1)
-
-            # 用于输出测试数据
-            # if (i + 1) % self.interval_save == 0:
-            #     # model.eval()
-            #     tools.evaluate(self.model, 
-            #                    dataset_val, 
-            #                    device,
-            #                    '{:s}/images/test_{:d}.jpg'.format(args.save_dir, i + 1))
+                if self.opt.RUN.SAVE_PTH:
+                    if (global_iter + 1) % self.interval_save == 0 or (global_iter + 1) == self.interval_total:
+                        # save weights
+                        fileName = f"{self.pth_save_path}/{self.model_name}_{global_iter+1}iter.pth"
+                        os.makedirs(fileName) if not os.path.exists(fileName) else None
+                        torch.save({'model', self.model,
+                                    'optimizer', self.optimizer,}, fileName)
+                        
+                        # save images
+                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{global_iter+1}iter",
+                                    fileName=f"ground_truth",
+                                    volume=gt)
+                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{global_iter+1}iter",
+                                    fileName=f"mask",
+                                    volume=mask)
+                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{global_iter+1}iter",
+                                    fileName=f"input",
+                                    volume=input)
+                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{global_iter+1}iter",
+                                    fileName=f"output",
+                                    volume=output)
+                    
+                global_iter+=1
                 
 
 if __name__ == '__main__':
