@@ -148,7 +148,7 @@ class Dis_VCNet(nn.Module):
     
 
 class PConvUNet(nn.Module):
-    def __init__(self, layer_size=7, input_channels=1, upsampling_mode='nearest'):
+    def __init__(self, layer_size=7, input_channels=1, upsampling_mode='trilinear'):
         super().__init__()
         self.freeze_enc_bn = False
         self.upsample_mode = upsampling_mode
@@ -218,6 +218,7 @@ class PConvUNet(nn.Module):
         
         h = F.interpolate(h, scale_factor=2, mode=self.upsample_mode)
         h_mask = F.interpolate(h_mask, scale_factor=2, mode='nearest')
+        # h_mask = F.interpolate(h_mask, scale_factor=2, mode=self.upsample_mode)
         
         h = torch.cat([h, h_dict[layer_name]], dim=1)
         h_mask = torch.cat([h_mask, h_mask_dict[layer_name]], dim=1)

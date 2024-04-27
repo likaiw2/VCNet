@@ -383,6 +383,7 @@ class UnetTrainer:
         self.save_path=self.opt.PATH.SAVE_PATH
         self.pth_save_path=self.opt.PATH.PTH_SAVE_PATH
         self.interval_total=self.epoch_total*len(self.dataset)
+        print("total iter: ",self.interval_total)
         
         
         
