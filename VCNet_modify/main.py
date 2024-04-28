@@ -9,16 +9,13 @@ import model.models as models
 cfg = get_cfg_defaults()
 
 plat = sys.platform
-if plat=="darwin":      
-    # MacOS
+if plat=="darwin":                                  # MacOS
     print("MacOS")
     cfg.merge_from_file("configs/macbook.yaml")
-elif plat=="linux":     
-    # linux server
+elif plat=="linux":                                 # linux server
     print("linux server")
     cfg.merge_from_file("configs/linuxserver.yaml")
-elif (plat=="win32" or plat=="cygwin"):                   
-    # windows
+elif (plat=="win32" or plat=="cygwin"):             # windows
     print("windows")
     cfg.merge_from_file(r"Volume_Inpainting\VCNet_modify\configs\windows.yaml")
 else:
@@ -35,7 +32,7 @@ Unet_model = {
 }
 
 GAN_model = {
-    
+    "SAGAN": models.InpaintSANet,
 }
 
 
