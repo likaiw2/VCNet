@@ -360,7 +360,7 @@ class GAN_Trainer:
 class UnetTrainer:
     def __init__(self,cfg,model=PConvUNet()):
         self.opt=cfg
-        self.model_name = f"{self.opt.RUN.MODEL}"
+        self.model_name = f"{self.opt.RUN.MODEL}_{self.opt.RUN.ADD_INFO}"
         
         
         self.dataset = tools.DataSet(data_path = self.opt.PATH.DATA_PATH,
