@@ -252,16 +252,16 @@ class UnetTrainer:
                                     'optimizer': self.optimizer.state_dict(),}, fileName)
                         
                         # save images
-                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{global_iter+1}iter",
+                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
                                     fileName=f"ground_truth",
                                     volume=gt)
-                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{global_iter+1}iter",
+                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
                                     fileName=f"mask",
                                     volume=mask)
-                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{global_iter+1}iter",
+                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
                                     fileName=f"input",
                                     volume=input)
-                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{global_iter+1}iter",
+                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
                                     fileName=f"output",
                                     volume=output)
                     
