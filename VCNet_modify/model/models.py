@@ -212,7 +212,7 @@ class PConvUNet(nn.Module):
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_0')
         h, h_mask = self.dec_1(h, h_mask)
 
-        return h, h_mask
+        return h+input, h_mask
     
     def up_sample(self,h,h_mask,h_dict,h_mask_dict,layer_name):
         
