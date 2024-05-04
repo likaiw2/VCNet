@@ -14,6 +14,7 @@ _C.RUN.LOAD_PTH = False
 _C.RUN.SAVE_PTH = True
 _C.RUN.TYPE = "train"
 _C.RUN.MODEL = "PconvUnet"
+_C.RUN.ADD_INFO = "5.3"
 
 _C.PATH = CN()
 _C.PATH.DATA_PATH="Please set path in yaml"
