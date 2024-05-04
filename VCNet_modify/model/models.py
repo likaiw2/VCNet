@@ -168,6 +168,14 @@ class PConvUNet(nn.Module):
         self.dec_3 = PCBActiv(256 + 128, 128, activ='leaky')
         self.dec_2 = PCBActiv(128 + 64, 64, activ='leaky')
         self.dec_1 = PCBActiv(64 + input_channels, input_channels,bn=False, activ=None, conv_bias=True)
+        
+        # self.dec_7 = PCBActiv(512, 512, activ='leaky')
+        # self.dec_6 = PCBActiv(512, 512, activ='leaky')
+        # self.dec_5 = PCBActiv(512, 512, activ='leaky')
+        # self.dec_4 = PCBActiv(512, 256, activ='leaky')
+        # self.dec_3 = PCBActiv(256, 128, activ='leaky')
+        # self.dec_2 = PCBActiv(128, 64, activ='leaky')
+        # self.dec_1 = PCBActiv(64, 1,bn=False, activ=None, conv_bias=True)
 
     def forward(self, input, input_mask):
         
@@ -196,34 +204,63 @@ class PConvUNet(nn.Module):
         
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_5')
         h, h_mask = self.dec_6(h, h_mask)
+        h=h*(1-h_mask_dict['h_5'])+h_dict['h_5']*h_mask_dict['h_5']
         
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_4')
         h, h_mask = self.dec_5(h, h_mask)
+        h=h*(1-h_mask_dict['h_4'])+h_dict['h_4']*h_mask_dict['h_4']
+
         
+
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_3')
         h, h_mask = self.dec_4(h, h_mask)
+        h=h*(1-h_mask_dict['h_3'])+h_dict['h_3']*h_mask_dict['h_3']
+        
         
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_2')
         h, h_mask = self.dec_3(h, h_mask)
+        h=h*(1-h_mask_dict['h_2'])+h_dict['h_2']*h_mask_dict['h_2']
+       
         
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_1')
         h, h_mask = self.dec_2(h, h_mask)
+        h=h*(1-h_mask_dict['h_1'])+h_dict['h_1']*h_mask_dict['h_1']
+        
 
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_0')
         h, h_mask = self.dec_1(h, h_mask)
+        
+        h_final=h*(1-input_mask)+input*input_mask
 
-        return h+input, h_mask
+        return h_final, h_mask+input_mask
     
     def up_sample(self,h,h_mask,h_dict,h_mask_dict,layer_name):
         
+        # print("before interpolate:")
+        # print(h.shape)
+        # print(h_mask.shape)
         h = F.interpolate(h, scale_factor=2, mode=self.upsample_mode)
-        h_mask = F.interpolate(h_mask, scale_factor=2, mode='nearest')
-        # h_mask = F.interpolate(h_mask, scale_factor=2, mode=self.
+        h_mask = F.interpolate(h_mask, scale_factor=2, mode=self.upsample_mode)
+        # # h_mask = F.interpolate(h_mask, scale_factor=2, mode=self.
+        
+        # print("after interpolate:")
+        # print(h.shape)
+        # print(h_mask.shape)
+        
+        # print(f"h_dict {layer_name} :")
+        # print(h_dict[layer_name].shape)
+        # print(h_mask_dict[layer_name].shape)
         
         # h = h + h_dict[layer_name]
         # h_mask = h_mask+ h_mask_dict[layer_name]
+        
         h = torch.cat([h, h_dict[layer_name]], dim=1)
         h_mask = torch.cat([h_mask, h_mask_dict[layer_name]], dim=1)
+        
+        # print("final:")
+        # print(h.shape)
+        # print(h_mask.shape)
+        # print()
         
         return h,h_mask
 
