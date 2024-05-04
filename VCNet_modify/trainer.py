@@ -12,6 +12,8 @@ from configs.config import get_cfg_defaults  # 导入获取默认配置的函数
 import utils.tools as tools
 import utils.losses as losses
 
+import time
+
 
 class GAN_Trainer:
     def __init__(self, cfg,net_G=InpaintSANet,net_D=InpaintSADirciminator):
@@ -20,6 +22,7 @@ class GAN_Trainer:
         info = f" [Step: {self.num_step}/{self.opt.TRAIN.NUM_TOTAL_STEP} ({100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP}%)] "
         print(info)
         
+        # 设置数据集
         self.dataset = tools.DataSet(data_path = self.opt.PATH.DATA_PATH,
                                      volume_shape = self.opt.DATASET.ORIGIN_SHAPE,
                                      target_shape = self.opt.DATASET.TARGET_SHAPE,
@@ -60,6 +63,7 @@ class GAN_Trainer:
         self.net_G_opt = torch.optim.Adam(net_G.parameters(), lr=lr, weight_decay=decay)
         self.net_D_opt = torch.optim.Adam(net_D.parameters(), lr=lr, weight_decay=decay)
         
+        # 加载模型参数
         if self.opt.RUN.LOAD_PTH:
             if os.path.exists(self.opt.PATH.PTH_LOAD_PATH):
                 loaded_state = torch.load(self.opt.PATH.PTH_LOAD_PATH)
@@ -80,89 +84,150 @@ class GAN_Trainer:
         self.dis_loss = losses.SNDisLoss()
         
     def run(self):
-        global_iter=0
-        for epoch_idx in tqdm(range(self.epoch_total)):
-            for imgs, masks in self.dataloader:
+        for epoch in range(self.epoch_total):
+            #validate(netG, netD, gan_loss, recon_loss, dis_loss, optG, optD, val_loader, i, device=cuda0)
 
-                # Optimize Discriminator
-                self.net_G.zero_grad()
-                self.net_D.zero_grad()
-                self.net_G_opt.zero_grad()
-                self.net_D_opt.zero_grad()
+            #train data
+            self.train(netG=self.net_G, 
+                       netD=self.net_D, 
+                       gan_loss=self.gan_loss, 
+                       recon_loss=self.recon_loss, 
+                       dis_loss=self.dis_loss, 
+                       optG=self.net_G_opt, 
+                       optD=self.net_D_opt, 
+                       train_loader=self.data_loader, 
+                       epoch=epoch, 
+                       device=self.device)
 
-                imgs, masks = imgs.to(self.device), masks.to(self.device)
-                
-                coarse_imgs, recon_imgs = self.net_G(imgs, masks)
-                
-                complete_imgs = recon_imgs * masks + imgs * masks # mask is 0 on masked region
-
-                pos_imgs = torch.cat([imgs, masks, torch.full_like(masks, 1.)], dim=1)
-                neg_imgs = torch.cat([complete_imgs, masks, torch.full_like(masks, 1.)], dim=1)
-                pos_neg_imgs = torch.cat([pos_imgs, neg_imgs], dim=0)
-
-                pred_pos_neg = self.net_D(pos_neg_imgs)
-                pred_pos, pred_neg = torch.chunk(pred_pos_neg, 2, dim=0)
-                d_loss = self.dis_loss(pred_pos, pred_neg)
-                losses['d_loss'].update(d_loss.item(), imgs.size(0))
-                d_loss.backward(retain_graph=True)
-
-                self.net_D_opt.step()
-
-
-                # Optimize Generator
-                self.net_G.zero_grad()
-                self.net_D.zero_grad()
-                self.net_G_opt.zero_grad()
-                self.net_D_opt.zero_grad()
-                
-                pred_neg = self.net_D(neg_imgs)
-                #pred_pos, pred_neg = torch.chunk(pred_pos_neg,  2, dim=0)
-                g_loss = self.gan_loss(pred_neg)
-                r_loss = self.recon_loss(imgs, coarse_imgs, recon_imgs, masks)
-
-                whole_loss = g_loss + r_loss
-
-                # Update the recorder for losses
-                losses['g_loss'].update(g_loss.item(), imgs.size(0))
-                losses['r_loss'].update(r_loss.item(), imgs.size(0))
-                losses['whole_loss'].update(whole_loss.item(), imgs.size(0))
-                whole_loss.backward()
-
-                self.net_G_opt.step()
-
-                if self.opt.RUN.SAVE_PTH:
-                    if (global_iter + 1) % self.interval_save == 0 or (global_iter + 1) == self.interval_total or global_iter==0:
-                        # save weights
-                        fileName = f"{self.pth_save_path}/{self.model_name}_{global_iter+1}iter.pth"
-                        os.makedirs(self.pth_save_path) if not os.path.exists(self.pth_save_path) else None
-                        
-                        torch.save({'model': self.model.state_dict(),
-                                    'optimizer': self.optimizer.state_dict(),}, fileName)
-                        
-                        # save images
-                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{global_iter+1}iter",
-                                    fileName=f"ground_truth",
-                                    volume=imgs)
-                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{global_iter+1}iter",
-                                    fileName=f"mask",
-                                    volume=mask)
-                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{global_iter+1}iter",
-                                    fileName=f"input",
-                                    volume=input)
-                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{global_iter+1}iter",
-                                    fileName=f"output",
-                                    volume=output)
+            if self.opt.RUN.SAVE_PTH:
+                # if (global_iter + 1) % self.interval_save == 0 or (global_iter + 1) == self.interval_total or global_iter==0:
+                if epoch%200==0 :
+                    # save weights
+                    fileName = f"{self.pth_save_path}/{self.model_name}_{epoch}epoch.pth"
+                    os.makedirs(self.pth_save_path) if not os.path.exists(self.pth_save_path) else None
                     
+                    torch.save({'model': self.model.state_dict(),
+                                'optimizer': self.optimizer.state_dict(),}, fileName)
+                    
+                    # save images
+                    tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
+                                fileName=f"ground_truth",
+                                volume=imgs)
+                    tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
+                                fileName=f"mask",
+                                volume=mask)
+                    tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
+                                fileName=f"input",
+                                volume=input)
+                    tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
+                                fileName=f"output",
+                                volume=output)
+        
+    def train(netG, netD, GANLoss, ReconLoss, DLoss, optG, optD, dataloader, epoch, device):
+        """
+        Train Phase, for training and spectral normalization patch gan in
+        Free-Form Image Inpainting with Gated Convolution (snpgan)
 
-            saved_model = {
-                'epoch': i + 1,
-                'netG_state_dict': netG.to(cpu0).state_dict(),
-                'netD_state_dict': netD.to(cpu0).state_dict(),
-                # 'optG' : optG.state_dict(),
-                # 'optD' : optD.state_dict()
-            }
-            torch.save(saved_model, '{}/epoch_{}_ckpt.pth.tar'.format(log_dir, i+1))
-            torch.save(saved_model, '{}/latest_ckpt.pth.tar'.format(log_dir, i+1))
+        """
+        # init
+        batch_time = tools.AverageMeter()
+        data_time = tools.AverageMeter()
+        losses = {"g_loss":tools.AverageMeter(), 
+                  "r_loss":tools.AverageMeter(), 
+                  "whole_loss":tools.AverageMeter(), 
+                  'd_loss':tools.AverageMeter()}
+        end = time.time()
+
+        # set train mode
+        netG.train()
+        netD.train()
+        
+        # start train
+        for i, (imgs, masks) in enumerate(dataloader):
+            data_time.update(time.time() - end)
+            masks = masks['random_free_form']
+
+            # Optimize Discriminator
+            optD.zero_grad(), netD.zero_grad(), netG.zero_grad(), optG.zero_grad()
+
+            imgs, masks = imgs.to(device), masks.to(device)
+            imgs = (imgs / 127.5 - 1)
+            # mask is 1 on masked region
+
+            coarse_imgs, recon_imgs, attention = netG(imgs, masks)
+            #print(attention.size(), )
+            complete_imgs = recon_imgs * masks + imgs * (1 - masks)
+
+            pos_imgs = torch.cat([imgs, masks, torch.full_like(masks, 1.)], dim=1)
+            neg_imgs = torch.cat([complete_imgs, masks, torch.full_like(masks, 1.)], dim=1)
+            pos_neg_imgs = torch.cat([pos_imgs, neg_imgs], dim=0)
+
+            pred_pos_neg = netD(pos_neg_imgs)
+            pred_pos, pred_neg = torch.chunk(pred_pos_neg, 2, dim=0)
+            d_loss = DLoss(pred_pos, pred_neg)
+            losses['d_loss'].update(d_loss.item(), imgs.size(0))
+            d_loss.backward(retain_graph=True)
+
+            optD.step()
+
+
+            # Optimize Generator
+            optD.zero_grad(), netD.zero_grad(), optG.zero_grad(), netG.zero_grad()
+            pred_neg = netD(neg_imgs)
+            #pred_pos, pred_neg = torch.chunk(pred_pos_neg,  2, dim=0)
+            g_loss = GANLoss(pred_neg)
+            r_loss = ReconLoss(imgs, coarse_imgs, recon_imgs, masks)
+
+            whole_loss = g_loss + r_loss
+
+            # Update the recorder for losses
+            losses['g_loss'].update(g_loss.item(), imgs.size(0))
+            losses['r_loss'].update(r_loss.item(), imgs.size(0))
+            losses['whole_loss'].update(whole_loss.item(), imgs.size(0))
+            whole_loss.backward()
+
+            optG.step()
+
+
+            # Update time recorder
+            batch_time.update(time.time() - end)
+
+            if (i+1) % config.SUMMARY_FREQ == 0:
+                # Logger logging
+                logger.info("Epoch {0}, [{1}/{2}]: Batch Time:{batch_time.val:.4f},\t Data Time:{data_time.val:.4f}, Whole Gen Loss:{whole_loss.val:.4f}\t,"
+                            "Recon Loss:{r_loss.val:.4f},\t GAN Loss:{g_loss.val:.4f},\t D Loss:{d_loss.val:.4f}" \
+                            .format(epoch, i+1, len(dataloader), batch_time=batch_time, data_time=data_time, whole_loss=losses['whole_loss'], r_loss=losses['r_loss'] \
+                            ,g_loss=losses['g_loss'], d_loss=losses['d_loss']))
+                # Tensorboard logger for scaler and images
+                info_terms = {'WGLoss':whole_loss.item(), 'ReconLoss':r_loss.item(), "GANLoss":g_loss.item(), "DLoss":d_loss.item()}
+
+                for tag, value in info_terms.items():
+                    tensorboardlogger.scalar_summary(tag, value, epoch*len(dataloader)+i)
+
+                for tag, value in losses.items():
+                    tensorboardlogger.scalar_summary('avg_'+tag, value.avg, epoch*len(dataloader)+i)
+
+                def img2photo(imgs):
+                    return ((imgs+1)*127.5).transpose(1,2).transpose(2,3).detach().cpu().numpy()
+                # info = { 'train/ori_imgs':img2photo(imgs),
+                #          'train/coarse_imgs':img2photo(coarse_imgs),
+                #          'train/recon_imgs':img2photo(recon_imgs),
+                #          'train/comp_imgs':img2photo(complete_imgs),
+                info = {
+                        'train/whole_imgs':img2photo(torch.cat([ imgs * (1 - masks), coarse_imgs, recon_imgs, imgs, complete_imgs], dim=3))
+                        }
+
+                for tag, images in info.items():
+                    tensorboardlogger.image_summary(tag, images, epoch*len(dataloader)+i)
+            if (i+1) % config.VAL_SUMMARY_FREQ == 0 and val_datas is not None:
+
+                validate(netG, netD, GANLoss, ReconLoss, DLoss, optG, optD, val_datas , epoch, device, batch_n=i)
+                netG.train()
+                netD.train()
+            end = time.time()
+        
+
+        
         
 
 

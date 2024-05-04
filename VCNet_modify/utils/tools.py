@@ -30,7 +30,22 @@ def get_state_dict_on_cpu(obj):
         state_dict[key] = state_dict[key].to(cpu_device)
     return state_dict
 
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
 
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
 
 def load_pth(path, models, optimizers=None):
     if os.path.exists(path):

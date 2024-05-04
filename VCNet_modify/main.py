@@ -20,6 +20,7 @@ elif (plat=="win32" or plat=="cygwin"):             # windows
     cfg.merge_from_file(r"Volume_Inpainting\VCNet_modify\configs\windows.yaml")
 else:
     print("can't judge platform automatically,please check yaml path")
+    # cfg.merge_from_file(r"Volume_Inpainting\VCNet_modify\configs\windows.yaml")
     cfg.merge_from_file(None)
 
 
