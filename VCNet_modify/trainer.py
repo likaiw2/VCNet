@@ -190,8 +190,8 @@ class UnetTrainer:
         self.epoch_total=self.opt.TRAIN.EPOCH_TOTAL
         self.interval_start=self.opt.TRAIN.INTERVAL_START
         self.interval_save=self.opt.TRAIN.INTERVAL_SAVE
-        self.save_path=self.opt.PATH.SAVE_PATH
-        self.pth_save_path=self.opt.PATH.PTH_SAVE_PATH
+        self.save_path=f"{self.opt.PATH.SAVE_PATH}/{self.model_name}"
+        self.pth_save_path=f"{self.opt.PATH.PTH_SAVE_PATH}/{self.model_name}"
         self.interval_total=self.epoch_total*len(self.dataset)
         print("total iter: ",self.interval_total)
         

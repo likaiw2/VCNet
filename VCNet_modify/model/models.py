@@ -218,11 +218,12 @@ class PConvUNet(nn.Module):
         
         h = F.interpolate(h, scale_factor=2, mode=self.upsample_mode)
         h_mask = F.interpolate(h_mask, scale_factor=2, mode='nearest')
-        # h_mask = F.interpolate(h_mask, scale_factor=2, mode=self.upsample_mode)
+        # h_mask = F.interpolate(h_mask, scale_factor=2, mode=self.
         
+        # h = h + h_dict[layer_name]
+        # h_mask = h_mask+ h_mask_dict[layer_name]
         h = torch.cat([h, h_dict[layer_name]], dim=1)
-        h = h + h_dict[layer_name]
-        h_mask = h_mask+ h_mask_dict[layer_name]
+        h_mask = torch.cat([h_mask, h_mask_dict[layer_name]], dim=1)
         
         return h,h_mask
 
