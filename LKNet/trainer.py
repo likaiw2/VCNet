@@ -33,6 +33,7 @@ class GAN_Trainer:
                                            batch_size=self.opt.TRAIN.BATCH_SIZE,
                                            shuffle=self.opt.DATASET.SHUFFLE,
                                            num_workers=self.opt.SYSTEM.NUM_WORKERS)
+        
         self.data_iter = iter(self.data_loader)
 
         # 初始化wandb，用于实验跟踪和可视化
@@ -47,9 +48,11 @@ class GAN_Trainer:
         #                 mode=self.opt.WANDB.MODE)
 
         self.device = torch.device(self.opt.SYSTEM.DEVICE)
+        
         self.epoch_total = self.opt.TRAIN.EPOCH_TOTAL
         self.interval_start = self.opt.TRAIN.INTERVAL_START
         self.interval_save = self.opt.TRAIN.INTERVAL_SAVE
+        
         self.save_path = self.opt.PATH.SAVE_PATH
         self.pth_save_path = self.opt.PATH.PTH_SAVE_PATH
         self.interval_total = self.epoch_total*len(self.dataset)
@@ -59,9 +62,9 @@ class GAN_Trainer:
         self.net_G = net_G().to(self.device)
         self.net_D = net_D().to(self.device)
         self.net_G_opt = torch.optim.Adam(
-            net_G.parameters(), lr=lr, weight_decay=decay)
+            net_G.parameters(), lr=self.opt.TRAIN.LEARN_RATE, weight_decay=0.0)
         self.net_D_opt = torch.optim.Adam(
-            net_D.parameters(), lr=lr, weight_decay=decay)
+            net_D.parameters(), lr=self.opt.TRAIN.LEARN_RATE, weight_decay=0.0)
 
         # 加载模型参数
         if self.opt.RUN.LOAD_PTH:
@@ -79,8 +82,8 @@ class GAN_Trainer:
         self.num_step = self.opt.TRAIN.START_STEP
 
         # 定义损失函数
-        self.recon_loss = losses.ReconLoss(*(config.L1_LOSS_ALPHA))
-        self.gan_loss = losses.SNGenLoss(config.GAN_LOSS_ALPHA)
+        self.recon_loss = losses.ReconLoss(*(1.))
+        self.gan_loss = losses.SNGenLoss(0.005)
         self.dis_loss = losses.SNDisLoss()
 
     def run(self):
@@ -155,12 +158,11 @@ class GAN_Trainer:
             # Optimize Discriminator
             optD.zero_grad(), netD.zero_grad(), netG.zero_grad(), optG.zero_grad()
 
-            imgs, masks = imgs.to(device), masks.to(device)
-            # imgs = (imgs / 127.5 - 1)
+            imgs = imgs.to(device)
+            masks = masks.to(device)
             
-
-            coarse_imgs, recon_imgs, attention = netG(imgs, masks)
-            # print(attention.size(), )
+            # 粗糙的imgs和精修的imgs
+            coarse_imgs, recon_imgs = netG(imgs, masks)
             complete_imgs = recon_imgs * (1-masks) + imgs * masks   # mask is 0 on masked region
 
             pos_imgs = torch.cat([imgs, masks, torch.full_like(masks, 1.)], dim=1)
@@ -205,12 +207,10 @@ class GAN_Trainer:
                 ), "GANLoss": g_loss.item(), "DLoss": d_loss.item()}
 
                 for tag, value in info_terms.items():
-                    tensorboardlogger.scalar_summary(
-                        tag, value, epoch*len(dataloader)+i)
+                    tensorboardlogger.scalar_summary(tag, value, epoch*len(dataloader)+i)
 
                 for tag, value in losses.items():
-                    tensorboardlogger.scalar_summary(
-                        'avg_'+tag, value.avg, epoch*len(dataloader)+i)
+                    tensorboardlogger.scalar_summary('avg_'+tag, value.avg, epoch*len(dataloader)+i)
 
                 def img2photo(imgs):
                     return ((imgs+1)*127.5).transpose(1, 2).transpose(2, 3).detach().cpu().numpy()
@@ -225,12 +225,7 @@ class GAN_Trainer:
                 for tag, images in info.items():
                     tensorboardlogger.image_summary(
                         tag, images, epoch*len(dataloader)+i)
-            if (i+1) % config.VAL_SUMMARY_FREQ == 0 and val_datas is not None:
-
-                validate(netG, netD, GANLoss, ReconLoss, DLoss, optG,
-                         optD, val_datas, epoch, device, batch_n=i)
-                netG.train()
-                netD.train()
+           
             end = time.time()
 
 

@@ -13,7 +13,7 @@ _C.RUN = CN()
 _C.RUN.LOAD_PTH = False
 _C.RUN.SAVE_PTH = True
 _C.RUN.TYPE = "train"
-_C.RUN.MODEL = "PconvUnet"
+_C.RUN.MODEL = "SAGAN" #"PconvUnet"
 _C.RUN.ADD_INFO = "5.4"
 
 _C.PATH = CN()

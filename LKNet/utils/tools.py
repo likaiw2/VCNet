@@ -56,33 +56,7 @@ def load_pth(path, models, optimizers=None):
     else:
         print("load weights failed!")
     
-    
-    
 # def detect_mask(real_volume,masked_volume)
-
-
-class VGG16FeatureExtractor(nn.Module):
-    def __init__(self,pth_path):
-        super().__init__()
-        vgg16 = models.vgg16()
-        vgg16.load_state_dict(torch.load(pth_path))
-        
-        self.enc_1 = nn.Sequential(*vgg16.features[:5])
-        self.enc_2 = nn.Sequential(*vgg16.features[5:10])
-        self.enc_3 = nn.Sequential(*vgg16.features[10:17])
-
-        # fix the encoder
-        for i in range(3):
-            for param in getattr(self, 'enc_{:d}'.format(i + 1)).parameters():
-                param.requires_grad = False
-
-    def forward(self, image):
-        results = [image]
-        for i in range(3):
-            func = getattr(self, 'enc_{:d}'.format(i + 1))
-            results.append(func(results[-1]))
-        return results[1:]
-
 
 class MyRandomCrop3D3(object):
     # 这个类，用于实现随机裁剪
@@ -108,10 +82,6 @@ class MyRandomCrop3D3(object):
     @staticmethod
     def _crop(volume_ct, slice_d, slice_h, slice_w):     
         return volume_ct[slice_d[0]:slice_d[1], slice_h[0]:slice_h[1], slice_w[0]:slice_w[1]]
-
-
-
-
 
 class DataSet(Dataset):
     # brain: [depth, height, width]. dim = (160, 224, 168)   
@@ -377,8 +347,9 @@ class DataSet(Dataset):
         # mask_volume = np.array(mask)
         return mask_volume
 
-
-
+def get_pad(in_,  ksize, stride, atrous=1):
+    out_ = np.ceil(float(in_)/stride)
+    return int(((out_ - 1) * stride + atrous*(ksize-1) + 1 - in_)/2)
 
 def test_dataset():
     dataset = DataSet(data_path="/Users/wanglikai/Codes/DataSets/dataSet0",
@@ -389,7 +360,6 @@ def test_dataset():
     data,mask = dataset.__getitem__(1)
     print(data.shape)
     print(mask.shape)
-
 
 if __name__ == '__main__':
     test_dataset()

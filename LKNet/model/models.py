@@ -146,7 +146,7 @@ class Dis_VCNet(nn.Module):
         
         return out
     
-
+# partial conv
 class PConvUNet(nn.Module):
     def __init__(self, layer_size=7, input_channels=1, upsampling_mode='trilinear'):
         super().__init__()
@@ -264,7 +264,7 @@ class PConvUNet(nn.Module):
         
         return h,h_mask
 
-
+# gated conv
 class InpaintSANet(torch.nn.Module):
     """
     Inpaint generator, input should be 5*256*256, where 3*256*256 is the masked image, 1*256*256 for mask, 1*256*256 is the guidence
@@ -274,68 +274,68 @@ class InpaintSANet(torch.nn.Module):
         cnum = 32
         self.coarse_net = nn.Sequential(
             #input is 5*256*256, but it is full convolution network, so it can be larger than 256
-            GatedConv2dWithActivation(n_in_channel, cnum, 5, 1, padding=get_pad(256, 5, 1)),
+            GatedConv3dWithActivation(n_in_channel, cnum, 5, 1, padding=tools.get_pad(256, 5, 1)),
             # downsample 128
-            GatedConv2dWithActivation(cnum, 2*cnum, 4, 2, padding=get_pad(256, 4, 2)),
-            GatedConv2dWithActivation(2*cnum, 2*cnum, 3, 1, padding=get_pad(128, 3, 1)),
+            GatedConv3dWithActivation(cnum, 2*cnum, 4, 2, padding=tools.get_pad(256, 4, 2)),
+            GatedConv3dWithActivation(2*cnum, 2*cnum, 3, 1, padding=tools.get_pad(128, 3, 1)),
             #downsample to 64
-            GatedConv2dWithActivation(2*cnum, 4*cnum, 4, 2, padding=get_pad(128, 4, 2)),
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, padding=get_pad(64, 3, 1)),
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, padding=get_pad(64, 3, 1)),
+            GatedConv3dWithActivation(2*cnum, 4*cnum, 4, 2, padding=tools.get_pad(128, 4, 2)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, padding=tools.get_pad(64, 3, 1)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, padding=tools.get_pad(64, 3, 1)),
             # atrous convlution
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=2, padding=get_pad(64, 3, 1, 2)),
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=4, padding=get_pad(64, 3, 1, 4)),
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=8, padding=get_pad(64, 3, 1, 8)),
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=16, padding=get_pad(64, 3, 1, 16)),
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, padding=get_pad(64, 3, 1)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=2, padding=tools.get_pad(64, 3, 1, 2)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=4, padding=tools.get_pad(64, 3, 1, 4)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=8, padding=tools.get_pad(64, 3, 1, 8)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=16, padding=tools.get_pad(64, 3, 1, 16)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, padding=tools.get_pad(64, 3, 1)),
             #Self_Attn(4*cnum, 'relu'),
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, padding=get_pad(64, 3, 1)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, padding=tools.get_pad(64, 3, 1)),
             # upsample
-            GatedDeConv2dWithActivation(2, 4*cnum, 2*cnum, 3, 1, padding=get_pad(128, 3, 1)),
+            GatedDeConv3dWithActivation(2, 4*cnum, 2*cnum, 3, 1, padding=tools.get_pad(128, 3, 1)),
             #Self_Attn(2*cnum, 'relu'),
-            GatedConv2dWithActivation(2*cnum, 2*cnum, 3, 1, padding=get_pad(128, 3, 1)),
-            GatedDeConv2dWithActivation(2, 2*cnum, cnum, 3, 1, padding=get_pad(256, 3, 1)),
+            GatedConv3dWithActivation(2*cnum, 2*cnum, 3, 1, padding=tools.get_pad(128, 3, 1)),
+            GatedDeConv3dWithActivation(2, 2*cnum, cnum, 3, 1, padding=tools.get_pad(256, 3, 1)),
 
-            GatedConv2dWithActivation(cnum, cnum//2, 3, 1, padding=get_pad(256, 3, 1)),
+            GatedConv3dWithActivation(cnum, cnum//2, 3, 1, padding=tools.get_pad(256, 3, 1)),
             #Self_Attn(cnum//2, 'relu'),
-            GatedConv2dWithActivation(cnum//2, 3, 3, 1, padding=get_pad(128, 3, 1), activation=None)
+            GatedConv3dWithActivation(cnum//2, 3, 3, 1, padding=tools.get_pad(128, 3, 1), activation=None)
         )
 
         self.refine_conv_net = nn.Sequential(
             # input is 5*256*256
-            GatedConv2dWithActivation(n_in_channel, cnum, 5, 1, padding=get_pad(256, 5, 1)),
+            GatedConv3dWithActivation(n_in_channel, cnum, 5, 1, padding=tools.get_pad(256, 5, 1)),
             # downsample
-            GatedConv2dWithActivation(cnum, cnum, 4, 2, padding=get_pad(256, 4, 2)),
-            GatedConv2dWithActivation(cnum, 2*cnum, 3, 1, padding=get_pad(128, 3, 1)),
+            GatedConv3dWithActivation(cnum, cnum, 4, 2, padding=tools.get_pad(256, 4, 2)),
+            GatedConv3dWithActivation(cnum, 2*cnum, 3, 1, padding=tools.get_pad(128, 3, 1)),
             # downsample
-            GatedConv2dWithActivation(2*cnum, 2*cnum, 4, 2, padding=get_pad(128, 4, 2)),
-            GatedConv2dWithActivation(2*cnum, 4*cnum, 3, 1, padding=get_pad(64, 3, 1)),
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, padding=get_pad(64, 3, 1)),
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, padding=get_pad(64, 3, 1)),
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=2, padding=get_pad(64, 3, 1, 2)),
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=4, padding=get_pad(64, 3, 1, 4)),
+            GatedConv3dWithActivation(2*cnum, 2*cnum, 4, 2, padding=tools.get_pad(128, 4, 2)),
+            GatedConv3dWithActivation(2*cnum, 4*cnum, 3, 1, padding=tools.get_pad(64, 3, 1)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, padding=tools.get_pad(64, 3, 1)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, padding=tools.get_pad(64, 3, 1)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=2, padding=tools.get_pad(64, 3, 1, 2)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=4, padding=tools.get_pad(64, 3, 1, 4)),
             #Self_Attn(4*cnum, 'relu'),
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=8, padding=get_pad(64, 3, 1, 8)),
-
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=16, padding=get_pad(64, 3, 1, 16))
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=8, padding=tools.get_pad(64, 3, 1, 8)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=16, padding=tools.get_pad(64, 3, 1, 16))
         )
         self.refine_attn = Self_Attn(4*cnum, 'relu', with_attn=False)
         self.refine_upsample_net = nn.Sequential(
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, padding=get_pad(64, 3, 1)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, padding=tools.get_pad(64, 3, 1)),
 
-            GatedConv2dWithActivation(4*cnum, 4*cnum, 3, 1, padding=get_pad(64, 3, 1)),
-            GatedDeConv2dWithActivation(2, 4*cnum, 2*cnum, 3, 1, padding=get_pad(128, 3, 1)),
-            GatedConv2dWithActivation(2*cnum, 2*cnum, 3, 1, padding=get_pad(128, 3, 1)),
-            GatedDeConv2dWithActivation(2, 2*cnum, cnum, 3, 1, padding=get_pad(256, 3, 1)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, padding=tools.get_pad(64, 3, 1)),
+            GatedDeConv3dWithActivation(2, 4*cnum, 2*cnum, 3, 1, padding=tools.get_pad(128, 3, 1)),
+            GatedConv3dWithActivation(2*cnum, 2*cnum, 3, 1, padding=tools.get_pad(128, 3, 1)),
+            GatedDeConv3dWithActivation(2, 2*cnum, cnum, 3, 1, padding=tools.get_pad(256, 3, 1)),
 
-            GatedConv2dWithActivation(cnum, cnum//2, 3, 1, padding=get_pad(256, 3, 1)),
+            GatedConv3dWithActivation(cnum, cnum//2, 3, 1, padding=tools.get_pad(256, 3, 1)),
             #Self_Attn(cnum, 'relu'),
-            GatedConv2dWithActivation(cnum//2, 3, 3, 1, padding=get_pad(256, 3, 1), activation=None),
+            GatedConv3dWithActivation(cnum//2, 3, 3, 1, padding=tools.get_pad(256, 3, 1), activation=None),
         )
 
 
     def forward(self, imgs, masks, img_exs=None):
         # Coarse
+        # make masked mage 
         masked_imgs =  imgs * (1 - masks) + masks
         if img_exs == None:
             input_imgs = torch.cat([masked_imgs, masks, torch.full_like(masks, 1.)], dim=1)
@@ -343,8 +343,10 @@ class InpaintSANet(torch.nn.Module):
             input_imgs = torch.cat([masked_imgs, img_exs, masks, torch.full_like(masks, 1.)], dim=1)
         #print(input_imgs.size(), imgs.size(), masks.size())
         x = self.coarse_net(input_imgs)
-        x = torch.clamp(x, -1., 1.)
+        
+        x = torch.clamp(x, -1., 1.)     # 将tensor元素限制到(-1,1)区间
         coarse_x = x
+        
         # Refine
         masked_imgs = imgs * (1 - masks) + coarse_x * masks
         if img_exs is None:
@@ -352,7 +354,7 @@ class InpaintSANet(torch.nn.Module):
         else:
             input_imgs = torch.cat([masked_imgs, img_exs, masks, torch.full_like(masks, 1.)], dim=1)
         x = self.refine_conv_net(input_imgs)
-        x= self.refine_attn(x)
+        x = self.refine_attn(x)
         #print(x.size(), attention.size())
         x = self.refine_upsample_net(x)
         x = torch.clamp(x, -1., 1.)
@@ -363,14 +365,14 @@ class InpaintSADirciminator(nn.Module):
         super(InpaintSADirciminator, self).__init__()
         cnum = 32
         self.discriminator_net = nn.Sequential(
-            SNConvWithActivation(5, 2*cnum, 4, 2, padding=get_pad(256, 5, 2)),
-            SNConvWithActivation(2*cnum, 4*cnum, 4, 2, padding=get_pad(128, 5, 2)),
-            SNConvWithActivation(4*cnum, 8*cnum, 4, 2, padding=get_pad(64, 5, 2)),
-            SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=get_pad(32, 5, 2)),
-            SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=get_pad(16, 5, 2)),
-            SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=get_pad(8, 5, 2)),
+            SNConvWithActivation(5, 2*cnum, 4, 2, padding=tools.get_pad(256, 5, 2)),
+            SNConvWithActivation(2*cnum, 4*cnum, 4, 2, padding=tools.get_pad(128, 5, 2)),
+            SNConvWithActivation(4*cnum, 8*cnum, 4, 2, padding=tools.get_pad(64, 5, 2)),
+            SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(32, 5, 2)),
+            SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(16, 5, 2)),
+            SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(8, 5, 2)),
             Self_Attn(8*cnum, 'relu'),
-            SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=get_pad(4, 5, 2)),
+            SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(4, 5, 2)),
         )
         self.linear = nn.Linear(8*cnum*2*2, 1)
 
