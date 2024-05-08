@@ -209,9 +209,12 @@ class DataSet(Dataset):
         mask = []       # meshgrid vector
         
         # to make sure the biggest size is smaller than 50%
-        max_x = volume_shape[0]*0.5
-        max_y = volume_shape[1]*0.5
-        max_z = volume_shape[2]*0.5
+        max_x = volume_shape[0]*0.7
+        max_y = volume_shape[1]*0.7
+        max_z = volume_shape[2]*0.7
+        min_x = volume_shape[0]*0.3
+        min_y = volume_shape[0]*0.3
+        min_z = volume_shape[0]*0.3
         
         # make empty mask
         mask_volume = np.ones(volume_shape,dtype=self.data_type)
