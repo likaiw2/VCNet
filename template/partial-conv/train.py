@@ -79,10 +79,10 @@ mask_tf = transforms.Compose(
 dataset_train = Places2(args.root, args.mask_root, img_tf, mask_tf, 'train')
 dataset_val = Places2(args.root, args.mask_root, img_tf, mask_tf, 'val')
 
-iterator_train = iter(data.DataLoader(dataset_train, 
-                                      batch_size=args.batch_size,
-                                      sampler=InfiniteSampler(len(dataset_train)),
-                                      num_workers=args.n_threads))
+iterator_train = iter(data.DataLoader(
+    dataset_train, batch_size=args.batch_size,
+    sampler=InfiniteSampler(len(dataset_train)),
+    num_workers=args.n_threads))
 print(len(dataset_train))
 model = PConvUNet().to(device)
 
@@ -104,7 +104,6 @@ if args.resume:
         param_group['lr'] = lr
     print('Starting from iter ', start_iter)
 
-# tqdm是迭代进度条，告诉你训练进度 类似 █████████   | 3/4 [00:01<00:00, 3.99it/s]
 for i in tqdm(range(start_iter, args.max_iter)):
     model.train()
 
@@ -113,7 +112,6 @@ for i in tqdm(range(start_iter, args.max_iter)):
     loss_dict = criterion(image, mask, output, gt)
 
     loss = 0.0
-    # 加权损失累加
     for key, coef in opt.LAMBDA_DICT.items():
         value = coef * loss_dict[key]
         loss += value

@@ -146,15 +146,11 @@ class PConvUNet(nn.Module):
                               bn=False, activ=None, conv_bias=True)
 
     def forward(self, input, input_mask):
-        
-        # 初始化两个字典 h_dict 和 h_mask_dict，用于存储编码器每一层的输出特征图和对应的遮罩。
         h_dict = {}  # for the output of enc_N
         h_mask_dict = {}  # for the output of enc_N
 
-        # 将输入图像和遮罩存储在字典中，索引为 'h_0'
         h_dict['h_0'], h_mask_dict['h_0'] = input, input_mask
 
-        # 循环遍历编码器层，使用 getattr 
         h_key_prev = 'h_0'
         for i in range(1, self.layer_size + 1):
             l_key = 'enc_{:d}'.format(i)
