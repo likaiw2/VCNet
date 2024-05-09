@@ -172,8 +172,10 @@ class GAN_Trainer:
             neg_imgs = torch.cat([complete_imgs, masks, torch.full_like(masks, 1.)], dim=1)
             pos_neg_imgs = torch.cat([pos_imgs, neg_imgs], dim=0)
 
+            # 鉴别器执行操作
             pred_pos_neg = netD(pos_neg_imgs)
             pred_pos, pred_neg = torch.chunk(pred_pos_neg, 2, dim=0)    # 分别读取鉴别器对正面样本的反应和负面样本的反应
+            # 求损失并进行反向传播
             d_loss = DLoss(pred_pos, pred_neg)
             losses['d_loss'].update(d_loss.item(), imgs.size(0))
             d_loss.backward(retain_graph=True)
