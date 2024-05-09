@@ -382,5 +382,118 @@ class InpaintSADirciminator(nn.Module):
         #x = self.linear(x)
         return x
 
+# pix2pix
+class p2pUNet(nn.Module):
+    #Generator
+    '''
+    UNet Class
+    A series of 4 contracting blocks followed by 4 expanding blocks to
+    transform an input image into the corresponding paired image, with an upfeature
+    layer at the start and a downfeature layer at the end.
+    Values:
+        input_channels: the number of channels to expect from a given input
+        output_channels: the number of channels to expect for a given output
+    '''
+    def __init__(self, input_channels, output_channels, hidden_channels=32):
+        super(p2pUNet, self).__init__()
+        self.upfeature = FeatureMapBlock(input_channels, hidden_channels)
+        self.contract1 = ContractingBlock(hidden_channels, use_dropout=True)
+        self.contract2 = ContractingBlock(hidden_channels * 2, use_dropout=True)
+        # self.contract3 = ContractingBlock(hidden_channels * 4, use_dropout=True,s1=(2,2,3))
+        self.contract3 = ContractingBlock(hidden_channels * 4, use_dropout=True)
+        # self.contract4 = ContractingBlock(hidden_channels * 8,k1=(2,2,1),s1=(2,2,1))
+        self.contract4 = ContractingBlock(hidden_channels * 8,k1=(1,2,1),s1=(1,2,1))
+        # self.contract5 = ContractingBlock(hidden_channels * 16,k1=(1,1,1),s1=(1,1,1))
+        self.contract5 = ContractingBlock(hidden_channels * 16, k1=(1,1,1),s1=(1,1,1))
+        self.contract6 = ContractingBlock(hidden_channels * 32,k1=(1,1,1),s1=(1,1,1))
+        self.expand0 = ExpandingBlock(hidden_channels * 64,s1=1)
+        self.expand1 = ExpandingBlock(hidden_channels * 32,s1=1)
+        # self.expand1 = ExpandingBlock(hidden_channels * 32, s1=(1,2,1))
+        # self.expand2 = ExpandingBlock(hidden_channels * 16,s1=(2,2,1))
+        self.expand2 = ExpandingBlock(hidden_channels * 16,s1=(1,2,1))
+        # self.expand3 = ExpandingBlock(hidden_channels * 8,s1=(2,2,3))
+        self.expand3 = ExpandingBlock(hidden_channels * 8)
+        self.expand4 = ExpandingBlock(hidden_channels * 4)
+        self.expand5 = ExpandingBlock(hidden_channels * 2)
+        self.downfeature = FeatureMapBlock(hidden_channels, output_channels)
+        # self.deconv=nn.ConvTranspose3d(1,1,kernel_size=(9,9,6),stride=1,padding=0,dilation=(2,6,4))
+        self.sigmoid = torch.nn.Sigmoid()
+
+    def forward(self, x):
+        '''
+        Function for completing a forward pass of UNet:
+        Given an image tensor, passes it through U-Net and returns the output.
+        Parameters:
+            x: image tensor of shape (batch size, channels, height, width)
+        '''
+        x0 = self.upfeature(x)
+        x1 = self.contract1(x0)
+        x2 = self.contract2(x1)
+        x3 = self.contract3(x2)
+        # print("X3.shape:"+str(x3.shape))
+        x4 = self.contract4(x3)
+        # print("X4.shape:" + str(x4.shape))
+        x5 = self.contract5(x4)
+        # print("X5.shape:" + str(x5.shape))
+        x6 = self.contract6(x5)
+        # print("X6.shape:" + str(x6.shape))
+
+        # print("X6.shape:"+str(x6.shape))
+        # print(x5.shape)
+        # x6=x6.squeeze(0)
+        x7 = self.expand0(x6, x5)
+        # print("X7.shape:" + str(x7.shape))
+        x8 = self.expand1(x7, x4)
+        # print("X8.shape:" + str(x8.shape))
+        x9 = self.expand2(x8, x3)
+        # print("X9.shape:" + str(x9.shape))
+        x10 = self.expand3(x9, x2)
+        # print("X10.shape:" + str(x10.shape))
+        x11 = self.expand4(x10, x1)
+        # print("X11.shape:" + str(x11.shape))
+        x12 = self.expand5(x11, x0)
+        # print("X12.shape:" + str(x12.shape))
+        # print("X12 shape"+str(x12.shape))
+        xn = self.downfeature(x12)
+        # print("Xn shape" + str(xn.shape))
+        # xn=self.deconv(xn)
+
+        return self.sigmoid(xn)
+
+# UNQ_C1 (UNIQUE CELL IDENTIFIER, DO NOT EDIT)
+# GRADED CLASS: Discriminator
+class p2pDiscriminator(nn.Module):
+    '''
+    Discriminator Class
+    Structured like the contracting path of the U-Net, the discriminator will
+    output a matrix of values classifying corresponding portions of the image as real or fake.
+    Parameters:
+        input_channels: the number of image input channels
+        hidden_channels: the initial number of discriminator convolutional filters
+    '''
+    def __init__(self, input_channels, hidden_channels=8):
+        super(p2pDiscriminator, self).__init__()
+        self.upfeature = FeatureMapBlock(input_channels, hidden_channels)
+        self.contract1 = ContractingBlock(hidden_channels, use_bn=False)
+        self.contract2 = ContractingBlock(hidden_channels * 2)
+        self.contract3 = ContractingBlock(hidden_channels * 4)
+        self.contract4 = ContractingBlock(hidden_channels * 8)
+        #### START CODE HERE ####
+        # self.final = nn.Conv2d(hidden_channels * 16, None, kernel_size=None)
+        self.final = nn.Conv3d(hidden_channels * 16, 1, kernel_size=1)
+        #### END CODE HERE ####
+
+    def forward(self, x, y):
+        # print(x.shape)
+        # print(y.shape)
+        x = torch.cat([x, y], axis=1)
+        x0 = self.upfeature(x)
+        x1 = self.contract1(x0)
+        x2 = self.contract2(x1)
+        x3 = self.contract3(x2)
+        x4 = self.contract4(x3)
+        xn = self.final(x4)
+        return xn
+
 
 

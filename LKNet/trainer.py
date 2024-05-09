@@ -15,7 +15,7 @@ import utils.losses as losses
 import time
 
 
-class GAN_Trainer:
+class SAGAN_Trainer:
     def __init__(self, cfg, net_G=InpaintSANet, net_D=InpaintSADirciminator):
         self.opt = cfg
         self.model_name = f"{self.opt.RUN.MODEL}"
@@ -203,6 +203,34 @@ class GAN_Trainer:
             batch_time.update(time.time() - end)
             end = time.time()
 
+class P2P_Trainer:
+    def __init__(self,cfg,net_G, net_D) -> None:
+        self.opt = cfg
+        self.model_name = f"{self.opt.RUN.MODEL}"
+        # info = f" [Step: {self.num_step}/{self.opt.TRAIN.NUM_TOTAL_STEP} ({100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP}%)] "
+        # print(info)
+
+        # 设置数据集
+        self.dataset = tools.DataSet(data_path=self.opt.PATH.DATA_PATH,
+                                     volume_shape=self.opt.DATASET.ORIGIN_SHAPE,
+                                     target_shape=self.opt.DATASET.TARGET_SHAPE,
+                                     mask_type=self.opt.RUN.TYPE,
+                                     data_type=np.float32)
+
+        self.data_loader = data.DataLoader(dataset=self.dataset,
+                                           batch_size=self.opt.TRAIN.BATCH_SIZE,
+                                           shuffle=self.opt.DATASET.SHUFFLE,
+                                           num_workers=self.opt.SYSTEM.NUM_WORKERS)
+        
+        self.data_iter = iter(self.data_loader)
+        
+        gen = UNet(input_dim, real_dim).to(device)
+        gen_opt = torch.optim.Adam(gen.parameters(), lr=lr)
+        disc = Discriminator(input_dim + real_dim).to(device)
+        disc_opt = torch.optim.Adam(disc.parameters(), lr=lr)
+        
+    def run(self):
+        
 
 class UnetTrainer:
     def __init__(self, cfg, model=PConvUNet()):

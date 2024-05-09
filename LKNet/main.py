@@ -35,6 +35,8 @@ Unet_model = {
 GAN_model = {
     "SAGAN": {"GEN" : models.InpaintSANet,
               "DIS" : models.InpaintSADirciminator},
+    "Pix2Pix":{"GEN" : models.p2pUNet,
+              "DIS" : models.p2pDiscriminator},
 }
 
 
@@ -48,9 +50,14 @@ if cfg.RUN.TYPE=="train":
         trainer.run()
     elif cfg.RUN.MODEL in GAN_model:
         print("GAN!")
-        trainer = trainer.GAN_Trainer(cfg,
-                                      net_G=GAN_model[cfg.RUN.MODEL]["GEN"](), 
-                                      net_D=GAN_model[cfg.RUN.MODEL]["DIS"]())
+        if cfg.RUN.MODEL=="SAGAN":
+            trainer = trainer.SAGAN_Trainer(cfg,
+                                            net_G=GAN_model[cfg.RUN.MODEL]["GEN"](), 
+                                            net_D=GAN_model[cfg.RUN.MODEL]["DIS"]())
+        elif cfg.RUN.MODEL=="Pix2Pix":
+            trainer = trainer.P2P_Trainer(cfg,
+                                          net_G=GAN_model[cfg.RUN.MODEL]["GEN"](), 
+                                          net_D=GAN_model[cfg.RUN.MODEL]["DIS"]())
         trainer.run()
     else:
         assert True,"Check your model name!"
