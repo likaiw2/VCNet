@@ -88,148 +88,142 @@ class SAGAN_Trainer:
         self.dis_loss = losses.SNDisLoss()
 
     def run(self):
-        global global_iter
+        netG = self.net_G
+        netD = self.net_D
+        GANLoss = self.gan_loss
+        ReconLoss=self.recon_loss
+        DLoss = self.dis_loss
+        optG = self.net_G_opt
+        optD = self.net_D_opt
+        dataloader = self.data_loader
+        device = self.device
+        
         global_iter = 0
-
+        
         for epoch in range(self.epoch_total):
-            # validate(netG, netD, gan_loss, recon_loss, dis_loss, optG, optD, val_loader, i, device=cuda0)
-
-            # train data
-            self.train(netG = self.net_G,
-                       netD = self.net_D,
-                       GANLoss = self.gan_loss,
-                       ReconLoss=self.recon_loss,
-                       DLoss = self.dis_loss,
-                       optG = self.net_G_opt,
-                       optD = self.net_D_opt,
-                       dataloader = self.data_loader,
-                       epoch = epoch,
-                       device = self.device)
-
-            if self.opt.RUN.SAVE_PTH:
-                # if (global_iter + 1) % self.interval_save == 0 or (global_iter + 1) == self.interval_total or global_iter==0:
-                if epoch % 200 == 0:
-                    # save weights
-                    fileName = f"{self.pth_save_path}/{self.model_name}_{epoch}epoch.pth"
-                    os.makedirs(self.pth_save_path) if not os.path.exists(
-                        self.pth_save_path) else None
-
-                    torch.save({'model': self.model.state_dict(),
-                                'optimizer': self.optimizer.state_dict(), }, fileName)
-
-                    # save images
-                    tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
-                                  fileName=f"ground_truth",
-                                  volume=imgs)
-                    tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
-                                  fileName=f"mask",
-                                  volume=mask)
-                    tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
-                                  fileName=f"input",
-                                  volume=input)
-                    tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
-                                  fileName=f"output",
-                                  volume=output)
-
-    def train(self,netG, netD, GANLoss, ReconLoss, DLoss, optG, optD, dataloader, epoch, device):
-        """
-        Train Phase, for training and spectral normalization patch gan in
-        Free-Form Image Inpainting with Gated Convolution (snpgan)
-
-        """
-        # init
-        end = time.time()
-        batch_time = tools.AverageMeter()
-        data_time = tools.AverageMeter()
-        losses = {"g_loss": tools.AverageMeter(),
-                  "r_loss": tools.AverageMeter(),
-                  "whole_loss": tools.AverageMeter(),
-                  'd_loss': tools.AverageMeter()}
-
-        # set train mode
-        netG.train()
-        netD.train()
-
-        # start train
-        for i, (imgs, masks) in enumerate(dataloader):
-
-            global_iter += 1
-            data_time.update(time.time() - end)
-
-            # Optimize Discriminator
-            optD.zero_grad(), netD.zero_grad(), netG.zero_grad(), optG.zero_grad()
-
-            imgs = imgs.to(device)
-            masks = masks.to(device)
-            
-            # 粗糙的imgs和精修的imgs
-            coarse_imgs, recon_imgs = netG(imgs, masks)
-            # 制作补全后的图像，非挖空区域是原图，挖空区域是补全后的图片
-            complete_imgs = recon_imgs * (1-masks) + imgs * masks   # mask is 0 on masked region
-
-            # 制作正面图像和负面图像并把它们合并到一起，送进鉴别器
-            pos_imgs = torch.cat([imgs, masks, torch.full_like(masks, 1.)], dim=1)
-            neg_imgs = torch.cat([complete_imgs, masks, torch.full_like(masks, 1.)], dim=1)
-            pos_neg_imgs = torch.cat([pos_imgs, neg_imgs], dim=0)
-
-            # 鉴别器执行操作
-            pred_pos_neg = netD(pos_neg_imgs)
-            pred_pos, pred_neg = torch.chunk(pred_pos_neg, 2, dim=0)    # 分别读取鉴别器对正面样本的反应和负面样本的反应
-            # 求损失并进行反向传播
-            d_loss = DLoss(pred_pos, pred_neg)
-            losses['d_loss'].update(d_loss.item(), imgs.size(0))
-            d_loss.backward(retain_graph=True)
-
-            optD.step()
-
-            # Optimize Generator
-            optD.zero_grad(), netD.zero_grad(), optG.zero_grad(), netG.zero_grad()
-            pred_neg = netD(neg_imgs)
-            # pred_pos, pred_neg = torch.chunk(pred_pos_neg,  2, dim=0)
-            g_loss = GANLoss(pred_neg)
-            r_loss = ReconLoss(imgs, coarse_imgs, recon_imgs, masks)
-
-            whole_loss = g_loss + r_loss
-
-            # Update the recorder for losses
-            losses['g_loss'].update(g_loss.item(), imgs.size(0))
-            losses['r_loss'].update(r_loss.item(), imgs.size(0))
-            losses['whole_loss'].update(whole_loss.item(), imgs.size(0))
-            whole_loss.backward()
-
-            optG.step()
-
-            # Update time recorder
-            batch_time.update(time.time() - end)
+            """
+            Train Phase, for training and spectral normalization patch gan in
+            Free-Form Image Inpainting with Gated Convolution (snpgan)
+            """
+            # init
             end = time.time()
+            batch_time = tools.AverageMeter()
+            data_time = tools.AverageMeter()
+            losses = {"g_loss": tools.AverageMeter(),
+                    "r_loss": tools.AverageMeter(),
+                    "whole_loss": tools.AverageMeter(),
+                    'd_loss': tools.AverageMeter()}
 
-class P2P_Trainer:
-    def __init__(self,cfg,net_G, net_D) -> None:
-        self.opt = cfg
-        self.model_name = f"{self.opt.RUN.MODEL}"
-        # info = f" [Step: {self.num_step}/{self.opt.TRAIN.NUM_TOTAL_STEP} ({100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP}%)] "
-        # print(info)
+            # set train mode
+            netG.train()
+            netD.train()
 
-        # 设置数据集
-        self.dataset = tools.DataSet(data_path=self.opt.PATH.DATA_PATH,
-                                     volume_shape=self.opt.DATASET.ORIGIN_SHAPE,
-                                     target_shape=self.opt.DATASET.TARGET_SHAPE,
-                                     mask_type=self.opt.RUN.TYPE,
-                                     data_type=np.float32)
+            # start train
+            for i, (imgs, masks) in enumerate(dataloader):
+                global_iter +=1
+                data_time.update(time.time() - end)
 
-        self.data_loader = data.DataLoader(dataset=self.dataset,
-                                           batch_size=self.opt.TRAIN.BATCH_SIZE,
-                                           shuffle=self.opt.DATASET.SHUFFLE,
-                                           num_workers=self.opt.SYSTEM.NUM_WORKERS)
+                # Optimize Discriminator
+                optD.zero_grad(), netD.zero_grad(), netG.zero_grad(), optG.zero_grad()
+
+                imgs = imgs.to(device)
+                masks = masks.to(device)
+                
+                # 粗糙的imgs和精修的imgs
+                coarse_imgs, recon_imgs = netG(imgs, masks)
+                # 制作补全后的图像，非挖空区域是原图，挖空区域是补全后的图片
+                complete_imgs = recon_imgs * (1-masks) + imgs * masks   # mask is 0 on masked region
+
+                # 制作正面图像和负面图像并把它们合并到一起，送进鉴别器
+                pos_imgs = torch.cat([imgs, masks, torch.full_like(masks, 1.)], dim=1)
+                neg_imgs = torch.cat([complete_imgs, masks, torch.full_like(masks, 1.)], dim=1)
+                pos_neg_imgs = torch.cat([pos_imgs, neg_imgs], dim=0)
+
+                # 鉴别器执行操作
+                pred_pos_neg = netD(pos_neg_imgs)
+                pred_pos, pred_neg = torch.chunk(pred_pos_neg, 2, dim=0)    # 分别读取鉴别器对正面样本的反应和负面样本的反应
+                # 求损失并进行反向传播
+                d_loss = DLoss(pred_pos, pred_neg)
+                losses['d_loss'].update(d_loss.item(), imgs.size(0))
+                d_loss.backward(retain_graph=True)
+
+                optD.step()
+
+                # Optimize Generator
+                optD.zero_grad(), netD.zero_grad(), optG.zero_grad(), netG.zero_grad()
+                pred_neg = netD(neg_imgs)
+                # pred_pos, pred_neg = torch.chunk(pred_pos_neg,  2, dim=0)
+                g_loss = GANLoss(pred_neg)
+                r_loss = ReconLoss(imgs, coarse_imgs, recon_imgs, masks)
+
+                whole_loss = g_loss + r_loss
+
+                # Update the recorder for losses
+                losses['g_loss'].update(g_loss.item(), imgs.size(0))
+                losses['r_loss'].update(r_loss.item(), imgs.size(0))
+                losses['whole_loss'].update(whole_loss.item(), imgs.size(0))
+                whole_loss.backward()
+
+                optG.step()
+
+                # Update time recorder
+                batch_time.update(time.time() - end)
+                end = time.time()
+                
+                if self.opt.RUN.SAVE_PTH:
+                    if (self.global_iter + 1) % self.interval_save == 0 or (self.global_iter + 1) == self.interval_total or self.global_iter==0:
+                    # if epoch % 200 == 0:
+                        # save weights
+                        fileName = f"{self.pth_save_path}/{self.model_name}_{epoch}epoch.pth"
+                        os.makedirs(self.pth_save_path) if not os.path.exists(
+                            self.pth_save_path) else None
+
+                        torch.save({'model': self.model.state_dict(),
+                                    'optimizer': self.optimizer.state_dict(), }, fileName)
+
+                        # save images
+                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
+                                    fileName=f"ground_truth",
+                                    volume=imgs)
+                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
+                                    fileName=f"mask",
+                                    volume=mask)
+                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
+                                    fileName=f"input",
+                                    volume=input)
+                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
+                                    fileName=f"output",
+                                    volume=output)
+            
+            
+
+# class P2P_Trainer:
+#     def __init__(self,cfg,net_G, net_D) -> None:
+#         self.opt = cfg
+#         self.model_name = f"{self.opt.RUN.MODEL}"
+#         # info = f" [Step: {self.num_step}/{self.opt.TRAIN.NUM_TOTAL_STEP} ({100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP}%)] "
+#         # print(info)
+
+#         # 设置数据集
+#         self.dataset = tools.DataSet(data_path=self.opt.PATH.DATA_PATH,
+#                                      volume_shape=self.opt.DATASET.ORIGIN_SHAPE,
+#                                      target_shape=self.opt.DATASET.TARGET_SHAPE,
+#                                      mask_type=self.opt.RUN.TYPE,
+#                                      data_type=np.float32)
+
+#         self.data_loader = data.DataLoader(dataset=self.dataset,
+#                                            batch_size=self.opt.TRAIN.BATCH_SIZE,
+#                                            shuffle=self.opt.DATASET.SHUFFLE,
+#                                            num_workers=self.opt.SYSTEM.NUM_WORKERS)
         
-        self.data_iter = iter(self.data_loader)
+#         self.data_iter = iter(self.data_loader)
         
-        gen = UNet(input_dim, real_dim).to(device)
-        gen_opt = torch.optim.Adam(gen.parameters(), lr=lr)
-        disc = Discriminator(input_dim + real_dim).to(device)
-        disc_opt = torch.optim.Adam(disc.parameters(), lr=lr)
+#         gen = UNet(input_dim, real_dim).to(device)
+#         gen_opt = torch.optim.Adam(gen.parameters(), lr=lr)
+#         disc = Discriminator(input_dim + real_dim).to(device)
+#         disc_opt = torch.optim.Adam(disc.parameters(), lr=lr)
         
-    def run(self):
+#     def run(self):
         
 
 class UnetTrainer:

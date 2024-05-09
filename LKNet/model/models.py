@@ -273,8 +273,8 @@ class InpaintSANet(torch.nn.Module):
         super(InpaintSANet, self).__init__()
         cnum = 32
         self.coarse_net = nn.Sequential(
-            #input is 5*256*256, but it is full convolution network, so it can be larger than 256
-            GatedConv3dWithActivation(n_in_channel, cnum, 5, 1, padding=tools.get_pad(256, 5, 1)),
+            #input is 3*256*256, but it is full convolution network, so it can be larger than 256
+            GatedConv3dWithActivation(n_in_channel, cnum, 3, 1, padding=tools.get_pad(256, 3, 1)),
             # downsample 128
             GatedConv3dWithActivation(cnum, 2*cnum, 4, 2, padding=tools.get_pad(256, 4, 2)),
             GatedConv3dWithActivation(2*cnum, 2*cnum, 3, 1, padding=tools.get_pad(128, 3, 1)),

@@ -309,6 +309,7 @@ class GatedConv3dWithActivation(torch.nn.Module):
         return self.sigmoid(mask)
     def forward(self, input):
         x = self.conv3d(input)
+        
         mask = self.mask_conv3d(input)
         
         if self.activation is not None:
