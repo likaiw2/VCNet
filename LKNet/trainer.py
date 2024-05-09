@@ -19,8 +19,8 @@ class GAN_Trainer:
     def __init__(self, cfg, net_G=InpaintSANet, net_D=InpaintSADirciminator):
         self.opt = cfg
         self.model_name = f"{self.opt.RUN.MODEL}"
-        info = f" [Step: {self.num_step}/{self.opt.TRAIN.NUM_TOTAL_STEP} ({100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP}%)] "
-        print(info)
+        # info = f" [Step: {self.num_step}/{self.opt.TRAIN.NUM_TOTAL_STEP} ({100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP}%)] "
+        # print(info)
 
         # 设置数据集
         self.dataset = tools.DataSet(data_path=self.opt.PATH.DATA_PATH,
@@ -59,8 +59,9 @@ class GAN_Trainer:
         print("total iter: ", self.interval_total)
 
         # 创建模型组件
-        self.net_G = net_G().to(self.device)
-        self.net_D = net_D().to(self.device)
+        self.net_G = net_G.to(self.device)
+        self.net_D = net_D.to(self.device)
+        
         self.net_G_opt = torch.optim.Adam(
             net_G.parameters(), lr=self.opt.TRAIN.LEARN_RATE, weight_decay=0.0)
         self.net_D_opt = torch.optim.Adam(
@@ -79,10 +80,10 @@ class GAN_Trainer:
                 print("load weights failed!")
 
         # 初始化训练步数
-        self.num_step = self.opt.TRAIN.START_STEP
+        self.num_step = self.opt.TRAIN.INTERVAL_START
 
         # 定义损失函数
-        self.recon_loss = losses.ReconLoss(*(1.))
+        self.recon_loss = losses.ReconLoss(*([1.2, 1.2, 1.2, 1.2]))
         self.gan_loss = losses.SNGenLoss(0.005)
         self.dis_loss = losses.SNDisLoss()
 
@@ -96,12 +97,12 @@ class GAN_Trainer:
             # train data
             self.train(netG = self.net_G,
                        netD = self.net_D,
-                       gan_loss = self.gan_loss,
-                       recon_loss = self.recon_loss,
-                       dis_loss = self.dis_loss,
+                       GANLoss = self.gan_loss,
+                       ReconLoss=self.recon_loss,
+                       DLoss = self.dis_loss,
                        optG = self.net_G_opt,
                        optD = self.net_D_opt,
-                       train_loader = self.data_loader,
+                       dataloader = self.data_loader,
                        epoch = epoch,
                        device = self.device)
 
@@ -130,7 +131,7 @@ class GAN_Trainer:
                                   fileName=f"output",
                                   volume=output)
 
-    def train(netG, netD, GANLoss, ReconLoss, DLoss, optG, optD, dataloader, epoch, device):
+    def train(self,netG, netD, GANLoss, ReconLoss, DLoss, optG, optD, dataloader, epoch, device):
         """
         Train Phase, for training and spectral normalization patch gan in
         Free-Form Image Inpainting with Gated Convolution (snpgan)
@@ -163,14 +164,16 @@ class GAN_Trainer:
             
             # 粗糙的imgs和精修的imgs
             coarse_imgs, recon_imgs = netG(imgs, masks)
+            # 制作补全后的图像，非挖空区域是原图，挖空区域是补全后的图片
             complete_imgs = recon_imgs * (1-masks) + imgs * masks   # mask is 0 on masked region
 
+            # 制作正面图像和负面图像并把它们合并到一起，送进鉴别器
             pos_imgs = torch.cat([imgs, masks, torch.full_like(masks, 1.)], dim=1)
             neg_imgs = torch.cat([complete_imgs, masks, torch.full_like(masks, 1.)], dim=1)
             pos_neg_imgs = torch.cat([pos_imgs, neg_imgs], dim=0)
 
             pred_pos_neg = netD(pos_neg_imgs)
-            pred_pos, pred_neg = torch.chunk(pred_pos_neg, 2, dim=0)
+            pred_pos, pred_neg = torch.chunk(pred_pos_neg, 2, dim=0)    # 分别读取鉴别器对正面样本的反应和负面样本的反应
             d_loss = DLoss(pred_pos, pred_neg)
             losses['d_loss'].update(d_loss.item(), imgs.size(0))
             d_loss.backward(retain_graph=True)
@@ -196,36 +199,6 @@ class GAN_Trainer:
 
             # Update time recorder
             batch_time.update(time.time() - end)
-
-            if (i+1) % config.SUMMARY_FREQ == 0:
-                # Logger logging
-                logger.info("Epoch {0}, [{1}/{2}]: Batch Time:{batch_time.val:.4f},\t Data Time:{data_time.val:.4f}, Whole Gen Loss:{whole_loss.val:.4f}\t,"
-                            "Recon Loss:{r_loss.val:.4f},\t GAN Loss:{g_loss.val:.4f},\t D Loss:{d_loss.val:.4f}"
-                            .format(epoch, i+1, len(dataloader), batch_time=batch_time, data_time=data_time, whole_loss=losses['whole_loss'], r_loss=losses['r_loss'], g_loss=losses['g_loss'], d_loss=losses['d_loss']))
-                # Tensorboard logger for scaler and images
-                info_terms = {'WGLoss': whole_loss.item(), 'ReconLoss': r_loss.item(
-                ), "GANLoss": g_loss.item(), "DLoss": d_loss.item()}
-
-                for tag, value in info_terms.items():
-                    tensorboardlogger.scalar_summary(tag, value, epoch*len(dataloader)+i)
-
-                for tag, value in losses.items():
-                    tensorboardlogger.scalar_summary('avg_'+tag, value.avg, epoch*len(dataloader)+i)
-
-                def img2photo(imgs):
-                    return ((imgs+1)*127.5).transpose(1, 2).transpose(2, 3).detach().cpu().numpy()
-                # info = { 'train/ori_imgs':img2photo(imgs),
-                #          'train/coarse_imgs':img2photo(coarse_imgs),
-                #          'train/recon_imgs':img2photo(recon_imgs),
-                #          'train/comp_imgs':img2photo(complete_imgs),
-                info = {
-                    'train/whole_imgs': img2photo(torch.cat([imgs * (1 - masks), coarse_imgs, recon_imgs, imgs, complete_imgs], dim=3))
-                }
-
-                for tag, images in info.items():
-                    tensorboardlogger.image_summary(
-                        tag, images, epoch*len(dataloader)+i)
-           
             end = time.time()
 
 

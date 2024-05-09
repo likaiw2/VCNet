@@ -345,9 +345,9 @@ class Self_Attn(nn.Module):
         self.chanel_in = in_dim
         self.activation = activation
         self.with_attn = with_attn
-        self.query_conv = nn.Conv2d(in_channels = in_dim , out_channels = in_dim//8 , kernel_size= 1)
-        self.key_conv = nn.Conv2d(in_channels = in_dim , out_channels = in_dim//8 , kernel_size= 1)
-        self.value_conv = nn.Conv2d(in_channels = in_dim , out_channels = in_dim , kernel_size= 1)
+        self.query_conv = nn.Conv3d(in_channels = in_dim , out_channels = in_dim//8 , kernel_size= 1)
+        self.key_conv = nn.Conv3d(in_channels = in_dim , out_channels = in_dim//8 , kernel_size= 1)
+        self.value_conv = nn.Conv3d(in_channels = in_dim , out_channels = in_dim , kernel_size= 1)
         self.gamma = nn.Parameter(torch.zeros(1))
 
         self.softmax  = nn.Softmax(dim=-1) #
@@ -374,3 +374,22 @@ class Self_Attn(nn.Module):
             return out ,attention
         else:
             return out
+
+class SNConvWithActivation(torch.nn.Module):
+    """
+    SN convolution for spetral normalization conv
+    """
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, activation=torch.nn.LeakyReLU(0.2, inplace=True)):
+        super(SNConvWithActivation, self).__init__()
+        self.conv3d = torch.nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
+        self.conv3d = torch.nn.utils.spectral_norm(self.conv3d)
+        self.activation = activation
+        for m in self.modules():
+            if isinstance(m, nn.Conv3d):
+                nn.init.kaiming_normal_(m.weight)
+    def forward(self, input):
+        x = self.conv3d(input)
+        if self.activation is not None:
+            return self.activation(x)
+        else:
+            return x

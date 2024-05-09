@@ -33,7 +33,8 @@ Unet_model = {
 }
 
 GAN_model = {
-    "SAGAN": models.InpaintSANet,
+    "SAGAN": {"GEN" : models.InpaintSANet,
+              "DIS" : models.InpaintSADirciminator},
 }
 
 
@@ -42,11 +43,14 @@ if cfg.RUN.TYPE=="train":
     # 判断用GAN还是Unet来训练
     if cfg.RUN.MODEL in Unet_model:
         print("Unet!")
-        trainer = trainer.UnetTrainer(cfg,model=Unet_model[cfg.RUN.MODEL]())
+        trainer = trainer.UnetTrainer(cfg,
+                                      model=Unet_model[cfg.RUN.MODEL]())
         trainer.run()
     elif cfg.RUN.MODEL in GAN_model:
         print("GAN!")
-        trainer = GAN_model[cfg.RUN.MODEL]()
+        trainer = trainer.GAN_Trainer(cfg,
+                                      net_G=GAN_model[cfg.RUN.MODEL]["GEN"](), 
+                                      net_D=GAN_model[cfg.RUN.MODEL]["DIS"]())
         trainer.run()
     else:
         assert True,"Check your model name!"
