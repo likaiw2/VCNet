@@ -17,3 +17,6 @@ VCNet_modify/weight/vgg16-397923af.pth
 
 wandb/
 weights/
+LKNet/configs/__pycache__/
+LKNet/model/__pycache__/
+LKNet/out/
