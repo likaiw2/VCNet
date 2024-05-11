@@ -1,4 +1,4 @@
-import glog as log  # Google的日志库
+# import glog as log  # Google的日志库
 import trainer
 import sys
 # from tester import Tester  # 导入测试器类
