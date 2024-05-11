@@ -4,6 +4,7 @@ import sys
 # from tester import Tester  # 导入测试器类
 from configs.config import get_cfg_defaults  # 导入获取默认配置的函数
 import model.models as models
+import torch
 
 # 获取默认配置
 cfg = get_cfg_defaults()
@@ -23,6 +24,10 @@ else:
     print("can't judge platform automatically,please check yaml path")
     # cfg.merge_from_file(r"Volume_Inpainting\VCNet_modify\configs\windows.yaml")
     cfg.merge_from_file(None)
+
+# clear cuda memory
+torch.cuda.empty_cache()
+torch.manual_seed(0)
 
 
 # cfg.freeze()

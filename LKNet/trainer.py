@@ -100,7 +100,7 @@ class SAGAN_Trainer:
         
         global_iter = 0
         
-        for epoch in range(self.epoch_total):
+        for epoch in tqdm(range(self.epoch_total)):
             """
             Train Phase, for training and spectral normalization patch gan in
             Free-Form Image Inpainting with Gated Convolution (snpgan)
@@ -120,7 +120,6 @@ class SAGAN_Trainer:
 
             # start train
             for i, (imgs, masks) in enumerate(dataloader):
-                global_iter +=1
                 data_time.update(time.time() - end)
 
                 # Optimize Discriminator
@@ -171,29 +170,36 @@ class SAGAN_Trainer:
                 end = time.time()
                 
                 if self.opt.RUN.SAVE_PTH:
-                    if (self.global_iter + 1) % self.interval_save == 0 or (self.global_iter + 1) == self.interval_total or self.global_iter==0:
+                    if (global_iter + 1) % self.interval_save == 0 or (global_iter + 1) == self.interval_total or global_iter==0:
                     # if epoch % 200 == 0:
                         # save weights
                         fileName = f"{self.pth_save_path}/{self.model_name}_{epoch}epoch.pth"
                         os.makedirs(self.pth_save_path) if not os.path.exists(
                             self.pth_save_path) else None
 
-                        torch.save({'model': self.model.state_dict(),
-                                    'optimizer': self.optimizer.state_dict(), }, fileName)
+                        torch.save({'net_G': self.net_G.state_dict(),
+                                    'net_D': self.net_D.state_dict(),
+                                    'net_G_opt': self.net_G_opt.state_dict(), 
+                                    'net_D_opt': self.net_D_opt.state_dict(), 
+                                    }, fileName)
 
                         # save images
                         tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
                                     fileName=f"ground_truth",
                                     volume=imgs)
                         tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
-                                    fileName=f"mask",
-                                    volume=mask)
+                                    fileName=f"masks",
+                                    volume=masks)
                         tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
-                                    fileName=f"input",
-                                    volume=input)
+                                    fileName=f"coarse_imgs",
+                                    volume=coarse_imgs)
                         tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
-                                    fileName=f"output",
-                                    volume=output)
+                                    fileName=f"recon_imgs",
+                                    volume=recon_imgs)
+                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch}epoch",
+                                    fileName=f"complete_imgs",
+                                    volume=complete_imgs)
+                global_iter +=1
             
             
 

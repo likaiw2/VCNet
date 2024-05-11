@@ -359,9 +359,9 @@ class InpaintSANet(torch.nn.Module):
         # print(masked_imgs.size(), masks.size(), input_imgs.size())
         # print("input_imgs:",input_imgs.shape)
         x = self.refine_conv_net(input_imgs)
-        print("x:",x.shape)
-        x,attention = self.refine_attn(x)
-        print(x.size(), attention.size())
+        # print("x:",x.shape)
+        # x,attention = self.refine_attn(x)
+        # print(x.size(), attention.size())
         x = self.refine_upsample_net(x)
         x = torch.clamp(x, -1., 1.)
         return coarse_x, x
@@ -376,9 +376,9 @@ class InpaintSADirciminator(nn.Module):
             SNConvWithActivation(4*cnum, 8*cnum, 4, 2, padding=tools.get_pad(64, 5, 2)),
             SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(32, 5, 2)),
             SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(16, 5, 2)),
-            SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(8, 5, 2)),
+            # SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(8, 5, 2)),
             Self_Attn(8*cnum, 'relu'),
-            SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(4, 5, 2)),
+            SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(8, 5, 2)),
         )
         self.linear = nn.Linear(8*cnum*2*2, 1)
 
