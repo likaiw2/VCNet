@@ -318,7 +318,7 @@ class InpaintSANet(torch.nn.Module):
             GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=8, padding=tools.get_pad(64, 3, 1, 8)),
             GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=16, padding=tools.get_pad(64, 3, 1, 16))
         )
-        self.refine_attn = Self_Attn(4*cnum, 'relu', with_attn=False)
+        self.refine_attn = Self_Attn(4*cnum, 'relu', with_attn=True)
         self.refine_upsample_net = nn.Sequential(
             GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, padding=tools.get_pad(64, 3, 1)),
 
@@ -360,7 +360,7 @@ class InpaintSANet(torch.nn.Module):
         # print("input_imgs:",input_imgs.shape)
         x = self.refine_conv_net(input_imgs)
         print("x:",x.shape)
-        x = self.refine_attn(x)
+        x,attention = self.refine_attn(x)
         print(x.size(), attention.size())
         x = self.refine_upsample_net(x)
         x = torch.clamp(x, -1., 1.)
@@ -371,7 +371,7 @@ class InpaintSADirciminator(nn.Module):
         super(InpaintSADirciminator, self).__init__()
         cnum = 32
         self.discriminator_net = nn.Sequential(
-            SNConvWithActivation(5, 2*cnum, 4, 2, padding=tools.get_pad(256, 5, 2)),
+            SNConvWithActivation(3, 2*cnum, 4, 2, padding=tools.get_pad(256, 5, 2)),
             SNConvWithActivation(2*cnum, 4*cnum, 4, 2, padding=tools.get_pad(128, 5, 2)),
             SNConvWithActivation(4*cnum, 8*cnum, 4, 2, padding=tools.get_pad(64, 5, 2)),
             SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(32, 5, 2)),

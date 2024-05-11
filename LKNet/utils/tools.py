@@ -150,7 +150,7 @@ class DataSet(Dataset):
                              starting_width:final_width]
         return cropped_image
 
-    def generate_mask(self,volume_shape:tuple[int,int,int],shape_type:int):
+    def generate_mask(self,volume_shape:[int,int,int],shape_type:int):
         '''
             1 stands for real
             0 stands for empty
@@ -250,7 +250,10 @@ class DataSet(Dataset):
 
         elif shape_type == 4:    # cuboid
             # make shape grid
-            random_x,random_y,random_z = int(max_x*random.random()),int(max_y*random.random()),int(max_z*random.random())
+            random_x = random.randint(min_x,max_x)
+            random_y = random.randint(min_y,max_y)
+            random_z = random.randint(min_z,max_z)
+            
             x,y,z = np.meshgrid(range(random_x),range(random_y),range(random_z))
             x,y,z = np.reshape(x,(-1,1)),np.reshape(y,(-1,1)),np.reshape(z,(-1,1))
             # make position
@@ -352,14 +355,16 @@ def get_pad(in_,  ksize, stride, atrous=1):
     return int(((out_ - 1) * stride + atrous*(ksize-1) + 1 - in_)/2)
 
 def test_dataset():
-    dataset = DataSet(data_path="/Users/wanglikai/Codes/DataSets/dataSet0",
-                      volume_shape=(160,224,168),
-                      target_shape=(128,128,128),
+    dataset = DataSet(data_path="/root/autodl-tmp/Diode/Datas/VCNet_dataSet",
+                    #   volume_shape=(160,224,168),
+                      volume_shape=(128,128,128),
+                      target_shape=(64,64,64),
                       mask_type="train")
     print(len(dataset))
     data,mask = dataset.__getitem__(1)
     print(data.shape)
     print(mask.shape)
+    
 
 if __name__ == '__main__':
     test_dataset()

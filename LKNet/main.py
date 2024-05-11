@@ -14,7 +14,8 @@ if plat=="darwin":                                  # MacOS
     cfg.merge_from_file("configs/macbook.yaml")
 elif plat=="linux":                                 # linux server
     print("linux server")
-    cfg.merge_from_file("configs/linuxserver.yaml")
+    # cfg.merge_from_file("configs/linuxserver.yaml")
+    cfg.merge_from_file("/root/autodl-tmp/Diode/Codes/Volume_Impainting/LKNet/configs/linuxsever_autoDL.yaml")
 elif (plat=="win32" or plat=="cygwin"):             # windows
     print("windows")
     cfg.merge_from_file(r"Volume_Inpainting\LKNet\configs\windows.yaml")

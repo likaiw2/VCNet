@@ -1,0 +1,18 @@
+PATH:
+  DATA_PATH: /root/autodl-tmp/Diode/Datas/VCNet_dataSet
+  SAVE_PATH: /root/autodl-tmp/Diode/Codes/Volume_Impainting/LKNet/out
+
+SYSTEM:
+  DEVICE: cuda:0
+
+DATASET:
+  SHUFFLE: True
+  # ORIGIN_SHAPE: (160,224,168)   # brain
+  # ORIGIN_SHAPE: (96,240,384)   # pelvic
+  ORIGIN_SHAPE: (128,128,128)   # test use
+  TARGET_SHAPE: (64,64,64)
+
+TRAIN:
+  BATCH_SIZE: 1
+  TEST_MODE: True
+  UP_MODE: 3

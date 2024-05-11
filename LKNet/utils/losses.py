@@ -2,6 +2,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import utils.tools as tools
+import torch.nn.functional as F
+
 
 # LOSS Function Class
 class WeightedMSELoss(nn.Module):
@@ -260,7 +262,7 @@ class TVLoss(torch.nn.Module):
     def __init__(self, weight=1):
         self.weight = weight
 
-    def forward(self,):
+    def forward(self,x):
         batch_size = x.size()[0]
         h_x = x.size()[2]
         w_x = x.size()[3]
