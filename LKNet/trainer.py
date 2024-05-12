@@ -19,8 +19,6 @@ class SAGAN_Trainer:
     def __init__(self, cfg, net_G=InpaintSANet, net_D=InpaintSADirciminator):
         self.opt = cfg
         self.model_name = f"{self.opt.RUN.MODEL}"
-        # info = f" [Step: {self.num_step}/{self.opt.TRAIN.NUM_TOTAL_STEP} ({100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP}%)] "
-        # print(info)
 
         # 设置数据集
         self.dataset = tools.DataSet(data_path=self.opt.PATH.DATA_PATH,
@@ -168,6 +166,19 @@ class SAGAN_Trainer:
                 # Update time recorder
                 batch_time.update(time.time() - end)
                 end = time.time()
+                
+                # if self.num_step % self.opt.TRAIN.VISUALIZE_INTERVAL == 0:
+                #     idx = self.opt.WANDB.NUM_ROW
+                #     self.wandb.log({"examples": [
+                #         self.wandb.Image(self.to_pil(y_imgs[idx].cpu()), caption="original_image"),
+                #         self.wandb.Image(self.to_pil(linear_unscaling(cont_imgs[idx]).cpu()), caption="contaminant_image"),
+                #         self.wandb.Image(self.to_pil(linear_unscaling(masked_imgs[idx]).cpu()), caption="masked_image"),
+                #         self.wandb.Image(self.to_pil(masks[idx].cpu()), caption="original_masks"),
+                #         self.wandb.Image(self.to_pil(smooth_masks[idx].cpu()), caption="smoothed_masks"),
+                #         self.wandb.Image(self.to_pil(pred_masks[idx].cpu()), caption="predicted_masks"),
+                #         self.wandb.Image(self.to_pil(torch.clamp(output, min=0., max=1.)[idx].cpu()), caption="output")
+                #     ]}, commit=False)
+                # self.wandb.log({})
                 
                 if self.opt.RUN.SAVE_PTH:
                     if (global_iter + 1) % self.interval_save == 0 or (global_iter + 1) == self.interval_total or global_iter==0:

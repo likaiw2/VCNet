@@ -9,6 +9,12 @@ _C.SYSTEM = CN()
 _C.SYSTEM.DEVICE = "cpu"
 _C.SYSTEM.NUM_WORKERS = 0
 
+_C.WANDB = CN()
+_C.WANDB.PROJECT_NAME = "Gated Conv"
+_C.WANDB.RUN = 1
+_C.WANDB.NUM_ROW = 0
+_C.WANDB.MODE = "online" # "offline"
+
 _C.RUN = CN()
 _C.RUN.LOAD_PTH = False
 _C.RUN.SAVE_PTH = True
@@ -23,6 +29,7 @@ _C.PATH.TEMP_PATH="Please set path in yaml"
 _C.PATH.SAVE_PATH="Please set path in yaml"
 _C.PATH.PTH_LOAD_PATH="Please set path in yaml"
 _C.PATH.PTH_SAVE_PATH="Please set path in yaml"
+_C.PATH.WANDB_LOG="Please set path in yaml"
 _C.PATH.VGG16_PATH="Please set path in yaml"
 
 
@@ -34,13 +41,6 @@ _C.DATASET.DATA_TYPE = "np.float32"
 _C.DATASET.MEAN = [0.5, 0.5, 0.5]
 _C.DATASET.STD = [0.5, 0.5, 0.5]
 _C.DATASET.SHUFFLE = True
-
-_C.WANDB = CN()
-_C.WANDB.PROJECT_NAME = "vcnet"
-_C.WANDB.RUN = 1
-_C.WANDB.LOG_DIR = ""
-_C.WANDB.NUM_ROW = 0
-_C.WANDB.MODE = "offline"
 
 _C.TRAIN = CN()
 _C.TRAIN.BATCH_SIZE = 2
@@ -54,6 +54,7 @@ _C.TRAIN.INTERVAL_LOG = 200
 _C.TRAIN.INTERVAL_SAVE = 4000
 _C.TRAIN.INTERVAL_VISUALIZE = 4000
 _C.TRAIN.EPOCH_TOTAL = 1000
+_C.VISUALIZE_INTERVAL = 200
 
 _C.TRAIN.LAMBDA_RECON=200
 _C.TRAIN.LAMBDA_ADV=1e-3
