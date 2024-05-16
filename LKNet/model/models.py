@@ -359,9 +359,9 @@ class InpaintSANet(torch.nn.Module):
         # print(masked_imgs.size(), masks.size(), input_imgs.size())
         # print("input_imgs:",input_imgs.shape)
         x = self.refine_conv_net(input_imgs)
-        print("x:",x.shape)
-        x,attention = self.refine_attn(x)
-        print(x.size(), attention.size())
+        # print("x:",x.shape)
+        # x,attention = self.refine_attn(x)
+        # print(x.size(), attention.size())
         x = self.refine_upsample_net(x)
         x = torch.clamp(x, -1., 1.)
         return coarse_x, x

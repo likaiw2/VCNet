@@ -100,7 +100,7 @@ class SAGAN_Trainer:
         
         global_iter = 0
         
-        for epoch in range(self.epoch_total):
+        for epoch in tqdm(range(self.epoch_total)):
             """
             Train Phase, for training and spectral normalization patch gan in
             Free-Form Image Inpainting with Gated Convolution (snpgan)
@@ -171,7 +171,7 @@ class SAGAN_Trainer:
                 end = time.time()
                 
                 if self.opt.RUN.SAVE_PTH:
-                    if (self.global_iter + 1) % self.interval_save == 0 or (self.global_iter + 1) == self.interval_total or self.global_iter==0:
+                    if (global_iter + 1) % self.interval_save == 0 or (global_iter + 1) == self.interval_total or global_iter==0:
                     # if epoch % 200 == 0:
                         # save weights
                         fileName = f"{self.pth_save_path}/{self.model_name}_{epoch}epoch.pth"
