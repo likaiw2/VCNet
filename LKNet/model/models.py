@@ -376,9 +376,9 @@ class InpaintSADirciminator(nn.Module):
             SNConvWithActivation(4*cnum, 8*cnum, 4, 2, padding=tools.get_pad(64, 5, 2)),
             SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(32, 5, 2)),
             SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(16, 5, 2)),
-            SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(8, 5, 2)),
+            # SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(8, 5, 2)),
             Self_Attn(8*cnum, 'relu'),
-            SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(4, 5, 2)),
+            SNConvWithActivation(8*cnum, 8*cnum, 4, 2, padding=tools.get_pad(8, 5, 2)),
         )
         self.linear = nn.Linear(8*cnum*2*2, 1)
 
