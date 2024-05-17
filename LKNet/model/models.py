@@ -321,35 +321,34 @@ class PConvUNet2(nn.Module):
         
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_5')
         h, h_mask = self.dec_6(h, h_mask)
-        h=h*(1-h_mask_dict['h_5'])+h_dict['h_5']*h_mask_dict['h_5']
+        # h=h*(1-h_mask_dict['h_5'])+h_dict['h_5']*h_mask_dict['h_5']
         
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_4')
         h, h_mask = self.dec_5(h, h_mask)
-        h=h*(1-h_mask_dict['h_4'])+h_dict['h_4']*h_mask_dict['h_4']
+        # h=h*(1-h_mask_dict['h_4'])+h_dict['h_4']*h_mask_dict['h_4']
 
-        
-
+    
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_3')
         h, h_mask = self.dec_4(h, h_mask)
-        h=h*(1-h_mask_dict['h_3'])+h_dict['h_3']*h_mask_dict['h_3']
+        # h=h*(1-h_mask_dict['h_3'])+h_dict['h_3']*h_mask_dict['h_3']
         
         
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_2')
         h, h_mask = self.dec_3(h, h_mask)
-        h=h*(1-h_mask_dict['h_2'])+h_dict['h_2']*h_mask_dict['h_2']
+        # h=h*(1-h_mask_dict['h_2'])+h_dict['h_2']*h_mask_dict['h_2']
        
         
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_1')
         h, h_mask = self.dec_2(h, h_mask)
-        h=h*(1-h_mask_dict['h_1'])+h_dict['h_1']*h_mask_dict['h_1']
+        # h=h*(1-h_mask_dict['h_1'])+h_dict['h_1']*h_mask_dict['h_1']
         
 
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_0')
         h, h_mask = self.dec_1(h, h_mask)
         
-        h_final=h*(1-input_mask)+input*input_mask
+        # h_final=h*(1-input_mask)+input*input_mask
 
-        return h_final, h_mask+input_mask
+        return h, h_mask*input_mask
     
     def up_sample(self,h,h_mask,h_dict,h_mask_dict,layer_name):
         

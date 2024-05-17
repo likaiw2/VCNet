@@ -14,7 +14,7 @@ _C.RUN.LOAD_PTH = False
 _C.RUN.SAVE_PTH = True
 _C.RUN.TYPE = "train"
 _C.RUN.MODEL = "PconvUnet" #"SAGAN" #"PconvUnet"
-_C.RUN.ADDITIONAL_INFO = "5.4"
+_C.RUN.ADDITIONAL_INFO = "5.17"
 
 
 _C.WANDB = CN()

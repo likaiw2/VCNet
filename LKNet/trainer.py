@@ -289,14 +289,16 @@ class UnetTrainer:
 
     def run(self):
         global_iter = 0
-        for epoch_idx in tqdm(range(self.opt.TRAIN.EPOCH_TOTAL)):
-            for gt, mask in self.data_loader:
+        for epoch_idx in tqdm(range(self.opt.TRAIN.EPOCH_TOTAL),unit="epoch"):
+            _loss = []
+            for gt, mask in tqdm(self.data_loader,unit="iter",leave=False):
                 gt = gt.to(self.device)
                 mask = mask.to(self.device)
 
                 input = gt*mask                                     # 制作输入图像
-                output, _ = self.model(input, mask)                 # 制作输出
-                loss_dict = self.loss_function(mask, output, gt)    # 求损失
+                output_raw, out_mask = self.model(input, mask)                 # 制作输出
+                output_final=output_raw*(1-out_mask)+input*out_mask
+                loss_dict = self.loss_function(input, mask, output_raw, gt)    # 求损失
                 loss = loss_dict
                 
                 # 加权计算并输出损失
@@ -307,7 +309,7 @@ class UnetTrainer:
                     loss += value
                 # if (i + 1) % args.log_interval == 0:
                 #     writer.add_scalar('loss_{:s}'.format(key), value.item(), i + 1)
-                tqdm.write("loss:",loss)
+                _loss.append(loss.item())
 
                 self.optimizer.zero_grad()          # 重置梯度
                 loss.backward()                     # 计算梯度
@@ -336,12 +338,16 @@ class UnetTrainer:
                                       volume=input)
                         tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
                                       fileName=f"output",
-                                      volume=output)
+                                      volume=output_raw)
+                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
+                                      fileName=f"output_final",
+                                      volume=output_final)
                 # loop.set_description(f'Epoch [{epoch_idx}/{self.opt.TRAIN.EPOCH_TOTAL}], Iter [{global_iter}/{self.interval_total}]\n')
                 # loop.set_postfix(loss = loss.item())
 
                 global_iter += 1
-
+            average_loss=np.average(np.array(_loss))
+           print("\n",average_loss)
 
 if __name__ == '__main__':
     trainer = UnetTrainer(cfg)
