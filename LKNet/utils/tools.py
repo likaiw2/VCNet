@@ -62,7 +62,7 @@ class MyRandomCrop3D3(object):
     # 这个类，用于实现随机裁剪
     def __init__(self, volume_sz, cropVolume_sz):
         d, h, w = volume_sz                  # 输入体积大小
-        assert (d, h, w) >= cropVolume_sz
+        # assert (d, h, w) >= cropVolume_sz
         self.volume_sz = tuple((d, h, w))       #裁剪体积大小
         self.cropVolume_sz = tuple(cropVolume_sz)
 

@@ -218,7 +218,7 @@ class ResUNet_LRes(nn.Module):
         # self.pool1 = nn.MaxPool3d((3,3,3),(1,1,1),(2,2,3))
         self.pool2 = nn.MaxPool3d(2)
         # self.pool3 = nn.MaxPool3d(2)
-        self.pool3 = nn.MaxPool3d(3, stride=(2, 2, 3), padding=1)
+        self.pool3 = nn.MaxPool3d(3, stride=(2, 2, 2), padding=1)
         # self.pool4 = nn.MaxPool3d(2)
 
         # hidden_channel = 32
@@ -230,7 +230,8 @@ class ResUNet_LRes(nn.Module):
         # self.conv_block512_1024 = residualUnit(512, 1024)
         # this kind of symmetric design is awesome, it automatically solves the number of channels during upsamping
         # self.up_block1024_512 = UNetUpResBlock(1024, 512)
-        self.up_block512_256 = UNetUpResBlock_223(hidden_channel*8, hidden_channel*4)
+        # self.up_block512_256 = UNetUpResBlock_223(hidden_channel*8, hidden_channel*4)
+        self.up_block512_256 = UNetUpResBlock(hidden_channel*8, hidden_channel*4)
         self.up_block256_128 = UNetUpResBlock(hidden_channel*4, hidden_channel*2)
         self.up_block128_64 = UNetUpResBlock(hidden_channel*2, hidden_channel)
         self.Dropout = nn.Dropout3d(p=dp_prob)
@@ -273,8 +274,8 @@ class ResUNet_LRes(nn.Module):
         up2 = self.up_block512_256(block4, block3)
         # print ('up2.shape: ', up2.shape)
 
-        up3 = self.up_block256_128(up2, block2)
-        # up3 = self.up_block256_128(block3, block2)  #如果不用512-256的话启用这个
+        # up3 = self.up_block256_128(up2, block2)
+        up3 = self.up_block256_128(block3, block2)  #如果不用512-256的话启用这个
         # print ('up3.shape: ', up3.shape)
 
         up4 = self.up_block128_64(up3, block1)

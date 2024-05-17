@@ -21,3 +21,4 @@ LKNet/configs/__pycache__/
 LKNet/model/__pycache__/
 LKNet/out/
 template/vcnet-blind-image-inpainting
+DCGAN_m/out/
