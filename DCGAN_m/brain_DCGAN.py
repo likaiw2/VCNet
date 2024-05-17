@@ -811,8 +811,8 @@ def train(save_model=True):
     for epoch in tqdm(range(n_epochs)):
         # Dataloader returns the batches
         for data,masked_data,index in dataloader:
-            ct=data
-            mri=masked_data
+            ct=masked_data
+            mri=data
             residual_source = ct
             # print("ct: " , ct.shape)
             # print("mri: " , mri.shape)
