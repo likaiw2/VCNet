@@ -1,4 +1,4 @@
-import math
+import datetime
 from yacs.config import CfgNode as CN
 import numpy as np
 
@@ -14,7 +14,7 @@ _C.RUN.LOAD_PTH = False
 _C.RUN.SAVE_PTH = True
 _C.RUN.TYPE = "train"
 _C.RUN.MODEL = "PconvUnet" #"SAGAN" #"PconvUnet"
-_C.RUN.ADDITIONAL_INFO = "5.17"
+_C.RUN.ADDITIONAL_INFO = datetime.datetime.now().strftime('%m%d_%H_%M')
 
 
 _C.WANDB = CN()

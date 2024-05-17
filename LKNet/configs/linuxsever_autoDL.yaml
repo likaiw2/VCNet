@@ -15,6 +15,9 @@ DATASET:
   TARGET_SHAPE: (128,128,128)
 
 TRAIN:
-  BATCH_SIZE: 1
+  BATCH_SIZE: 2
   TEST_MODE: True
   UP_MODE: 3
+
+RUN:
+  MODEL: "PconvUnet_ori"

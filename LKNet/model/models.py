@@ -345,6 +345,8 @@ class PConvUNet2(nn.Module):
 
         h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_0')
         h, h_mask = self.dec_1(h, h_mask)
+        # print(h.shape)
+        # print(h_mask.shape)
         
         # h_final=h*(1-input_mask)+input*input_mask
 
