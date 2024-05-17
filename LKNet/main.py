@@ -36,6 +36,7 @@ torch.manual_seed(0)
 
 Unet_model = {
     "PconvUnet": models.PConvUNet,
+    "PconvUnet_ori": models.PConvUNet2,
 }
 
 GAN_model = {

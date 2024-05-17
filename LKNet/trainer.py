@@ -296,8 +296,8 @@ class UnetTrainer:
                 mask = mask.to(self.device)
 
                 input = gt*mask                                     # 制作输入图像
-                output_raw, out_mask = self.model(input, mask)                 # 制作输出
-                output_final=output_raw*(1-out_mask)+input*out_mask
+                output_raw, output_mask = self.model(input, mask)                 # 制作输出
+                output_final=output_raw*(1-output_mask)+input*output_mask
                 loss_dict = self.loss_function(input, mask, output_raw, gt)    # 求损失
                 loss = loss_dict
                 
@@ -325,29 +325,32 @@ class UnetTrainer:
 
                         torch.save({'model': self.model.state_dict(),
                                     'optimizer': self.optimizer.state_dict(), }, fileName)
-
-                        # save images
-                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
-                                      fileName=f"ground_truth",
-                                      volume=gt)
-                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
-                                      fileName=f"mask",
-                                      volume=mask)
-                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
-                                      fileName=f"input",
-                                      volume=input)
-                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
-                                      fileName=f"output",
-                                      volume=output_raw)
-                        tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
-                                      fileName=f"output_final",
-                                      volume=output_final)
+                        for i in range(self.opt.TRAIN.BATCH_SIZE):
+                            # save images
+                            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
+                                        fileName=f"b{i}_ground_truth",
+                                        volume=gt[i])
+                            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
+                                        fileName=f"b{i}_mask",
+                                        volume=mask[i])
+                            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
+                                        fileName=f"b{i}_input",
+                                        volume=input[i])
+                            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
+                                        fileName=f"b{i}_output_raw",
+                                        volume=output_raw[i])
+                            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
+                                        fileName=f"b{i}_output_final",
+                                        volume=output_final[i])
+                            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
+                                        fileName=f"b{i}_output_final",
+                                        volume=output_mask[i])
                 # loop.set_description(f'Epoch [{epoch_idx}/{self.opt.TRAIN.EPOCH_TOTAL}], Iter [{global_iter}/{self.interval_total}]\n')
                 # loop.set_postfix(loss = loss.item())
 
                 global_iter += 1
             average_loss=np.average(np.array(_loss))
-           print("\n",average_loss)
+            print("\n",average_loss)
 
 if __name__ == '__main__':
     trainer = UnetTrainer(cfg)
