@@ -49,13 +49,12 @@ class SAGAN_Trainer:
 
         self.device = torch.device(self.opt.SYSTEM.DEVICE)
         
-        self.epoch_total = self.opt.TRAIN.EPOCH_TOTAL
         self.interval_start = self.opt.TRAIN.INTERVAL_START
         self.interval_save = self.opt.TRAIN.INTERVAL_SAVE
         
         self.save_path = self.opt.PATH.SAVE_PATH
         self.pth_save_path = self.opt.PATH.PTH_SAVE_PATH
-        self.interval_total = self.epoch_total*len(self.dataset)
+        self.interval_total = self.opt.TRAIN.EPOCH_TOTAL*len(self.dataset)
         print("total iter: ", self.interval_total)
 
         # 创建模型组件
@@ -79,9 +78,6 @@ class SAGAN_Trainer:
             else:
                 print("load weights failed!")
 
-        # 初始化训练步数
-        self.num_step = self.opt.TRAIN.INTERVAL_START
-
         # 定义损失函数
         self.recon_loss = losses.ReconLoss(*([1.2, 1.2, 1.2, 1.2]))
         self.gan_loss = losses.SNGenLoss(0.005)
@@ -100,7 +96,7 @@ class SAGAN_Trainer:
         
         global_iter = 0
         
-        for epoch in tqdm(range(self.epoch_total)):
+        for epoch in tqdm(range(self.opt.TRAIN.INTERVAL_START,self.opt.TRAIN.EPOCH_TOTAL)):
             """
             Train Phase, for training and spectral normalization patch gan in
             Free-Form Image Inpainting with Gated Convolution (snpgan)
@@ -169,6 +165,19 @@ class SAGAN_Trainer:
                 batch_time.update(time.time() - end)
                 end = time.time()
                 
+                # if self.num_step % self.opt.TRAIN.VISUALIZE_INTERVAL == 0:
+                #     idx = self.opt.WANDB.NUM_ROW
+                #     self.wandb.log({"examples": [
+                #         self.wandb.Image(self.to_pil(y_imgs[idx].cpu()), caption="original_image"),
+                #         self.wandb.Image(self.to_pil(linear_unscaling(cont_imgs[idx]).cpu()), caption="contaminant_image"),
+                #         self.wandb.Image(self.to_pil(linear_unscaling(masked_imgs[idx]).cpu()), caption="masked_image"),
+                #         self.wandb.Image(self.to_pil(masks[idx].cpu()), caption="original_masks"),
+                #         self.wandb.Image(self.to_pil(smooth_masks[idx].cpu()), caption="smoothed_masks"),
+                #         self.wandb.Image(self.to_pil(pred_masks[idx].cpu()), caption="predicted_masks"),
+                #         self.wandb.Image(self.to_pil(torch.clamp(output, min=0., max=1.)[idx].cpu()), caption="output")
+                #     ]}, commit=False)
+                # self.wandb.log({})
+                
                 if self.opt.RUN.SAVE_PTH:
                     if (global_iter + 1) % self.interval_save == 0 or (global_iter + 1) == self.interval_total or global_iter==0:
                     # if epoch % 200 == 0:
@@ -202,40 +211,47 @@ class SAGAN_Trainer:
                 global_iter +=1
             
             
+# class P2P_Trainer:
+#     def __init__(self,cfg,net_G, net_D) -> None:
+#         self.opt = cfg
+#         self.model_name = f"{self.opt.RUN.MODEL}"
+#         # info = f" [Step: {self.num_step}/{self.opt.TRAIN.NUM_TOTAL_STEP} ({100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP}%)] "
+#         # print(info)
 
-class P2P_Trainer:
-    def __init__(self,cfg,net_G, net_D) -> None:
-        self.opt = cfg
-        self.model_name = f"{self.opt.RUN.MODEL}"
-        # info = f" [Step: {self.num_step}/{self.opt.TRAIN.NUM_TOTAL_STEP} ({100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP}%)] "
-        # print(info)
-
-        # 设置数据集
-        self.dataset = tools.DataSet(data_path=self.opt.PATH.DATA_PATH,
-                                     volume_shape=self.opt.DATASET.ORIGIN_SHAPE,
-                                     target_shape=self.opt.DATASET.TARGET_SHAPE,
-                                     mask_type=self.opt.RUN.TYPE,
-                                     data_type=np.float32)
-
-        self.data_loader = data.DataLoader(dataset=self.dataset,
-                                           batch_size=self.opt.TRAIN.BATCH_SIZE,
-                                           shuffle=self.opt.DATASET.SHUFFLE,
-                                           num_workers=self.opt.SYSTEM.NUM_WORKERS)
+#         # 设置数据集
+#         self.dataset = tools.DataSet(data_path=self.opt.PATH.DATA_PATH,
+#                                      volume_shape=self.opt.DATASET.ORIGIN_SHAPE,
+#                                      target_shape=self.opt.DATASET.TARGET_SHAPE,
+#                                      mask_type=self.opt.RUN.TYPE,
+#                                      data_type=np.float32)
+#         self.data_loader = data.DataLoader(dataset=self.dataset,
+#                                            batch_size=self.opt.TRAIN.BATCH_SIZE,
+#                                            shuffle=self.opt.DATASET.SHUFFLE,
+#                                            num_workers=self.opt.SYSTEM.NUM_WORKERS)
+#         self.data_iter = iter(self.data_loader)
         
-        self.data_iter = iter(self.data_loader)
+#         # 初始化变量
+#         self.device = torch.device(self.opt.SYSTEM.DEVICE)
+#         self.interval_start = self.opt.TRAIN.INTERVAL_START
+#         self.interval_save = self.opt.TRAIN.INTERVAL_SAVE
         
-        # gen = UNet(input_dim, real_dim).to(device)
-        # gen_opt = torch.optim.Adam(gen.parameters(), lr=lr)
-        # disc = Discriminator(input_dim + real_dim).to(device)
-        # disc_opt = torch.optim.Adam(disc.parameters(), lr=lr)
+#         self.save_path = self.opt.PATH.SAVE_PATH
+#         self.pth_save_path = self.opt.PATH.PTH_SAVE_PATH
+#         self.interval_total = self.opt.TRAIN.EPOCH_TOTAL*len(self.dataset)
+#         print("total iter: ", self.interval_total)
         
-    def run(self):
-        pass
+#         gen = p2pUNet(input_channels=1, output_channels=1).to(self.device)
+#         gen_opt = torch.optim.Adam(gen.parameters(), lr=self.opt.)
+#         disc = Discriminator(input_dim + real_dim).to(device)
+#         disc_opt = torch.optim.Adam(disc.parameters(), lr=lr)
+        
+#     def run(self):
+#         pass
 
 class UnetTrainer:
     def __init__(self, cfg, model=PConvUNet()):
         self.opt = cfg
-        self.model_name = f"{self.opt.RUN.MODEL}_{self.opt.RUN.ADD_INFO}"
+        self.model_name = f"{self.opt.RUN.MODEL}_{self.opt.RUN.ADDITIONAL_INFO}"
 
         self.dataset = tools.DataSet(data_path=self.opt.PATH.DATA_PATH,
                                      volume_shape=self.opt.DATASET.ORIGIN_SHAPE,
@@ -250,18 +266,15 @@ class UnetTrainer:
         self.data_iter = iter(self.data_loader)
 
         self.device = torch.device(self.opt.SYSTEM.DEVICE)
-        self.epoch_total = self.opt.TRAIN.EPOCH_TOTAL
-        self.interval_start = self.opt.TRAIN.INTERVAL_START
-        self.interval_save = self.opt.TRAIN.INTERVAL_SAVE
+        
         self.save_path = f"{self.opt.PATH.SAVE_PATH}/{self.model_name}"
         self.pth_save_path = f"{self.opt.PATH.PTH_SAVE_PATH}/{self.model_name}"
-        self.interval_total = self.epoch_total*len(self.dataset)
-        print("total iter: ", self.interval_total)
+        
+        self.interval_total = self.opt.TRAIN.EPOCH_TOTAL*len(self.dataset)
 
         # 初始化模型和优化器
         self.model = model.to(self.device)
-        self.optimizer = torch.optim.Adam(
-            model.parameters(), lr=self.opt.TRAIN.LEARN_RATE)
+        self.optimizer = torch.optim.Adam(model.parameters(), lr=self.opt.WEIGHT.LEARN_RATE)
         if self.opt.RUN.LOAD_PTH:
             if os.path.exists(self.opt.PATH.PTH_LOAD_PATH):
                 loaded_state = torch.load(self.opt.PATH.PTH_LOAD_PATH)
@@ -271,37 +284,38 @@ class UnetTrainer:
             else:
                 print("load weights failed!")
 
-        # self.loss_function = losses.InpaintingLoss(tools.VGG16FeatureExtractor(pth_path=self.opt.PATH.VGG16_PATH)).to(self.device)
-        self.loss_function = losses.WMSELoss()
+        self.loss_function = losses.InpaintingLoss3D().to(self.device)
+        # self.loss_function = losses.WMSELoss().to(self.device)
 
     def run(self):
         global_iter = 0
-        for epoch_idx in tqdm(range(self.epoch_total)):
+        for epoch_idx in tqdm(range(self.opt.TRAIN.EPOCH_TOTAL)):
             for gt, mask in self.data_loader:
-
                 gt = gt.to(self.device)
                 mask = mask.to(self.device)
 
-                input = gt*mask
-                output, _ = self.model(input, mask)
-                loss_dict = self.loss_function(mask, output, gt)
+                input = gt*mask                                     # 制作输入图像
+                output, _ = self.model(input, mask)                 # 制作输出
+                loss_dict = self.loss_function(mask, output, gt)    # 求损失
                 loss = loss_dict
-
+                
                 # 加权计算并输出损失
-                # loss = 0.0
-                # lambda_dict = {'valid': 1.0, 'hole': 6.0, 'tv': 0.1, 'prc': 0.05, 'style': 120.0}
-                # for key, coef in lambda_dict.items():
-                #     value = coef * loss_dict[key]
-                #     loss += value
+                loss = 0.0
+                lambda_dict = {'valid': 1.0, 'hole': 6.0, 'tv': 0.1, 'prc': 0.05, 'style': 120.0}
+                for key, coef in lambda_dict.items():
+                    value = coef * loss_dict[key]
+                    loss += value
                 # if (i + 1) % args.log_interval == 0:
                 #     writer.add_scalar('loss_{:s}'.format(key), value.item(), i + 1)
+                tqdm.write("loss:",loss)
 
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
+                self.optimizer.zero_grad()          # 重置梯度
+                loss.backward()                     # 计算梯度
+                self.optimizer.step()               # 根据梯度和优化器的参数更新参数
 
                 if self.opt.RUN.SAVE_PTH:
-                    if (global_iter + 1) % self.interval_save == 0 or (global_iter + 1) == self.interval_total or global_iter == 0:
+                    # 第一次迭代保存，最后一次迭代保存，中间的话看指定的保存间隔
+                    if (global_iter + 1) % self.opt.TRAIN.ITER_SAVE == 0 or (global_iter + 1) == self.interval_total or global_iter == 0:
                         # save weights
                         fileName = f"{self.pth_save_path}/{self.model_name}_{global_iter+1}iter.pth"
                         os.makedirs(self.pth_save_path) if not os.path.exists(
@@ -323,6 +337,8 @@ class UnetTrainer:
                         tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
                                       fileName=f"output",
                                       volume=output)
+                # loop.set_description(f'Epoch [{epoch_idx}/{self.opt.TRAIN.EPOCH_TOTAL}], Iter [{global_iter}/{self.interval_total}]\n')
+                # loop.set_postfix(loss = loss.item())
 
                 global_iter += 1
 

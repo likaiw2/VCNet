@@ -116,7 +116,7 @@ class DataSet(Dataset):
         #generate mask
         shape_type = random.randint(1,4) if self.mask_type=="train" else random.randint(4,9)
         # print(shape_type)
-        mask = self.generate_mask(self.target_shape,shape_type=1)
+        mask = self.generate_mask(self.target_shape,shape_type=4)
         
         data = data.reshape([1,self.target_shape[0],self.target_shape[1],self.target_shape[2]])
         mask = mask.reshape([1,self.target_shape[0],self.target_shape[1],self.target_shape[2]])
@@ -179,12 +179,12 @@ class DataSet(Dataset):
         mask = []       # meshgrid vector
         
         # to make sure the biggest size is smaller than 50%
-        max_x = volume_shape[0]*0.7
-        max_y = volume_shape[1]*0.7
-        max_z = volume_shape[2]*0.7
-        min_x = volume_shape[0]*0.3
-        min_y = volume_shape[0]*0.3
-        min_z = volume_shape[0]*0.3
+        max_x = int(volume_shape[0]*0.7)
+        max_y = int(volume_shape[1]*0.7)
+        max_z = int(volume_shape[2]*0.7)
+        min_x = int(volume_shape[0]*0.3)
+        min_y = int(volume_shape[0]*0.3)
+        min_z = int(volume_shape[0]*0.3)
         
         # make empty mask
         mask_volume = np.ones(volume_shape,dtype=self.data_type)

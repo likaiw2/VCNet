@@ -264,6 +264,123 @@ class PConvUNet(nn.Module):
         
         return h,h_mask
 
+class PConvUNet2(nn.Module):
+    def __init__(self, layer_size=7, input_channels=1, upsampling_mode='trilinear'):
+        super().__init__()
+        self.freeze_enc_bn = False
+        self.upsample_mode = upsampling_mode
+        self.layer_size = layer_size
+        self.enc_1 = PCBActiv(input_channels, 64, bn=False, sample='down-7')
+        self.enc_2 = PCBActiv(64, 128, sample='down-5')
+        self.enc_3 = PCBActiv(128, 256, sample='down-5')
+        self.enc_4 = PCBActiv(256, 512, sample='down-3')
+        self.enc_5 = PCBActiv(512, 512, sample='down-3')
+        self.enc_6 = PCBActiv(512, 512, sample='down-3')
+        self.enc_7 = PCBActiv(512, 512, sample='down-3')
+
+        self.dec_7 = PCBActiv(512 + 512, 512, activ='leaky')
+        self.dec_6 = PCBActiv(512 + 512, 512, activ='leaky')
+        self.dec_5 = PCBActiv(512 + 512, 512, activ='leaky')
+        self.dec_4 = PCBActiv(512 + 256, 256, activ='leaky')
+        self.dec_3 = PCBActiv(256 + 128, 128, activ='leaky')
+        self.dec_2 = PCBActiv(128 + 64, 64, activ='leaky')
+        self.dec_1 = PCBActiv(64 + input_channels, input_channels,bn=False, activ=None, conv_bias=True)
+        
+        # self.dec_7 = PCBActiv(512, 512, activ='leaky')
+        # self.dec_6 = PCBActiv(512, 512, activ='leaky')
+        # self.dec_5 = PCBActiv(512, 512, activ='leaky')
+        # self.dec_4 = PCBActiv(512, 256, activ='leaky')
+        # self.dec_3 = PCBActiv(256, 128, activ='leaky')
+        # self.dec_2 = PCBActiv(128, 64, activ='leaky')
+        # self.dec_1 = PCBActiv(64, 1,bn=False, activ=None, conv_bias=True)
+
+    def forward(self, input, input_mask):
+        
+        h_dict = {}  # for the output of enc_N
+        h_mask_dict = {}  # for the output of enc_N
+        
+        # 初始输入和遮罩
+        h_dict['h_0'], h_mask_dict['h_0'] = input, input_mask
+        
+        # 编码器
+        h_dict['h_1'], h_mask_dict['h_1'] = self.enc_1(h_dict['h_0'], h_mask_dict['h_0'])
+        h_dict['h_2'], h_mask_dict['h_2'] = self.enc_2(h_dict['h_1'], h_mask_dict['h_1'])
+        h_dict['h_3'], h_mask_dict['h_3'] = self.enc_3(h_dict['h_2'], h_mask_dict['h_2'])
+        h_dict['h_4'], h_mask_dict['h_4'] = self.enc_4(h_dict['h_3'], h_mask_dict['h_3'])
+        h_dict['h_5'], h_mask_dict['h_5'] = self.enc_5(h_dict['h_4'], h_mask_dict['h_4'])
+        h_dict['h_6'], h_mask_dict['h_6'] = self.enc_6(h_dict['h_5'], h_mask_dict['h_5'])
+        # h_dict['h_7'], h_mask_dict['h_7'] = self.enc_7(h_dict['h_6'], h_mask_dict['h_6'])
+        
+        # 保存一下，第七层就是最底层
+        # h, h_mask = h_dict['h_7'], h_mask_dict['h_7']
+        h, h_mask = h_dict['h_6'], h_mask_dict['h_6']
+
+        # 解码器
+        # h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_6')
+        # h,h_mask = self.dec_7(h, h_mask)
+        
+        h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_5')
+        h, h_mask = self.dec_6(h, h_mask)
+        h=h*(1-h_mask_dict['h_5'])+h_dict['h_5']*h_mask_dict['h_5']
+        
+        h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_4')
+        h, h_mask = self.dec_5(h, h_mask)
+        h=h*(1-h_mask_dict['h_4'])+h_dict['h_4']*h_mask_dict['h_4']
+
+        
+
+        h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_3')
+        h, h_mask = self.dec_4(h, h_mask)
+        h=h*(1-h_mask_dict['h_3'])+h_dict['h_3']*h_mask_dict['h_3']
+        
+        
+        h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_2')
+        h, h_mask = self.dec_3(h, h_mask)
+        h=h*(1-h_mask_dict['h_2'])+h_dict['h_2']*h_mask_dict['h_2']
+       
+        
+        h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_1')
+        h, h_mask = self.dec_2(h, h_mask)
+        h=h*(1-h_mask_dict['h_1'])+h_dict['h_1']*h_mask_dict['h_1']
+        
+
+        h,h_mask = self.up_sample(h,h_mask,h_dict,h_mask_dict,'h_0')
+        h, h_mask = self.dec_1(h, h_mask)
+        
+        h_final=h*(1-input_mask)+input*input_mask
+
+        return h_final, h_mask+input_mask
+    
+    def up_sample(self,h,h_mask,h_dict,h_mask_dict,layer_name):
+        
+        # print("before interpolate:")
+        # print(h.shape)
+        # print(h_mask.shape)
+        h = F.interpolate(h, scale_factor=2, mode=self.upsample_mode)
+        h_mask = F.interpolate(h_mask, scale_factor=2, mode=self.upsample_mode)
+        # # h_mask = F.interpolate(h_mask, scale_factor=2, mode=self.
+        
+        # print("after interpolate:")
+        # print(h.shape)
+        # print(h_mask.shape)
+        
+        # print(f"h_dict {layer_name} :")
+        # print(h_dict[layer_name].shape)
+        # print(h_mask_dict[layer_name].shape)
+        
+        # h = h + h_dict[layer_name]
+        # h_mask = h_mask+ h_mask_dict[layer_name]
+        
+        h = torch.cat([h, h_dict[layer_name]], dim=1)
+        h_mask = torch.cat([h_mask, h_mask_dict[layer_name]], dim=1)
+        
+        # print("final:")
+        # print(h.shape)
+        # print(h_mask.shape)
+        # print()
+        
+        return h,h_mask
+
 # gated conv
 class InpaintSANet(torch.nn.Module):
     """

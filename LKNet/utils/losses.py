@@ -97,45 +97,45 @@ class AdversarialDLoss(nn.Module):
         return adversarial_loss
 
 
-# class InpaintingLoss2D(nn.Module):
-#     def __init__(self, extractor=tools.VGG16FeatureExtractor):
-#         super().__init__()
-#         self.l1 = nn.L1Loss()
-#         self.extractor = extractor
+class InpaintingLoss3D(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.l1 = nn.L1Loss()
+        # self.extractor = extractor
 
-#     def forward(self, input, mask, output, gt):
-#         loss_dict = {}
-#         output_comp = mask * input + (1 - mask) * output
+    def forward(self, input, mask, output, gt):
+        loss_dict = {}
+        output_comp = mask * input + (1 - mask) * output
 
-#         loss_dict['hole'] = self.l1((1 - mask) * output, (1 - mask) * gt)
-#         loss_dict['valid'] = self.l1(mask * output, mask * gt)
+        loss_dict['hole'] = self.l1((1 - mask) * output, (1 - mask) * gt)
+        loss_dict['valid'] = self.l1(mask * output, mask * gt)
 
-#         if output.shape[1] == 3:
-#             feat_output_comp = self.extractor(output_comp)
-#             feat_output = self.extractor(output)
-#             feat_gt = self.extractor(gt)
-#         elif output.shape[1] == 1:
-#             feat_output_comp = self.extractor(torch.cat([output_comp]*3, 1))
-#             feat_output = self.extractor(torch.cat([output]*3, 1))
-#             feat_gt = self.extractor(torch.cat([gt]*3, 1))
-#         else:
-#             raise ValueError('only gray an')
+        # if output.shape[1] == 3:
+        #     feat_output_comp = self.extractor(output_comp)
+        #     feat_output = self.extractor(output)
+        #     feat_gt = self.extractor(gt)
+        # elif output.shape[1] == 1:
+        #     feat_output_comp = self.extractor(torch.cat([output_comp]*3, 1))
+        #     feat_output = self.extractor(torch.cat([output]*3, 1))
+        #     feat_gt = self.extractor(torch.cat([gt]*3, 1))
+        # else:
+        #     raise ValueError('only gray an')
 
-#         loss_dict['prc'] = 0.0
-#         for i in range(3):
-#             loss_dict['prc'] += self.l1(feat_output[i], feat_gt[i])
-#             loss_dict['prc'] += self.l1(feat_output_comp[i], feat_gt[i])
+        loss_dict['prc'] = 0.0
+        # for i in range(3):
+        #     loss_dict['prc'] += self.l1(feat_output[i], feat_gt[i])
+        #     loss_dict['prc'] += self.l1(feat_output_comp[i], feat_gt[i])
 
-#         loss_dict['style'] = 0.0
-#         for i in range(3):
-#             loss_dict['style'] += self.l1(self.gram_matrix(feat_output[i]),
-#                                           self.gram_matrix(feat_gt[i]))
-#             loss_dict['style'] += self.l1(self.gram_matrix(feat_output_comp[i]),
-#                                           self.gram_matrix(feat_gt[i]))
+        loss_dict['style'] = 0.0
+        # for i in range(3):
+        #     loss_dict['style'] += self.l1(self.gram_matrix(feat_output[i]),
+        #                                   self.gram_matrix(feat_gt[i]))
+        #     loss_dict['style'] += self.l1(self.gram_matrix(feat_output_comp[i]),
+        #                                   self.gram_matrix(feat_gt[i]))
 
-#         loss_dict['tv'] = self.total_variation_loss(output_comp)
+        loss_dict['tv'] = self.total_variation_loss(output_comp)
 
-#         return loss_dict
+        return loss_dict
     
     def gram_matrix(self,feat):
         # https://github.com/pytorch/examples/blob/master/fast_neural_style/neural_style/utils.py

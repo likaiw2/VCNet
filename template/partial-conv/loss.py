@@ -28,8 +28,8 @@ class InpaintingLoss(nn.Module):
         loss_dict = {}
         output_comp = mask * input + (1 - mask) * output
 
-        loss_dict['hole'] = self.l1((1 - mask) * output, (1 - mask) * gt)
-        loss_dict['valid'] = self.l1(mask * output, mask * gt)
+        loss_dict['hole'] = self.l1((1 - mask) * output, (1 - mask) * gt)       # 全体损失
+        loss_dict['valid'] = self.l1(mask * output, mask * gt)                  # 有效像素损失
 
         if output.shape[1] == 3:
             feat_output_comp = self.extractor(output_comp)
@@ -42,18 +42,18 @@ class InpaintingLoss(nn.Module):
         else:
             raise ValueError('only gray an')
 
-        loss_dict['prc'] = 0.0
+        loss_dict['prc'] = 0.0                                                  # 求特征损失
         for i in range(3):
             loss_dict['prc'] += self.l1(feat_output[i], feat_gt[i])
             loss_dict['prc'] += self.l1(feat_output_comp[i], feat_gt[i])
 
-        loss_dict['style'] = 0.0
+        loss_dict['style'] = 0.0                                                # 求风格损失
         for i in range(3):
             loss_dict['style'] += self.l1(gram_matrix(feat_output[i]),
                                           gram_matrix(feat_gt[i]))
             loss_dict['style'] += self.l1(gram_matrix(feat_output_comp[i]),
                                           gram_matrix(feat_gt[i]))
 
-        loss_dict['tv'] = total_variation_loss(output_comp)
+        loss_dict['tv'] = total_variation_loss(output_comp)                     # 求全体损失
 
         return loss_dict
