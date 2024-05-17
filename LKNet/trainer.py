@@ -282,14 +282,13 @@ class UnetTrainer:
             else:
                 print("load weights failed!")
 
-        # self.loss_function = losses.InpaintingLoss(tools.VGG16FeatureExtractor(pth_path=self.opt.PATH.VGG16_PATH)).to(self.device)
-        self.loss_function = losses.WMSELoss()
+        self.loss_function = losses.InpaintingLoss3D().to(self.device)
+        # self.loss_function = losses.WMSELoss().to(self.device)
 
     def run(self):
         global_iter = 0
-        for epoch_idx in range(self.opt.TRAIN.EPOCH_TOTAL):
-            loop = tqdm((self.data_loader), total = len(self.data_loader))
-            for gt, mask in loop:
+        for epoch_idx in tqdm(range(self.opt.TRAIN.EPOCH_TOTAL)):
+            for gt, mask in self.data_loader:
                 gt = gt.to(self.device)
                 mask = mask.to(self.device)
 
@@ -297,15 +296,16 @@ class UnetTrainer:
                 output, _ = self.model(input, mask)                 # 制作输出
                 loss_dict = self.loss_function(mask, output, gt)    # 求损失
                 loss = loss_dict
-
+                
                 # 加权计算并输出损失
-                # loss = 0.0
-                # lambda_dict = {'valid': 1.0, 'hole': 6.0, 'tv': 0.1, 'prc': 0.05, 'style': 120.0}
-                # for key, coef in lambda_dict.items():
-                #     value = coef * loss_dict[key]
-                #     loss += value
+                loss = 0.0
+                lambda_dict = {'valid': 1.0, 'hole': 6.0, 'tv': 0.1, 'prc': 0.05, 'style': 120.0}
+                for key, coef in lambda_dict.items():
+                    value = coef * loss_dict[key]
+                    loss += value
                 # if (i + 1) % args.log_interval == 0:
                 #     writer.add_scalar('loss_{:s}'.format(key), value.item(), i + 1)
+                tqdm.write("loss:",loss)
 
                 self.optimizer.zero_grad()          # 重置梯度
                 loss.backward()                     # 计算梯度
@@ -335,8 +335,8 @@ class UnetTrainer:
                         tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
                                       fileName=f"output",
                                       volume=output)
-                loop.set_description(f'Epoch [{epoch_idx}/{self.opt.TRAIN.EPOCH_TOTAL}], Iter [{global_iter}/{self.interval_total}]\n')
-                loop.set_postfix(loss = loss.item())
+                # loop.set_description(f'Epoch [{epoch_idx}/{self.opt.TRAIN.EPOCH_TOTAL}], Iter [{global_iter}/{self.interval_total}]\n')
+                # loop.set_postfix(loss = loss.item())
 
                 global_iter += 1
 
