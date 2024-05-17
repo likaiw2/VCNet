@@ -18,7 +18,7 @@ import time
 class SAGAN_Trainer:
     def __init__(self, cfg, net_G=InpaintSANet, net_D=InpaintSADirciminator):
         self.opt = cfg
-        self.model_name = f"{self.opt.RUN.MODEL}"
+        self.model_name = f"{self.opt.RUN.MODEL}{self.opt.RUN.ADD_INFO}"
         # info = f" [Step: {self.num_step}/{self.opt.TRAIN.NUM_TOTAL_STEP} ({100 * self.num_step / self.opt.TRAIN.NUM_TOTAL_STEP}%)] "
         # print(info)
 
@@ -131,7 +131,7 @@ class SAGAN_Trainer:
                 # 粗糙的imgs和精修的imgs
                 coarse_imgs, recon_imgs = netG(imgs, masks)
                 # 制作补全后的图像，非挖空区域是原图，挖空区域是补全后的图片
-                complete_imgs = recon_imgs * (1-masks) + imgs * masks   # mask is 0 on masked region
+                complete_imgs = recon_imgs * (1-masks) + imgs * masks   # mask is 0 on masked regiona
 
                 # 制作正面图像和负面图像并把它们合并到一起，送进鉴别器
                 pos_imgs = torch.cat([imgs, masks, torch.full_like(masks, 1.)], dim=1)
