@@ -7,6 +7,7 @@ from torch.utils import data
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
 
+from Codes.Volume_Impainting.LKNet.model.models import PConvUNet
 from model.models import *
 from configs.config import get_cfg_defaults  # 导入获取默认配置的函数
 import utils.tools as tools
@@ -14,6 +15,258 @@ import utils.losses as losses
 
 import time
 
+class _Trainer:
+    '''
+    The father class of trainer, it will have 2 sons: Unet_trainer and GAN_trainer
+    
+    _Trainer is aim to make the process of data clear
+    '''
+    def __init__(self, cfg):
+        self.opt = cfg
+        self.model_name = f"{self.opt.RUN.MODEL}{self.opt.RUN.ADD_INFO}"
+        
+        # 初始化wandb，用于实验跟踪和可视化
+        self.opt.WANDB.LOG_DIR = os.path.join("./logs/", self.model_name)
+        cfg.freeze()
+
+        self.wandb = wandb
+        self.wandb.init(project=self.opt.WANDB.PROJECT_NAME,
+                        resume=self.opt.TRAIN.RESUME,
+                        notes=self.opt.WANDB.LOG_DIR,
+                        config=self.opt,
+                        mode=self.opt.WANDB.MODE)
+        
+        # 设置数据集
+        self.dataset = tools.DataSet(data_path=self.opt.PATH.DATA_PATH,
+                                     volume_shape=self.opt.DATASET.ORIGIN_SHAPE,
+                                     target_shape=self.opt.DATASET.TARGET_SHAPE,
+                                     mask_type=self.opt.RUN.TYPE,
+                                     data_type=np.float32)
+
+        self.data_loader = data.DataLoader(dataset=self.dataset,
+                                           batch_size=self.opt.TRAIN.BATCH_SIZE,
+                                           shuffle=self.opt.DATASET.SHUFFLE,
+                                           num_workers=self.opt.SYSTEM.NUM_WORKERS)
+        
+        self.data_iter = iter(self.data_loader)
+        
+        self.device = torch.device(self.opt.SYSTEM.DEVICE)
+        
+        self.interval_start = self.opt.TRAIN.INTERVAL_START
+        self.interval_save = self.opt.TRAIN.INTERVAL_SAVE
+        
+        self.save_path = self.opt.PATH.SAVE_PATH
+        self.pth_save_path = self.opt.PATH.PTH_SAVE_PATH
+        self.interval_total = self.opt.TRAIN.EPOCH_TOTAL*len(self.dataset)
+        print("total iter: ", self.interval_total)
+    
+    def train(self):
+        print("ERROR: Please rewrite train function!")
+        
+    
+    
+class Unet_Trainer(_Trainer):
+    '''
+    It is a class for Unet trainer. 
+    
+    I modified the input and the steps in each train instance, which make the progress readable
+    '''
+    def __init__(self, cfg, net=PConvUNet(),loss_function=losses.InpaintingLoss3D()):
+        super().__init__(cfg)
+        self.net= net
+        
+        # 初始化模型和优化器
+        self.net = net.to(self.device)
+        self.optimizer = torch.optim.Adam(net.parameters(), lr=self.opt.WEIGHT.LEARN_RATE)
+        self.loss_function = loss_function.to(self.device)
+        
+        if self.opt.RUN.LOAD_PTH:
+            if os.path.exists(self.opt.PATH.PTH_LOAD_PATH):
+                loaded_state = torch.load(self.opt.PATH.PTH_LOAD_PATH)
+                self.model.load_state_dict(loaded_state["model"])
+                self.optimizer.load_state_dict(loaded_state["optimizer"])
+                print("Weight load success!")
+            else:
+                print("load weights failed!")
+                
+    def train(self):
+        assert False,("ERROR: Please rewrite train function!")
+    def __get_input(self):
+        assert False,("ERROR: Please rewrite get_input() function!")
+    def __get_output(self):
+        assert False,("ERROR: Please rewrite get_output() function!")
+    def __get_loss(self):
+        assert False,("ERROR: Please rewrite get_loss() function!")
+    def __do_back_process(self):
+        assert False,("ERROR: Please rewrite do_back_process() function!")
+    def save_pth(self):
+        assert False,("ERROR: Please rewrite save_pth() function!")
+    def save_data(self):
+        assert False,("ERROR: Please rewrite save_data() function!")
+
+
+class GAN_Trainer(_Trainer):
+    '''
+    It is a class for GAN trainer. 
+    
+    I modified the input and the steps in each train instance, which make the progress readable
+    '''
+    def __init__(self, cfg, net_G=InpaintSANet, net_D=InpaintSADirciminator):
+        super().__init__(cfg)
+        self.net_G = net_G
+        self.net_D = net_D
+        
+         # 创建模型组件
+        self.net_G = net_G.to(self.device)
+        self.net_D = net_D.to(self.device)
+        self.net_G_opt = torch.optim.Adam(net_G.parameters(), lr=self.opt.TRAIN.LEARN_RATE, weight_decay=0.0)
+        self.net_D_opt = torch.optim.Adam(net_D.parameters(), lr=self.opt.TRAIN.LEARN_RATE, weight_decay=0.0)
+        
+        self.net_G_opt = torch.optim.Adam(
+            net_G.parameters(), lr=self.opt.TRAIN.LEARN_RATE, weight_decay=0.0)
+        self.net_D_opt = torch.optim.Adam(
+            net_D.parameters(), lr=self.opt.TRAIN.LEARN_RATE, weight_decay=0.0)
+
+        # 加载模型参数
+        if self.opt.RUN.LOAD_PTH:
+            if os.path.exists(self.opt.PATH.PTH_LOAD_PATH):
+                loaded_state = torch.load(self.opt.PATH.PTH_LOAD_PATH)
+                self.model.load_state_dict(loaded_state["net_G"])
+                self.model.load_state_dict(loaded_state["net_D"])
+                self.optimizer.load_state_dict(loaded_state["net_G_opt"])
+                self.optimizer.load_state_dict(loaded_state["net_D_opt"])
+                print("Weight load success!")
+            else:
+                print("load weights failed!")
+        
+        # 定义损失函数
+        self.recon_loss = losses.ReconLoss(*([1.2, 1.2, 1.2, 1.2]))
+        self.gan_loss = losses.SNGenLoss(0.005)
+        self.dis_loss = losses.SNDisLoss()
+        
+    def train(self):
+        assert False,("ERROR: Please rewrite train function!")
+    def __get_input(self):
+        assert False,("ERROR: Please rewrite get_input() function!")
+    def __get_output(self):
+        assert False,("ERROR: Please rewrite get_output() function!")
+    def __get_loss(self):
+        assert False,("ERROR: Please rewrite get_loss() function!")
+    def __do_back_process(self):
+        assert False,("ERROR: Please rewrite do_back_process() function!")
+    def save_pth(self):
+        assert False,("ERROR: Please rewrite save_pth() function!")
+    def save_data(self):
+        assert False,("ERROR: Please rewrite save_data() function!")
+
+
+# ------------------------------以下是具体的类，以上都是父类
+class PConvUNet_Trainer(Unet_Trainer):
+    def __init__(self, cfg, net=PConvUNet(), loss_function=losses.InpaintingLoss3D()):
+        super().__init__(cfg, net, loss_function)
+    
+    def train(self):
+        global_iter = 0
+        for epoch_idx in tqdm(range(self.opt.TRAIN.EPOCH_TOTAL),unit="epoch"):
+            _loss = []
+            for gt, mask in tqdm(self.data_loader,unit="iter",leave=False):
+                
+                input,mask,gt = self.__get_input(groundtruth=gt,mask=mask)
+                
+                output_raw,output_mask,output_completed = self.__get_output(input=input,mask=mask)
+                
+                # 计算并在wandb记录loss
+                loss_dict,loss = self.__get_loss(input, mask, output=output_raw, ground_truth=gt)
+                _loss.append(loss.item())
+
+                self.__do_back_process(loss)
+
+                if self.opt.RUN.SAVE_PTH:
+                    # 第一次迭代保存，最后一次迭代保存，中间的话看指定的保存间隔
+                    if (global_iter + 1) % self.opt.TRAIN.ITER_SAVE == 0 or (global_iter + 1) == self.interval_total or global_iter == 0:
+                        self.save_pth(global_iter)
+                        
+                        data_save_list=[gt,mask,input,output_raw,output_mask,output_completed]
+                        self.save_data(epoch_idx,global_iter,data_save_list)
+                
+
+                global_iter += 1
+            average_loss=np.average(np.array(_loss))
+            print("\n",average_loss)
+    
+    def __get_input(self,groundtruth,mask):
+        groundtruth = groundtruth.to(self.device)
+        mask = mask.to(self.device)
+        input = groundtruth*mask                 # 制作输入图像
+        
+        return input,mask,groundtruth
+    
+    def __get_output(self,input,mask):
+        output_raw, output_mask = self.model(input, mask)                 # 制作输出
+        output_completed=output_raw*(1-output_mask)+input*output_mask
+        
+        return output_raw,output_mask,output_completed
+    
+    def __get_loss(self,input, mask, output, ground_truth):
+        loss_dict = self.loss_function(input, mask, output, ground_truth)    # 求损失
+        
+        # 加权计算并输出损失
+        loss = 0.0
+        lambda_dict = {'valid': 1.0, 'hole': 6.0, 'tv': 0.1, 'prc': 0.05, 'style': 120.0}
+        for key, coef in lambda_dict.items():
+            value = coef * loss_dict[key]
+            loss += value
+        
+        self.wandb.log({"iter_loss": loss.item(),
+                        "valid_loss": loss_dict["valid"],
+                        "hole_loss": loss_dict["hole"],
+                        "prc_loss": loss_dict["prc"],
+                        "style_loss": loss_dict["style"]
+                        }, commit=False)
+                    
+        return loss_dict,loss
+    
+    def save_pth(self,global_iter):
+        # save weights
+        fileName = f"{self.pth_save_path}/{self.model_name}_{global_iter+1}iter.pth"
+        os.makedirs(self.pth_save_path) if not os.path.exists(self.pth_save_path) else None
+
+        torch.save({'model': self.model.state_dict(),
+                    'optimizer': self.optimizer.state_dict(), }, fileName)
+    
+    def save_data(self,epoch_idx,global_iter,data_save_list):
+        for i in range(self.opt.TRAIN.BATCH_SIZE):
+            # save images
+            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
+                        fileName=f"b{i}_ground_truth",
+                        volume=data_save_list[0][i])
+            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
+                        fileName=f"b{i}_mask",
+                        volume=data_save_list[1][i])
+            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
+                        fileName=f"b{i}_input",
+                        volume=data_save_list[2][i])
+            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
+                        fileName=f"b{i}_output_raw",
+                        volume=data_save_list[3][i])
+            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
+                        fileName=f"b{i}_output_completed",
+                        volume=data_save_list[4][i])
+            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
+                        fileName=f"b{i}_output_mask",
+                        volume=data_save_list[5][i])
+    
+    def __do_back_process(self,loss):
+        self.optimizer.zero_grad()          # 重置梯度
+        loss.backward()                     # 计算梯度
+        self.optimizer.step()               # 根据梯度和优化器的参数更新参数
+
+
+
+
+
+
+        
 
 class SAGAN_Trainer:
     def __init__(self, cfg, net_G=InpaintSANet, net_D=InpaintSADirciminator):
@@ -37,15 +290,16 @@ class SAGAN_Trainer:
         self.data_iter = iter(self.data_loader)
 
         # 初始化wandb，用于实验跟踪和可视化
-        # self.opt.WANDB.LOG_DIR = os.path.join("./logs/", self.model_name)
-        # cfg.freeze()
+        self.opt.WANDB.LOG_DIR = os.path.join("./logs/", self.model_name)
+        cfg.freeze()
 
-        # self.wandb = wandb
-        # self.wandb.init(project=self.opt.WANDB.PROJECT_NAME,
-        #                 resume=self.opt.TRAIN.RESUME,
-        #                 notes=self.opt.WANDB.LOG_DIR,
-        #                 config=self.opt,
-        #                 mode=self.opt.WANDB.MODE)
+        self.wandb = wandb
+        self.wandb.init(project=self.opt.WANDB.PROJECT_NAME,
+                        resume=self.opt.TRAIN.RESUME,
+                        notes=self.opt.WANDB.LOG_DIR,
+                        config=self.opt,
+                        mode=self.opt.WANDB.MODE)
+        
 
         self.device = torch.device(self.opt.SYSTEM.DEVICE)
         
@@ -248,109 +502,7 @@ class SAGAN_Trainer:
 #     def run(self):
 #         pass
 
-class UnetTrainer:
-    def __init__(self, cfg, model=PConvUNet()):
-        self.opt = cfg
-        self.model_name = f"{self.opt.RUN.MODEL}_{self.opt.RUN.ADDITIONAL_INFO}"
 
-        self.dataset = tools.DataSet(data_path=self.opt.PATH.DATA_PATH,
-                                     volume_shape=self.opt.DATASET.ORIGIN_SHAPE,
-                                     target_shape=self.opt.DATASET.TARGET_SHAPE,
-                                     mask_type=self.opt.RUN.TYPE,
-                                     data_type=np.float32)
-
-        self.data_loader = data.DataLoader(dataset=self.dataset,
-                                           batch_size=self.opt.TRAIN.BATCH_SIZE,
-                                           shuffle=self.opt.DATASET.SHUFFLE,
-                                           num_workers=self.opt.SYSTEM.NUM_WORKERS)
-        self.data_iter = iter(self.data_loader)
-
-        self.device = torch.device(self.opt.SYSTEM.DEVICE)
-        
-        self.save_path = f"{self.opt.PATH.SAVE_PATH}/{self.model_name}"
-        self.pth_save_path = f"{self.opt.PATH.PTH_SAVE_PATH}/{self.model_name}"
-        
-        self.interval_total = self.opt.TRAIN.EPOCH_TOTAL*len(self.dataset)
-
-        # 初始化模型和优化器
-        self.model = model.to(self.device)
-        self.optimizer = torch.optim.Adam(model.parameters(), lr=self.opt.WEIGHT.LEARN_RATE)
-        if self.opt.RUN.LOAD_PTH:
-            if os.path.exists(self.opt.PATH.PTH_LOAD_PATH):
-                loaded_state = torch.load(self.opt.PATH.PTH_LOAD_PATH)
-                self.model.load_state_dict(loaded_state["model"])
-                self.optimizer.load_state_dict(loaded_state["optimizer"])
-                print("Weight load success!")
-            else:
-                print("load weights failed!")
-
-        self.loss_function = losses.InpaintingLoss3D().to(self.device)
-        # self.loss_function = losses.WMSELoss().to(self.device)
-
-    def run(self):
-        global_iter = 0
-        for epoch_idx in tqdm(range(self.opt.TRAIN.EPOCH_TOTAL),unit="epoch"):
-            _loss = []
-            for gt, mask in tqdm(self.data_loader,unit="iter",leave=False):
-                gt = gt.to(self.device)
-                mask = mask.to(self.device)
-
-                input = gt*mask                                     # 制作输入图像
-                output_raw, output_mask = self.model(input, mask)                 # 制作输出
-                output_final=output_raw*(1-output_mask)+input*output_mask
-                loss_dict = self.loss_function(input, mask, output_raw, gt)    # 求损失
-                loss = loss_dict
-                
-                # 加权计算并输出损失
-                loss = 0.0
-                lambda_dict = {'valid': 1.0, 'hole': 6.0, 'tv': 0.1, 'prc': 0.05, 'style': 120.0}
-                for key, coef in lambda_dict.items():
-                    value = coef * loss_dict[key]
-                    loss += value
-                # if (i + 1) % args.log_interval == 0:
-                #     writer.add_scalar('loss_{:s}'.format(key), value.item(), i + 1)
-                _loss.append(loss.item())
-
-                self.optimizer.zero_grad()          # 重置梯度
-                loss.backward()                     # 计算梯度
-                self.optimizer.step()               # 根据梯度和优化器的参数更新参数
-
-                if self.opt.RUN.SAVE_PTH:
-                    # 第一次迭代保存，最后一次迭代保存，中间的话看指定的保存间隔
-                    if (global_iter + 1) % self.opt.TRAIN.ITER_SAVE == 0 or (global_iter + 1) == self.interval_total or global_iter == 0:
-                        # save weights
-                        fileName = f"{self.pth_save_path}/{self.model_name}_{global_iter+1}iter.pth"
-                        os.makedirs(self.pth_save_path) if not os.path.exists(
-                            self.pth_save_path) else None
-
-                        torch.save({'model': self.model.state_dict(),
-                                    'optimizer': self.optimizer.state_dict(), }, fileName)
-                        for i in range(self.opt.TRAIN.BATCH_SIZE):
-                            # save images
-                            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
-                                        fileName=f"b{i}_ground_truth",
-                                        volume=gt[i])
-                            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
-                                        fileName=f"b{i}_mask",
-                                        volume=mask[i])
-                            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
-                                        fileName=f"b{i}_input",
-                                        volume=input[i])
-                            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
-                                        fileName=f"b{i}_output_raw",
-                                        volume=output_raw[i])
-                            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
-                                        fileName=f"b{i}_output_final",
-                                        volume=output_final[i])
-                            tools.saveRAW(dataSavePath=f"{self.save_path}/{self.model_name}_{epoch_idx}epoch_{global_iter+1}iter",
-                                        fileName=f"b{i}_output_final",
-                                        volume=output_mask[i])
-                # loop.set_description(f'Epoch [{epoch_idx}/{self.opt.TRAIN.EPOCH_TOTAL}], Iter [{global_iter}/{self.interval_total}]\n')
-                # loop.set_postfix(loss = loss.item())
-
-                global_iter += 1
-            average_loss=np.average(np.array(_loss))
-            print("\n",average_loss)
 
 if __name__ == '__main__':
     trainer = UnetTrainer(cfg)

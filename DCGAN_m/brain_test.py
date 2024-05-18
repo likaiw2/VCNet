@@ -7,7 +7,7 @@ from torch.utils.data import Dataset, DataLoader
 import torch
 import time
 
-from model import *
+from Codes.Volume_Impainting.DCGAN_m.model.model import *
 
 weightsPath = "output/for_test/DCGAN_14799.pth"
 dataSourcePath = "dataSet/"
