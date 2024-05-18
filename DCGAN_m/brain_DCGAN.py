@@ -17,7 +17,7 @@ import math
 import time
 import datetime
 import matplotlib.pyplot as plt
-from model import *
+from model.model import *
 
 torch.cuda.empty_cache()
 

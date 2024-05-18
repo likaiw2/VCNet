@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import numpy as np
 import torch.nn.functional as F
+from block import *
 
 #------------------原论文中的block（始）------------------
 # Ordinary UNet Conv Block 卷积块
