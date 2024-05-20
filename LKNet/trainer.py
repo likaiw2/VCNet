@@ -7,7 +7,7 @@ from torch.utils import data
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
 
-from Codes.Volume_Impainting.LKNet.model.models import PConvUNet
+from Codes.Volume_Impainting.LKNet.model.models import InpaintSADirciminator, InpaintSANet, PConvUNet
 from model.models import *
 from configs.config import get_cfg_defaults  # 导入获取默认配置的函数
 import utils.tools as tools
@@ -17,6 +17,8 @@ import time
 
 class _Trainer:
     '''
+    初始化参数，步长，数据集信息
+    
     The father class of trainer, it will have 2 sons: Unet_trainer and GAN_trainer
     
     _Trainer is aim to make the process of data clear
@@ -25,7 +27,7 @@ class _Trainer:
         self.opt = cfg
         self.model_name = f"{self.opt.RUN.MODEL}{self.opt.RUN.ADD_INFO}"
         
-        # 初始化wandb，用于实验跟踪和可视化
+        # 初始化wandb，用于实验跟踪和可视化以及wandb
         self.opt.WANDB.LOG_DIR = os.path.join("./logs/", self.model_name)
         cfg.freeze()
 
@@ -67,6 +69,8 @@ class _Trainer:
     
 class Unet_Trainer(_Trainer):
     '''
+    初始化模型和优化器以权重
+    
     It is a class for Unet trainer. 
     
     I modified the input and the steps in each train instance, which make the progress readable
@@ -111,12 +115,14 @@ class GAN_Trainer(_Trainer):
     
     I modified the input and the steps in each train instance, which make the progress readable
     '''
-    def __init__(self, cfg, net_G=InpaintSANet, net_D=InpaintSADirciminator):
+    def __init__(self, cfg, net_G=InpaintSANet, net_D=InpaintSADirciminator, loss_function=None):
         super().__init__(cfg)
+        
+        # 设置生成器鉴别器以及它们的优化器
         self.net_G = net_G
         self.net_D = net_D
         
-         # 创建模型组件
+        # 创建模型组件
         self.net_G = net_G.to(self.device)
         self.net_D = net_D.to(self.device)
         self.net_G_opt = torch.optim.Adam(net_G.parameters(), lr=self.opt.TRAIN.LEARN_RATE, weight_decay=0.0)
@@ -139,10 +145,7 @@ class GAN_Trainer(_Trainer):
             else:
                 print("load weights failed!")
         
-        # 定义损失函数
-        self.recon_loss = losses.ReconLoss(*([1.2, 1.2, 1.2, 1.2]))
-        self.gan_loss = losses.SNGenLoss(0.005)
-        self.dis_loss = losses.SNDisLoss()
+        
         
     def train(self):
         assert False,("ERROR: Please rewrite train function!")
@@ -262,8 +265,34 @@ class PConvUNet_Trainer(Unet_Trainer):
         self.optimizer.step()               # 根据梯度和优化器的参数更新参数
 
 
+class SAGAN_Trainer(GAN_Trainer):
+    def __init__(self, cfg, net_G=InpaintSANet, net_D=InpaintSADirciminator):
+        super().__init__(cfg, net_G, net_D)
 
-
+        # 定义损失函数
+        self.recon_loss = losses.ReconLoss(*([1.2, 1.2, 1.2, 1.2]))
+        self.gan_loss = losses.SNGenLoss(0.005)
+        self.dis_loss = losses.SNDisLoss()
+        
+    def train(self):
+        netG = self.net_G
+        netD = self.net_D
+        GANLoss = self.gan_loss
+        ReconLoss=self.recon_loss
+        DLoss = self.dis_loss
+        optG = self.net_G_opt
+        optD = self.net_D_opt
+        dataloader = self.data_loader
+        device = self.device
+        
+        global_iter = 0
+        for epoch_idx in tqdm(range(self.opt.TRAIN.EPOCH_TOTAL),unit="epoch"):
+            for gt, mask in tqdm(self.data_loader,unit="iter",leave=False):
+                self.__get_input()
+                
+    def __get_input
+        
+        
 
 
         
