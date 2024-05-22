@@ -4,14 +4,14 @@ from torch.utils.data import DataLoader
 from torch import nn
 import torch
 import numpy as np
-from model.DCGAN_model import ResUNet_LRes,Discriminator
+from DCGAN_model import ResUNet_LRes,Discriminator
 from tqdm import tqdm
 import os
 
 # parameter for dataloader
-data_path = "/Users/wanglikai/Codes/DataSets/VCNet_dataSet"
-data_save_path = "/Users/wanglikai/Codes/Volume_Inpainting/DCGAN_new/out"
-volume_shape = (128,128,128)
+data_path = "C:\\Files\\Research\\dataSet\\dataSet0"
+data_save_path = "C:\\Files\\Research\\Volume_Inpainting\\DCGAN_new\\out"
+volume_shape = (160,224,168)
 target_shape = (128,128,128)
 mask_type = "train"
 data_type = np.float32
@@ -69,7 +69,7 @@ class DCGAN_Trainer:
     def run(self):
         iter_counter=0
         for epoch_idx in tqdm(range(self.total_epoch),unit="epoch"):
-            for (ground_truth, mask),iter in tqdm(self.data_loader,unit="iter",leave=False):
+            for ground_truth, mask in self.data_loader:
                 # 初始化输入
                 # ct=ground_truth*mask
                 # mri=ground_truth
