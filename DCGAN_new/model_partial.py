@@ -316,13 +316,11 @@ class ResUNet_LRes(nn.Module):
         self.up_block256_128 = UNetUpResBlock(hidden_channel*4, hidden_channel*2,stride=1)
         self.up_block128_64 = UNetUpResBlock(hidden_channel*2, hidden_channel,stride=1)
         self.Dropout = nn.Dropout3d(p=dp_prob)
-        self.last = nn.Conv3d(hidden_channel, out_channel, 1, stride=1)
+        # self.last = nn.Conv3d(hidden_channel, out_channel, 1, stride=1)
         self.last = PartialConv(hidden_channel, out_channel, 1, stride=1)
 
     # def forward(self, x, res_x):
     def forward(self, x,mask):
-        res_x = x
-        mask0 = mask
         
         block1,mask1 = self.conv_block1_16(x,mask)
         # print(block1.shape)
@@ -344,17 +342,12 @@ class ResUNet_LRes(nn.Module):
         # up1 = self.up_block1024_512(block5, block4)
 
         up2 = self.up_block512_256(block4,mask3, block3)
-        print(up2.shape)
-        print(mask2.shape)
-        print(block2.shape)
         up3 = self.up_block256_128(up2,mask2, block2)
         up4 = self.up_block128_64(up3,mask1, block1)
 
-        last = self.last(up4,mask0)
-        
-        out = last
+        last,mask = self.last(up4,mask1)
 
-        out = torch.add(last, res_x)
+        out = torch.add(last, x)
         return out
 
 class Discriminator(nn.Module):

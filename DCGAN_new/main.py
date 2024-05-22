@@ -115,7 +115,7 @@ class DCGAN_Trainer:
                 self.net_D_opt.step() # Update optimizer
 
                 # 更新生成器
-                fake = self.net_G(masked_data)
+                fake = self.net_G(masked_data,mask)
                 disc_fake_hat = self.net_D(fake, masked_data)
                 G_adv_loss = self.adv_criterion(disc_fake_hat, torch.ones_like(disc_fake_hat))
                 G_rec_loss = self.recon_criterion(ground_truth, fake)
