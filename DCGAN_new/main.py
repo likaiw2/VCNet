@@ -20,6 +20,7 @@ disc_input_channel = cfg.net.disc_input_channel
 learning_rate = cfg.net.learning_rate             #原模型参数 5e-3(0.005)
 batch_size = cfg.net.batch_size
 lambda_recon = cfg.net.lambda_recon
+data_save_path = cfg.dataset.train_data_path
 
 # parameter for train
 save_model = True
@@ -126,7 +127,7 @@ class DCGAN_Trainer:
                 # 保存和输出
                 if (iter_counter+1) % self.display_step == 0 or iter_counter == 1:
                     if save_model:
-                        file_name = f"{self.model_name}_{epoch_idx}epoch_{iter_counter}iter.pth"
+                        file_name = f"{self.model_name}_{datetime.datetime.now().strftime('%m%d')}_{epoch_idx}epoch_{iter_counter}iter.pth"
                         file_path = os.path.join(data_save_path,"weight",file_name)
                         torch.save({'gen': self.net_G.state_dict(),
                                     'gen_opt': self.net_G_opt.state_dict(),
@@ -137,17 +138,18 @@ class DCGAN_Trainer:
                         save_object = ["ground_truth","masked_data","fake"]
                         variable_list = locals()
                         for item_name in save_object:
-                            file_name = f"{item_name}_{epoch_idx}epoch_{iter_counter}iter.raw"
+                            file_name = f"{item_name}_{datetime.datetime.now().strftime('%m%d')}_{epoch_idx}epoch_{iter_counter}iter.raw"
                             file_path = os.path.join(data_save_path,"output_data",file_name)
                             raw_file = variable_list[item_name][0].cpu()
                             raw_file = raw_file.detach().numpy()
                             raw_file.astype('float32').tofile(file_path)
                 
-                wandb.log({"D_loss":D_loss,
-                           "G_loss":G_loss,
-                           "G_adv_loss":G_adv_loss,
-                           "G_rec_loss":G_rec_loss,
-                            })
+                if iter_counter%200==0:
+                    wandb.log({"D_loss":D_loss,
+                                "G_loss":G_loss,
+                                "G_adv_loss":G_adv_loss,
+                                "G_rec_loss":G_rec_loss,
+                                })
                     
                 iter_counter += 1
         wandb.finish()
