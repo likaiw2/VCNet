@@ -9,8 +9,10 @@ from tqdm import tqdm
 import os
 
 # parameter for dataloader
-data_path = "C:\\Files\\Research\\dataSet\\dataSet0"
-data_save_path = "C:\\Files\\Research\\Volume_Inpainting\\DCGAN_new\\out"
+# data_path = "C:\\Files\\Research\\dataSet\\dataSet0"
+# data_save_path = "C:\\Files\\Research\\Volume_Inpainting\\DCGAN_new\\out"
+data_path=
+data_save_path=
 volume_shape = (160,224,168)
 target_shape = (128,128,128)
 mask_type = "train"
@@ -36,6 +38,14 @@ def save_raw_file(fileName, raw_file):
     raw_file = raw_file.detach().numpy()
     raw_file.astype('float32').tofile(fileName)
 
+# 对3d卷积神经网络的权重初始化
+def weights_init(m):
+    if isinstance(m, nn.Conv3d) or isinstance(m, nn.ConvTranspose3d):
+        torch.nn.init.normal_(m.weight, 0.0, 0.02)
+    if isinstance(m, nn.BatchNorm3d):
+        torch.nn.init.normal_(m.weight, 0.0, 0.02)
+        torch.nn.init.constant_(m.bias, 0)
+
 
 class DCGAN_Trainer:
     def __init__(self):
@@ -52,14 +62,15 @@ class DCGAN_Trainer:
                                            batch_size=batch_size,
                                            shuffle=True,
                                            num_workers=1)
-        
         self.data_size = len(self.dataset)
         
-        self.net_G = ResUNet_LRes(in_channel=gen_input_channel,dp_prob=gen_dp_prob).to(self.device)
+        # 生成器鉴别器初始化
+        self.net_G = ResUNet_LRes(in_channel=gen_input_channel,dp_prob=gen_dp_prob).to(self.device).apply(weights_init)
+        self.net_D = Discriminator(disc_input_channel).to(self.device).apply(weights_init)
         self.net_G_opt = torch.optim.Adam(self.net_G.parameters(), lr=learning_rate)
-        self.net_D = Discriminator(disc_input_channel).to(self.device)
         self.net_D_opt = torch.optim.Adam(self.net_D.parameters(), lr=learning_rate)
         
+        # 损失函数初始化
         self.adv_criterion = nn.BCEWithLogitsLoss()
         self.recon_criterion = nn.L1Loss()
         
