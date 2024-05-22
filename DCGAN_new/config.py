@@ -8,7 +8,7 @@ _C.WANDB.LOG_DIR = ""
 # 保存数据集相关的参数
 _C.dataset = CN()
 _C.dataset.train_data_path = "/root/autodl-tmp/Diode/Datas/VCNet_dataSet/train"
-_C.dataset.data_save_path = "/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out"
+_C.dataset.data_save_path = "/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out_par"
 _C.dataset.volume_shape = (128,128,128)
 _C.dataset.target_shape = (128,128,128)
 _C.dataset.mask_type = "train"
