@@ -1,3 +1,4 @@
+import datetime
 import time
 import tools
 from torch.utils.data import DataLoader
@@ -7,16 +8,11 @@ import numpy as np
 from DCGAN_model import ResUNet_LRes,Discriminator
 from tqdm import tqdm
 import os
+import wandb
 
 # parameter for dataloader
 data_path = "C:\\Files\\Research\\dataSet\\dataSet0"
 data_save_path = "C:\\Files\\Research\\Volume_Inpainting\\DCGAN_new\\out"
-# data_path=
-# data_save_path=
-volume_shape = (160,224,168)
-target_shape = (128,128,128)
-mask_type = "train"
-data_type = np.float32
 
 # parameter for network
 gen_input_channel = 1
@@ -30,6 +26,9 @@ lambda_recon = 200
 save_model = True
 save_raw = True
 
+from config import get_cfg_defaults  # 导入获取默认配置的函数
+cfg = get_cfg_defaults()
+
 # tool functions
 def save_raw_file(fileName, raw_file):
     # copy tensor from gpu to cpu.
@@ -38,26 +37,31 @@ def save_raw_file(fileName, raw_file):
     raw_file = raw_file.detach().numpy()
     raw_file.astype('float32').tofile(fileName)
 
-# 对3d卷积神经网络的权重初始化
-def weights_init(m):
-    if isinstance(m, nn.Conv3d) or isinstance(m, nn.ConvTranspose3d):
-        torch.nn.init.normal_(m.weight, 0.0, 0.02)
-    if isinstance(m, nn.BatchNorm3d):
-        torch.nn.init.normal_(m.weight, 0.0, 0.02)
-        torch.nn.init.constant_(m.bias, 0)
-
 
 class DCGAN_Trainer:
-    def __init__(self):
-        self.model_name = "DCGAN"
-        self.device = torch.device("cuda:0")
-        self.total_epoch = 1000
+    def __init__(self,cfg):
+        self.cfg = cfg
+        self.model_name = self.cfg.model_name
+        self.device = torch.device(self.cfg.train.device)
+        self.total_epoch = self.cfg.train.total_epoch
+        self.volume_shape = self.cfg.dataset.volume_shape
+        self.target_shape = self.cfg.dataset.target_shape
+        self.mask_type = self.cfg.dataset.mask_type
+        
+        self.cfg.WANDB.LOG_DIR = os.path.join("./logs/", self.model_name)
+        cfg.freeze()
+        self.wandb = wandb
+        self.wandb.init(project="volume_inpainting",
+                        name=f"DCGAN_{datetime.datetime.now().strftime('%m%d_%H_%M')}",
+                        notes=self.cfg.WANDB.LOG_DIR,
+                        config=self.cfg,
+                        mode="online")
         
         # 设置数据集
         self.dataset = tools.DataSet(data_path=data_path,
-                                     volume_shape=volume_shape,
-                                     target_shape=target_shape,
-                                     mask_type=mask_type,
+                                     volume_shape=self.volume_shape,
+                                     target_shape=self.target_shape,
+                                     mask_type=self.mask_type,
                                      data_type=np.float32)
         self.data_loader = DataLoader(dataset=self.dataset,
                                            batch_size=batch_size,
@@ -67,6 +71,12 @@ class DCGAN_Trainer:
         self.display_step = np.ceil(np.ceil(self.data_size / batch_size) * self.total_epoch / 20)   #一共输出20个epoch，供判断用
         
         # 生成器鉴别器初始化
+        def weights_init(m):
+            if isinstance(m, nn.Conv3d) or isinstance(m, nn.ConvTranspose3d):
+                torch.nn.init.normal_(m.weight, 0.0, 0.02)
+            if isinstance(m, nn.BatchNorm3d):
+                torch.nn.init.normal_(m.weight, 0.0, 0.02)
+                torch.nn.init.constant_(m.bias, 0)
         self.net_G = ResUNet_LRes(in_channel=gen_input_channel,out_channel=1,dp_prob=gen_dp_prob).to(self.device).apply(weights_init)
         self.net_D = Discriminator(disc_input_channel).to(self.device).apply(weights_init)
         self.net_G_opt = torch.optim.Adam(self.net_G.parameters(), lr=learning_rate)
@@ -75,8 +85,6 @@ class DCGAN_Trainer:
         # 损失函数初始化
         self.adv_criterion = nn.BCEWithLogitsLoss()
         self.recon_criterion = nn.L1Loss()
-        
-        
         
         
     def run(self):
@@ -92,7 +100,7 @@ class DCGAN_Trainer:
                 with torch.no_grad():
                     # 在不记录梯度的情况下走一遍生成器
                     fake = self.net_G(masked_data)
-                # print(fake.shape)
+                
                 # 计算鉴别器损失
                 D_fake_hat = self.net_D(fake.detach(),masked_data) # Detach generator
                 D_fake_loss = self.adv_criterion(D_fake_hat, torch.zeros_like(D_fake_hat))
@@ -108,13 +116,13 @@ class DCGAN_Trainer:
                 # 更新生成器
                 fake = self.net_G(masked_data)
                 disc_fake_hat = self.net_D(fake, masked_data)
-                gen_adv_loss = self.adv_criterion(disc_fake_hat, torch.ones_like(disc_fake_hat))
-                gen_rec_loss = self.recon_criterion(ground_truth, fake)
-                gen_loss = gen_adv_loss + lambda_recon * gen_rec_loss
+                G_adv_loss = self.adv_criterion(disc_fake_hat, torch.ones_like(disc_fake_hat))
+                G_rec_loss = self.recon_criterion(ground_truth, fake)
+                G_loss = G_adv_loss + lambda_recon * G_rec_loss
                 
                 # 对生成器反向传播
                 self.net_G_opt.zero_grad()
-                gen_loss.backward() # Update gradients
+                G_loss.backward() # Update gradients
                 self.net_G_opt.step() # Update optimizer
 
                 # 保存和输出
@@ -136,9 +144,15 @@ class DCGAN_Trainer:
                             raw_file = variable_list[item_name][0].cpu()
                             raw_file = raw_file.detach().numpy()
                             raw_file.astype('float32').tofile(file_path)
-                    
+                
+                wandb.log({"D_loss":D_loss,
+                           "G_loss":G_loss,
+                           "G_adv_loss":G_adv_loss,
+                           "G_rec_loss":G_rec_loss,
+                            })
                     
                 iter_counter += 1
+        wandb.finish()
                 
                 
                 
@@ -150,5 +164,5 @@ class DCGAN_Trainer:
 
 
 if __name__ == '__main__':
-    trainer = DCGAN_Trainer()
+    trainer = DCGAN_Trainer(cfg)
     trainer.run()
