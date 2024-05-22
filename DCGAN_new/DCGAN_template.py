@@ -11,6 +11,7 @@ import time
 import datetime
 import matplotlib.pyplot as plt
 from model.model import *
+from torch import nn
 
 torch.cuda.empty_cache()
 

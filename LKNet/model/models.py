@@ -619,5 +619,124 @@ class p2pDiscriminator(nn.Module):
         xn = self.final(x4)
         return xn
 
+# DCGAN
+class DCGAN_ResUNet(nn.Module):
+    def __init__(self, in_channel=1, n_classes=4, dp_prob=0):
+        super(DCGAN_ResUNet, self).__init__()
+        # self.imsize = imsize
+
+        self.activation = F.leaky_relu
+
+        self.pool1 = nn.MaxPool3d(2)
+        # self.pool1 = nn.MaxPool3d((3,3,3),(1,1,1),(2,2,3))
+        self.pool2 = nn.MaxPool3d(2)
+        # self.pool3 = nn.MaxPool3d(2)
+        self.pool3 = nn.MaxPool3d(3, stride=(2, 2, 2), padding=1)
+        # self.pool4 = nn.MaxPool3d(2)
+
+        # hidden_channel = 32
+        hidden_channel = 16
+        self.conv_block1_64 = UNetConvBlock(in_channel, hidden_channel)
+        self.conv_block64_128 = residualUnit(hidden_channel, hidden_channel*2)
+        self.conv_block128_256 = residualUnit(hidden_channel*2, hidden_channel*4)
+        self.conv_block256_512 = residualUnit(hidden_channel*4, hidden_channel*8)
+        # self.conv_block512_1024 = residualUnit(512, 1024)
+        # this kind of symmetric design is awesome, it automatically solves the number of channels during upsamping
+        # self.up_block1024_512 = UNetUpResBlock(1024, 512)
+        # self.up_block512_256 = UNetUpResBlock_223(hidden_channel*8, hidden_channel*4)
+        self.up_block512_256 = UNetUpResBlock(hidden_channel*8, hidden_channel*4)
+        self.up_block256_128 = UNetUpResBlock(hidden_channel*4, hidden_channel*2)
+        self.up_block128_64 = UNetUpResBlock(hidden_channel*2, hidden_channel)
+        self.Dropout = nn.Dropout3d(p=dp_prob)
+        self.last = nn.Conv3d(hidden_channel, n_classes, 1, stride=1)
+
+    # def forward(self, x, res_x):
+    def forward(self, x):
+        res_x = x
+        #         print 'line 70 ',x.size()
+        block1 = self.conv_block1_64(x)             #(hc,80,112,84)
+        # print ('block1.shape: ', block1.shape)
+        pool1 = self.pool1(block1)                  #(hc,40,56,42)
+        # print ('pool1.shape: ', block1.shape)
+        pool1_dp = self.Dropout(pool1)              #(hc,40,56,42)
+        # print ('pool1_dp.shape: ', pool1_dp.shape)
+        block2 = self.conv_block64_128(pool1_dp)    #(hc*2,40,56,42)
+        # print ('block2.shape: ', block2.shape)
+        pool2 = self.pool2(block2)                  #(hc*2,20,28,21)
+        # print ('pool2.shape: ', pool2.shape)
+        pool2_dp = self.Dropout(pool2)              #(hc*2,20,28,21)
+        # print ('pool2_dp.shape: ', pool2_dp.shape)
+
+        block3 = self.conv_block128_256(pool2_dp)   #(hc*4,20,28,21)
+        # print ('block3.shape: ', block3.shape)
+        
+        pool3 = self.pool3(block3)                  #(hc*4,10,14,7)
+        # print ('pool3.shape: ', pool3.shape)
+
+        pool3_dp = self.Dropout(pool3)              #(hc*4,10,14,7)
+        # print ('pool3_dp.shape: ', pool3_dp.shape)
+
+        block4 = self.conv_block256_512(pool3_dp)   #(hc*8,10,14,7)
+        # print ('block4.shape: ', block4.shape)
+        
+        # pool4 = self.pool4(block4)
+        # pool4_dp = self.Dropout(pool4)
+        # # block5 = self.conv_block512_1024(pool4_dp)
+        # up1 = self.up_block1024_512(block5, block4)
+
+        up2 = self.up_block512_256(block4, block3)
+        # print ('up2.shape: ', up2.shape)
+
+        # up3 = self.up_block256_128(up2, block2)
+        up3 = self.up_block256_128(block3, block2)  #如果不用512-256的话启用这个
+        # print ('up3.shape: ', up3.shape)
+
+        up4 = self.up_block128_64(up3, block1)
+        # print ('up4.shape: ', up4.shape)
+
+        last = self.last(up4)
+        
+        out = last
+        # print ('res_x.shape is ', res_x.shape, ' and last.shape is ', last.shape)
+        if len(res_x.shape) == 3:
+            res_x = res_x.unsqueeze(1)
+        out = torch.add(last, res_x)
+
+        # print ('out.shape is ',out.shape)
+        return out
+
+class DCGAN_Discriminator(nn.Module):
+    '''
+    Discriminator Class
+    Structured like the contracting path of the U-Net, the discriminator will
+    output a matrix of values classifying corresponding portions of the image as real or fake.
+    Parameters:
+        input_channels: the number of image input channels
+        hidden_channels: the initial number of discriminator convolutional filters
+    '''
+    def __init__(self, input_channels, hidden_channels=8):
+        super(DCGAN_Discriminator, self).__init__()
+        self.upfeature = FeatureMapBlock(input_channels, hidden_channels)
+        self.contract1 = ContractingBlock(hidden_channels, use_bn=False)
+        self.contract2 = ContractingBlock(hidden_channels * 2)
+        self.contract3 = ContractingBlock(hidden_channels * 4)
+        self.contract4 = ContractingBlock(hidden_channels * 8)
+        #### START CODE HERE ####
+        # self.final = nn.Conv2d(hidden_channels * 16, None, kernel_size=None)
+        self.final = nn.Conv3d(hidden_channels * 16, 1, kernel_size=1)
+        #### END CODE HERE ####
+
+    def forward(self, x, y):
+        x = torch.cat([x, y], axis=1)
+        x0 = self.upfeature(x)
+        x1 = self.contract1(x0)
+        x2 = self.contract2(x1)
+        x3 = self.contract3(x2)
+        x4 = self.contract4(x3)
+        xn = self.final(x4)
+        return xn
+
+
+
 
 

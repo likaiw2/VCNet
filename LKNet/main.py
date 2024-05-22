@@ -65,6 +65,11 @@ if cfg.RUN.TYPE=="train":
             trainer = trainer.P2P_Trainer(cfg,
                                           net_G=GAN_model[cfg.RUN.MODEL]["GEN"](), 
                                           net_D=GAN_model[cfg.RUN.MODEL]["DIS"]())
+            
+        elif cfg.RUN.MODEL=="DCGAN":
+            trainer = trainer.DCGAN_Trainer(cfg,
+                                            net_G=GAN_model[cfg.RUN.MODEL]["GEN"](), 
+                                            net_D=GAN_model[cfg.RUN.MODEL]["DIS"]())
         trainer.run()
     else:
         assert True,"Check your model name!"
