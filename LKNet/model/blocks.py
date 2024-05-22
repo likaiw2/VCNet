@@ -177,13 +177,10 @@ def weights_init(init_type='gaussian'):
     return init_fun
 
 class PartialConv(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1,
-                 padding=0, dilation=1, groups=1, bias=True):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1,padding=0, dilation=1, groups=1, bias=True):
         super().__init__()
-        self.input_conv = nn.Conv3d(in_channels, out_channels, kernel_size,
-                                    stride, padding, dilation, groups, bias)
-        self.mask_conv = nn.Conv3d(in_channels, out_channels, kernel_size,
-                                   stride, padding, dilation, groups, False)
+        self.input_conv = nn.Conv3d(in_channels, out_channels, kernel_size,stride, padding, dilation, groups, bias)
+        self.mask_conv = nn.Conv3d(in_channels, out_channels, kernel_size,stride, padding, dilation, groups, False)
         self.input_conv.apply(weights_init('kaiming'))
 
         torch.nn.init.constant_(self.mask_conv.weight, 1.0)
@@ -200,11 +197,9 @@ class PartialConv(nn.Module):
         # print(mask.dtype)
         output = self.input_conv(input * mask)
         if self.input_conv.bias is not None:
-            output_bias = self.input_conv.bias.view(1, -1, 1, 1).expand_as(
-                output)
+            output_bias = self.input_conv.bias.view(1, -1, 1, 1).expand_as(output)
         else:
             output_bias = torch.zeros_like(output)
-
         with torch.no_grad():
             output_mask = self.mask_conv(mask)
 

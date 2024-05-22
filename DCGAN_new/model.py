@@ -205,8 +205,6 @@ class FeatureMapBlock(nn.Module):
         return x
 
 
-#------------------原论文中的模型（始）------------------
-# 原论文的残差u-net作为生成器
 class ResUNet_LRes(nn.Module):
     def __init__(self, in_channel=1, out_channel=4, dp_prob=0):
         super(ResUNet_LRes, self).__init__()
@@ -215,9 +213,7 @@ class ResUNet_LRes(nn.Module):
         self.activation = F.leaky_relu
 
         self.pool1 = nn.MaxPool3d(2)
-        # self.pool1 = nn.MaxPool3d((3,3,3),(1,1,1),(2,2,3))
         self.pool2 = nn.MaxPool3d(2)
-        # self.pool3 = nn.MaxPool3d(2)
         self.pool3 = nn.MaxPool3d(3, stride=(2, 2, 2), padding=1)
         # self.pool4 = nn.MaxPool3d(2)
 
@@ -230,7 +226,6 @@ class ResUNet_LRes(nn.Module):
         # self.conv_block512_1024 = residualUnit(512, 1024)
         # this kind of symmetric design is awesome, it automatically solves the number of channels during upsamping
         # self.up_block1024_512 = UNetUpResBlock(1024, 512)
-        # self.up_block512_256 = UNetUpResBlock_223(hidden_channel*8, hidden_channel*4)
         self.up_block512_256 = UNetUpResBlock(hidden_channel*8, hidden_channel*4)
         self.up_block256_128 = UNetUpResBlock(hidden_channel*4, hidden_channel*2)
         self.up_block128_64 = UNetUpResBlock(hidden_channel*2, hidden_channel)
@@ -240,31 +235,19 @@ class ResUNet_LRes(nn.Module):
     # def forward(self, x, res_x):
     def forward(self, x):
         res_x = x
-        #         print 'line 70 ',x.size()
-        block1 = self.conv_block1_64(x)             #(hc,80,112,84)
-        # print ('block1.shape: ', block1.shape)
-        pool1 = self.pool1(block1)                  #(hc,40,56,42)
-        # print ('pool1.shape: ', block1.shape)
-        pool1_dp = self.Dropout(pool1)              #(hc,40,56,42)
-        # print ('pool1_dp.shape: ', pool1_dp.shape)
-        block2 = self.conv_block64_128(pool1_dp)    #(hc*2,40,56,42)
-        # print ('block2.shape: ', block2.shape)
-        pool2 = self.pool2(block2)                  #(hc*2,20,28,21)
-        # print ('pool2.shape: ', pool2.shape)
-        pool2_dp = self.Dropout(pool2)              #(hc*2,20,28,21)
-        # print ('pool2_dp.shape: ', pool2_dp.shape)
-
-        block3 = self.conv_block128_256(pool2_dp)   #(hc*4,20,28,21)
-        # print ('block3.shape: ', block3.shape)
+        block1 = self.conv_block1_64(x)             
+        pool1 = self.pool1(block1)                  
+        pool1_dp = self.Dropout(pool1)              
         
-        pool3 = self.pool3(block3)                  #(hc*4,10,14,7)
-        # print ('pool3.shape: ', pool3.shape)
+        block2 = self.conv_block64_128(pool1_dp)    
+        pool2 = self.pool2(block2)                  
+        pool2_dp = self.Dropout(pool2)              
 
-        pool3_dp = self.Dropout(pool3)              #(hc*4,10,14,7)
-        # print ('pool3_dp.shape: ', pool3_dp.shape)
+        block3 = self.conv_block128_256(pool2_dp)   
+        pool3 = self.pool3(block3)                 
+        pool3_dp = self.Dropout(pool3)              
 
-        block4 = self.conv_block256_512(pool3_dp)   #(hc*8,10,14,7)
-        # print ('block4.shape: ', block4.shape)
+        block4 = self.conv_block256_512(pool3_dp)   
         
         # pool4 = self.pool4(block4)
         # pool4_dp = self.Dropout(pool4)
@@ -272,80 +255,17 @@ class ResUNet_LRes(nn.Module):
         # up1 = self.up_block1024_512(block5, block4)
 
         up2 = self.up_block512_256(block4, block3)
-        # print ('up2.shape: ', up2.shape)
-
-        # up3 = self.up_block256_128(up2, block2)
-        up3 = self.up_block256_128(block3, block2)  #如果不用512-256的话启用这个
-        # print ('up3.shape: ', up3.shape)
-
+        up3 = self.up_block256_128(up2, block2)
         up4 = self.up_block128_64(up3, block1)
-        # print ('up4.shape: ', up4.shape)
 
         last = self.last(up4)
         
         out = last
-        # print ('res_x.shape is ', res_x.shape, ' and last.shape is ', last.shape)
         if len(res_x.shape) == 3:
             res_x = res_x.unsqueeze(1)
         out = torch.add(last, res_x)
-
-        # print ('out.shape is ',out.shape)
         return out
-    
 
-# 原论文的论文的的鉴别器（CNN）
-class Discriminator(nn.Module):
-    def __init__(self):
-        super(Discriminator,self).__init__()
-        #you can make abbreviations for conv and fc, this is not necessary
-        #class torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True)
-        self.conv1 = nn.Conv3d(1,32,9)
-        self.bn1 = nn.BatchNorm3d(32)
-        self.conv2 = nn.Conv3d(32,64,5)
-        self.bn2 = nn.BatchNorm3d(64)
-        self.conv3 = nn.Conv3d(64,64,5)
-        self.bn3 = nn.BatchNorm3d(64)
-        self.fc1 = nn.Linear(64*4*4,512)
-        #self.bn3= nn.BatchNorm1d(6)
-        self.fc2 = nn.Linear(512,64)
-        self.fc3 = nn.Linear(64,1)
-
-
-    def forward(self,x):
-        # print 'line 114: x shape: ',x.size()
-        #x = F.max_pool3d(F.leaky_relu(self.bn1(self.conv1(x))),(2,2,2))#conv->leaky_relu->pool
-        # print("x_input: ",x.shape)
-        x = F.max_pool3d(F.leaky_relu(self.conv1(x)),(2,2,2))#conv->leaky_relu->pool
-        # print("x: ",x.shape)
-        x = F.max_pool3d(F.leaky_relu(self.conv2(x)),(2,2,2))#conv->leaky_relu->pool
-        # print("x: ",x.shape)
-        x = F.max_pool3d(F.leaky_relu(self.conv3(x)),(2,2,2))#conv->leaky_relu->pool
-        # print("x: ",x.shape)
-
-        #reshape them into Vector, review ruturned tensor shares the same data but have different shape, same as reshape in matlab
-        
-        # x = x.view(-1,self.num_of_flat_features(x))
-        # print("x: ",x.shape)
-        
-        x = F.leaky_relu(self.fc1(x))
-
-        x = F.leaky_relu(self.fc2(x))
-
-        x = self.fc3(x)
-
-        #x = F.sigmoid(x)
-        #print 'min,max,mean of x in 0st layer',x.min(),x.max(),x.mean()
-        return x
-
-    def num_of_flat_features(self,x):
-        size=x.size()[1:]#we donot consider the batch dimension
-        num_features=1
-        for s in size:
-            num_features*=s
-        return num_features
-#------------------原论文中的模型（末）------------------
-
-#------------------以下为xyt版本的cnn------------------
 class Discriminator(nn.Module):
     '''
     Discriminator Class
@@ -376,4 +296,6 @@ class Discriminator(nn.Module):
         x4 = self.contract4(x3)
         xn = self.final(x4)
         return xn
-    #----------------------以上为xyt版本的cnn----------------
+
+
+

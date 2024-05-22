@@ -37,7 +37,6 @@ def save_raw_file(fileName, raw_file):
     raw_file = raw_file.detach().numpy()
     raw_file.astype('float32').tofile(fileName)
 
-
 class DCGAN_Trainer:
     def __init__(self,cfg):
         self.cfg = cfg
