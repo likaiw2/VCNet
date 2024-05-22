@@ -92,13 +92,15 @@ class DCGAN_Trainer:
             for ground_truth, mask in self.data_loader:
                 # 初始化输入
                 masked_data = ground_truth*mask
+                
+                mask = mask.to(self.device)
                 ground_truth=ground_truth.to(self.device)
                 masked_data=masked_data.to(self.device)
                 
                 # 首先更新鉴别器
                 with torch.no_grad():
                     # 在不记录梯度的情况下走一遍生成器
-                    fake = self.net_G(masked_data)
+                    fake = self.net_G(masked_data,mask)
                 
                 # 计算鉴别器损失
                 D_fake_hat = self.net_D(fake.detach(),masked_data) # Detach generator
@@ -113,11 +115,14 @@ class DCGAN_Trainer:
                 self.net_D_opt.step() # Update optimizer
 
                 # 更新生成器
-                fake = self.net_G(masked_data)
+                fake = self.net_G(masked_data,mask)
                 disc_fake_hat = self.net_D(fake, masked_data)
                 G_adv_loss = self.adv_criterion(disc_fake_hat, torch.ones_like(disc_fake_hat))
                 G_rec_loss = self.recon_criterion(ground_truth, fake)
-                G_loss = G_adv_loss + lambda_recon * G_rec_loss
+                G_hole_loss = self.recon_criterion((1 - mask) * ground_truth, (1 - mask) * fake)
+                G_vali_loss = self.recon_criterion(mask * ground_truth, mask * fake)
+                
+                G_loss = G_adv_loss + lambda_recon * G_rec_loss+G_hole_loss+G_vali_loss
                 
                 # 对生成器反向传播
                 self.net_G_opt.zero_grad()
@@ -139,7 +144,7 @@ class DCGAN_Trainer:
                         variable_list = locals()
                         for item_name in save_object:
                             file_name = f"{item_name}_{datetime.datetime.now().strftime('%m%d')}_{epoch_idx}epoch_{iter_counter}iter.raw"
-                            file_path = os.path.join(data_save_path,"output_data",file_name)
+                            file_path = os.path.join(data_save_path,"output",file_name)
                             raw_file = variable_list[item_name][0].cpu()
                             raw_file = raw_file.detach().numpy()
                             raw_file.astype('float32').tofile(file_path)
@@ -149,6 +154,8 @@ class DCGAN_Trainer:
                                 "G_loss":G_loss,
                                 "G_adv_loss":G_adv_loss,
                                 "G_rec_loss":G_rec_loss,
+                                "G_hole_loss":G_hole_loss,
+                                "G_vali_loss":G_vali_loss
                                 })
                     
                 iter_counter += 1
