@@ -70,8 +70,7 @@ class UNetUpResBlock(nn.Module):
         self.resUnit = residualUnit(in_channels, out_channels, kernel_size=3)
         
     def forward(self,x,res):
-        out=x+res
-        out=self.up_conv11(self.up_tri_linear(out))
+        out=self.up_conv11(self.up_tri_linear(x))
         out=self.activation(self.bn(out))
         
         out = torch.cat([out, res], 1)

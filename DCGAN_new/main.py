@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from torch import nn
 import torch
 import numpy as np
-from model import ResUNet_LRes,Discriminator
+from model_trilinear import ResUNet_LRes,Discriminator
 from tqdm import tqdm
 import os
 import wandb
