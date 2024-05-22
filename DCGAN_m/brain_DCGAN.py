@@ -835,6 +835,8 @@ def train(save_model=True):
             disc_opt.zero_grad() # Zero out the gradient before backpropagation
             with torch.no_grad():
                 fake = gen(ct)
+            # print(fake.shape)
+            # print(ct.shape)
             # 6.6 00：46 p2p代码有两个输入值，但是本代码只需要一个，所以产生了报错  7.2 已解决
             # 输入是[1, 1, 80, 112, 84]
             disc_fake_hat = disc(fake.detach(),ct) # Detach generator

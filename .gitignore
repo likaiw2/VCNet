@@ -27,3 +27,4 @@ pix2pix_m/out/
 DCGAN_new/__pycache__/tools.cpython-311.pyc
 DCGAN_new/__pycache__/DCGAN_block.cpython-311.pyc
 DCGAN_new/__pycache__/DCGAN_model.cpython-311.pyc
+DCGAN_new/out/

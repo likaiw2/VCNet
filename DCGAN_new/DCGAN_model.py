@@ -2,7 +2,6 @@ import torch
 from torch import nn
 import numpy as np
 import torch.nn.functional as F
-from DCGAN_block import *
 
 #------------------原论文中的block（始）------------------
 # Ordinary UNet Conv Block 卷积块
@@ -209,7 +208,7 @@ class FeatureMapBlock(nn.Module):
 #------------------原论文中的模型（始）------------------
 # 原论文的残差u-net作为生成器
 class ResUNet_LRes(nn.Module):
-    def __init__(self, in_channel=1, n_classes=4, dp_prob=0):
+    def __init__(self, in_channel=1, out_channel=4, dp_prob=0):
         super(ResUNet_LRes, self).__init__()
         # self.imsize = imsize
 
@@ -236,7 +235,7 @@ class ResUNet_LRes(nn.Module):
         self.up_block256_128 = UNetUpResBlock(hidden_channel*4, hidden_channel*2)
         self.up_block128_64 = UNetUpResBlock(hidden_channel*2, hidden_channel)
         self.Dropout = nn.Dropout3d(p=dp_prob)
-        self.last = nn.Conv3d(hidden_channel, n_classes, 1, stride=1)
+        self.last = nn.Conv3d(hidden_channel, out_channel, 1, stride=1)
 
     # def forward(self, x, res_x):
     def forward(self, x):

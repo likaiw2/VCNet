@@ -9,10 +9,10 @@ from tqdm import tqdm
 import os
 
 # parameter for dataloader
-# data_path = "C:\\Files\\Research\\dataSet\\dataSet0"
-# data_save_path = "C:\\Files\\Research\\Volume_Inpainting\\DCGAN_new\\out"
-data_path=
-data_save_path=
+data_path = "C:\\Files\\Research\\dataSet\\dataSet0"
+data_save_path = "C:\\Files\\Research\\Volume_Inpainting\\DCGAN_new\\out"
+# data_path=
+# data_save_path=
 volume_shape = (160,224,168)
 target_shape = (128,128,128)
 mask_type = "train"
@@ -65,7 +65,7 @@ class DCGAN_Trainer:
         self.data_size = len(self.dataset)
         
         # 生成器鉴别器初始化
-        self.net_G = ResUNet_LRes(in_channel=gen_input_channel,dp_prob=gen_dp_prob).to(self.device).apply(weights_init)
+        self.net_G = ResUNet_LRes(in_channel=gen_input_channel,out_channel=1,dp_prob=gen_dp_prob).to(self.device).apply(weights_init)
         self.net_D = Discriminator(disc_input_channel).to(self.device).apply(weights_init)
         self.net_G_opt = torch.optim.Adam(self.net_G.parameters(), lr=learning_rate)
         self.net_D_opt = torch.optim.Adam(self.net_D.parameters(), lr=learning_rate)
@@ -82,23 +82,20 @@ class DCGAN_Trainer:
         for epoch_idx in tqdm(range(self.total_epoch),unit="epoch"):
             for ground_truth, mask in self.data_loader:
                 # 初始化输入
-                # ct=ground_truth*mask
-                # mri=ground_truth
                 masked_data = ground_truth*mask
                 ground_truth=ground_truth.to(self.device)
                 masked_data=masked_data.to(self.device)
-
 
                 # 首先更新鉴别器
                 with torch.no_grad():
                     # 在不记录梯度的情况下走一遍生成器
                     fake = self.net_G(masked_data)
-                
+                # print(fake.shape)
                 # 计算鉴别器损失
                 D_fake_hat = self.net_D(fake.detach(),masked_data) # Detach generator
-                D_fake_loss = self.net_D(D_fake_hat, torch.zeros_like(D_fake_hat))
+                D_fake_loss = self.adv_criterion(D_fake_hat, torch.zeros_like(D_fake_hat))
                 D_real_hat = self.net_D(ground_truth, masked_data)
-                D_real_loss = self.net_D(D_real_hat, torch.ones_like(D_real_hat))
+                D_real_loss = self.adv_criterion(D_real_hat, torch.ones_like(D_real_hat))
                 D_loss = (D_fake_loss + D_real_loss) / 2
                 
                 # 对鉴别器反向传播
@@ -131,7 +128,7 @@ class DCGAN_Trainer:
                     save_object = ["ground_truth","masked_data","fake"]
                     variable_list = locals()
                     for item_name in save_object:
-                        file_name = f"{variable_list[item_name]}_{epoch_idx}epoch_{iter_counter}iter.raw"
+                        file_name = f"{item_name}_{epoch_idx}epoch_{iter_counter}iter.raw"
                         file_path = os.path.join(data_save_path,"output_data",file_name)
                         raw_file = variable_list[item_name][0].cpu()
                         raw_file = raw_file.detach().numpy()
