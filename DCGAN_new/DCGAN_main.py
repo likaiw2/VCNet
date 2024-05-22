@@ -52,6 +52,7 @@ class DCGAN_Trainer:
         self.model_name = "DCGAN"
         self.device = torch.device("cuda:0")
         self.total_epoch = 1000
+        
         # 设置数据集
         self.dataset = tools.DataSet(data_path=data_path,
                                      volume_shape=volume_shape,
@@ -63,6 +64,7 @@ class DCGAN_Trainer:
                                            shuffle=True,
                                            num_workers=1)
         self.data_size = len(self.dataset)
+        self.display_step = np.ceil(np.ceil(self.data_size / batch_size) * self.total_epoch / 20)   #一共输出20个epoch，供判断用
         
         # 生成器鉴别器初始化
         self.net_G = ResUNet_LRes(in_channel=gen_input_channel,out_channel=1,dp_prob=gen_dp_prob).to(self.device).apply(weights_init)
@@ -116,23 +118,24 @@ class DCGAN_Trainer:
                 self.net_G_opt.step() # Update optimizer
 
                 # 保存和输出
-                if save_model:
-                    file_name = f"{self.model_name}_{epoch_idx}epoch_{iter_counter}iter.pth"
-                    file_path = os.path.join(data_save_path,"weight",file_name)
-                    torch.save({'gen': self.net_G.state_dict(),
-                                'gen_opt': self.net_G_opt.state_dict(),
-                                'disc': self.net_D.state_dict(),
-                                'disc_opt': self.net_D_opt.state_dict(),
-                                }, file_path)
-                if save_raw:
-                    save_object = ["ground_truth","masked_data","fake"]
-                    variable_list = locals()
-                    for item_name in save_object:
-                        file_name = f"{item_name}_{epoch_idx}epoch_{iter_counter}iter.raw"
-                        file_path = os.path.join(data_save_path,"output_data",file_name)
-                        raw_file = variable_list[item_name][0].cpu()
-                        raw_file = raw_file.detach().numpy()
-                        raw_file.astype('float32').tofile(file_path)
+                if (iter_counter+1) % self.display_step == 0 or iter_counter == 1:
+                    if save_model:
+                        file_name = f"{self.model_name}_{epoch_idx}epoch_{iter_counter}iter.pth"
+                        file_path = os.path.join(data_save_path,"weight",file_name)
+                        torch.save({'gen': self.net_G.state_dict(),
+                                    'gen_opt': self.net_G_opt.state_dict(),
+                                    'disc': self.net_D.state_dict(),
+                                    'disc_opt': self.net_D_opt.state_dict(),
+                                    }, file_path)
+                    if save_raw:
+                        save_object = ["ground_truth","masked_data","fake"]
+                        variable_list = locals()
+                        for item_name in save_object:
+                            file_name = f"{item_name}_{epoch_idx}epoch_{iter_counter}iter.raw"
+                            file_path = os.path.join(data_save_path,"output_data",file_name)
+                            raw_file = variable_list[item_name][0].cpu()
+                            raw_file = raw_file.detach().numpy()
+                            raw_file.astype('float32').tofile(file_path)
                     
                     
                 iter_counter += 1
