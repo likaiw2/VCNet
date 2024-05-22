@@ -1,20 +1,31 @@
 import os
 import random
+
+from torchvision import transforms
+from torchvision.datasets import VOCSegmentation
 from torchvision.utils import make_grid
 import numpy as np
 from torch.utils.data import DataLoader
+# import torch
+# from torch import nn
 from torch.utils.data import Dataset, DataLoader
+# import torch.nn.functional as F
 from torchvision import transforms
 import numpy as np
 from tqdm import tqdm
+import math
 import time
 import datetime
 import matplotlib.pyplot as plt
-from model.model import *
+from model import *
 
 torch.cuda.empty_cache()
 
 torch.manual_seed(0)
+# modified RandomCrop3D class (refer to: https://discuss.pytorch.org/t/efficient-way-to-crop-3d-image-in-pytorch/78421), which:
+# with one call, crop a pair of (volume_ct/volume_mr) at the same position;
+# with different calls, randomly crop volumes at different positions.
+# 随机剪裁配对图片的不同对应位置
 def crop(image, new_shape):
     '''
     Function for cropping an image tensor: Given an image tensor and the new shape,
@@ -68,6 +79,44 @@ def saveModel(cur_step):
                     'disc': disc.state_dict(),
                     'disc_opt': disc_opt.state_dict(),
                     }, fileName)  # , _use_new_zipfile_serialization=False)
+
+# def saveModel(cur_step):
+#     if save_model:
+#         fileName = "%spix2pix_%d.pth" % (dataSavePath, cur_step)
+#         torch.save({'gen': gen.state_dict(),
+#                     'gen_opt': gen_opt.state_dict(),
+#                     'disc_S': disc_S.state_dict(),
+#                     'disc_T': disc_T.state_dict(),
+#                     'disc_S_opt': disc_S_opt.state_dict(),
+#                     'disc_T_opt': disc_T_opt.state_dict(),
+#                     }, fileName)  # , _use_new_zipfile_serialization=False)
+
+# 一个随机生成3D切片的类，
+# class MyRandomCrop3D3(object):
+#     def __init__(self, volume_sz, cropVolume_sz):
+#         c, d, h, w = volume_sz                  # 输入体积大小
+#         assert (d, h, w) >= cropVolume_sz
+#         self.volume_sz = tuple((d, h, w))       #裁剪体积大小
+#         self.cropVolume_sz = tuple(cropVolume_sz)
+
+#     def __call__(self, volume_ct, volume_mr):
+#         slice_dhw = [self._get_slice(i, k) for i, k in zip(self.volume_sz, self.cropVolume_sz)]     #记录裁剪的大小和位置
+#         return self._crop(volume_ct, volume_mr, *slice_dhw)
+
+#     @staticmethod
+#     def _get_slice(volume_sz, cropVolume_sz):           # 随机生成所需裁剪的切片位置，并处理边界情况，确保切片范围在给定的 3D 体积数组内或返回 None来处理捕捉到的异常
+#         try:
+#             lower_bound = torch.randint(volume_sz - cropVolume_sz, (1,)).item()
+#             return lower_bound, lower_bound + cropVolume_sz
+#         except:
+#             return (None, None)
+
+#     # 将采集到的起始和结束点的切片应用于 CT 和 MR 数据，返回两个三维体积(volume_ct和volume_mr) 这些张量将作为裁剪器的输出和输入提供给下游应用程序
+#     @staticmethod
+#     def _crop(volume_ct, volume_mr, slice_d, slice_h, slice_w):     
+#         # print(f"slice_d[0]:slice_d[1], slice_h[0]:slice_h[1], slice_w[0]:slice_w[1]: {slice_d[0], slice_d[1], slice_h[0], slice_h[1], slice_w[0], slice_w[1]}")
+#         return volume_ct[:, slice_d[0]:slice_d[1], slice_h[0]:slice_h[1], slice_w[0]:slice_w[1]], \
+#                volume_mr[:, slice_d[0]:slice_d[1], slice_h[0]:slice_h[1], slice_w[0]:slice_w[1]]
 
 class MyRandomCrop3D3(object):
     # 这个类，用于实现随机裁剪
@@ -625,7 +674,7 @@ device=torch.device("cuda")
 n_epochs = 1000
 input_dim = 1
 real_dim = 1
-batch_size = 2          #原模型参数 10
+batch_size = 1          #原模型参数 10
 lr = 0.0002             #原模型参数 5e-3(0.005)
 # dropout_rate = 0.2      #原模型参数 0.2
 target_shape = 256
@@ -633,24 +682,49 @@ target_shape = 256
 totalTimesteps = 100
 trainsetRatio = 0.7  # according to deep learning specialization, if you have a small collection of data, then use 70%/30% for train/test.
 nTimesteps_train = round(totalTimesteps * trainsetRatio)  # nTimesteps_train=70.
+# display_step = 70     #需要一个一个epoch输出的时候用
 display_step = np.ceil(np.ceil(nTimesteps_train / batch_size) * n_epochs / 20)   #一共输出20个epoch，供判断用
 
-dataSourcePath = "/root/autodl-tmp/Diode/Datas/VCNet_dataSet"
-dataSavePath = "/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_m/out/"
+# dataSourcePath = "/root/autodl-tmp/Diode/Datas/VCNet_dataSet"
+# dataSavePath = "/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_m/out/"
+
+dataSourcePath = "C:\\Files\\Research\\dataSet\\dataSet2"
+dataSavePath = "C:\\Files\\Research\\Volume_Inpainting\\DCGAN_new\\out"
+#trial01:batchsize=1,hiddenchannel=32
+#trial02:batchsize=1,hiddenchannel=16
+#trial03:new dataset
+#trial04:display_num=20
+#trial05:add layer
+#trial06:n_epoch=1000
+#trial07:全局残差块
+#trial08:规范了brain 和 pelvic的代码区分
 
 fileStartVal = 1
 fileIncrement = 1
 constVal = 1
 cropScaleFactor = (0.5, 0.5, 0.5)  # [depth, height, width].
+# dim = (160, 224, 168)   # [depth, height, width]. brain
+# dim = (96, 240, 384)    # [depth, height, width]. pelvic
 dim = (128, 128, 128)   # [depth, height, width]. 
 
+# dim_crop = (int(dim[0] * cropScaleFactor[0]),
+#             int(dim[1] * cropScaleFactor[1]),
+#             int(dim[2] * cropScaleFactor[2]))
 dim_crop=dim
 float32DataType = np.float32
-
+# myRandCrop3D = MyRandomCrop3D3(volume_sz=(1, dim[0], dim[1], dim[2]),
+#                                cropVolume_sz=dim_crop)
+import torchvision
+# dataset = torchvision.datasets.ImageFolder("maps", transform=transform)
+# trainDataset=VolumesDataset(dataSourcePath=dataSourcePath, nTimesteps_train=nTimesteps_train,
+#                             dim=dim,
+#                             fileStartVal=fileStartVal, fileIncrement=fileIncrement, constVal=constVal,
+#                             float32DataType=float32DataType,
+#                             transform=myRandCrop3D)
 trainDataset=DataSet(data_path=dataSourcePath,volume_shape=[128,128,128],target_shape=dim_crop)
 
 # gen = UNet(input_dim, real_dim).to(device)
-gen = ResUNet_LRes(in_channel=input_dim,dp_prob=0.2).to(device)
+gen = ResUNet_LRes(in_channel=input_dim, n_classes=1, dp_prob=0.2).to(device)
 gen_opt = torch.optim.Adam(gen.parameters(), lr=lr)
 #disc = Discriminator(input_dim + real_dim).to(device)
 disc = Discriminator(input_dim + real_dim).to(device)
@@ -725,6 +799,7 @@ def gen_reasonable_test(num_images=10):
     assert torch.abs(get_gen_loss(gen, disc, real, condition, adv_criterion, recon_criterion, lambda_recon) - 3) < 1e-4
 gen_reasonable_test()
 print("Success!")
+import numpy as np
 
 def train(save_model=True):
     # read the start time
@@ -739,8 +814,8 @@ def train(save_model=True):
     for epoch in tqdm(range(n_epochs)):
         # Dataloader returns the batches
         for data,masked_data,index in dataloader:
-            ct=masked_data
-            mri=data
+            ct=data
+            mri=masked_data
             residual_source = ct
             # print("ct: " , ct.shape)
             # print("mri: " , mri.shape)
