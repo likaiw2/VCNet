@@ -20,7 +20,8 @@ disc_input_channel = cfg.net.disc_input_channel
 learning_rate = cfg.net.learning_rate             #原模型参数 5e-3(0.005)
 batch_size = cfg.net.batch_size
 lambda_recon = cfg.net.lambda_recon
-data_save_path = cfg.dataset.train_data_path
+
+data_save_path = cfg.dataset.data_save_path
 
 # parameter for train
 save_model = True
@@ -40,7 +41,7 @@ def save_raw_file(fileName, raw_file):
 class DCGAN_Trainer:
     def __init__(self,cfg):
         self.cfg = cfg
-        self.model_name = self.cfg.model_name
+        self.model_name = self.cfg.net.model_name
         self.device = torch.device(self.cfg.train.device)
         self.total_epoch = self.cfg.train.total_epoch
         self.volume_shape = self.cfg.dataset.volume_shape
@@ -54,10 +55,10 @@ class DCGAN_Trainer:
                         name=f"DCGAN_{datetime.datetime.now().strftime('%m%d_%H_%M')}",
                         notes=self.cfg.WANDB.LOG_DIR,
                         config=self.cfg,
-                        mode="online")
+                        mode="offline")
         
         # 设置数据集
-        self.dataset = tools.DataSet(data_path=self.cfg.dataset.data_path,
+        self.dataset = tools.DataSet(data_path=self.cfg.dataset.train_data_path,
                                      volume_shape=self.volume_shape,
                                      target_shape=self.target_shape,
                                      mask_type=self.mask_type,
@@ -94,7 +95,7 @@ class DCGAN_Trainer:
                 masked_data = ground_truth*mask
                 ground_truth=ground_truth.to(self.device)
                 masked_data=masked_data.to(self.device)
-
+                
                 # 首先更新鉴别器
                 with torch.no_grad():
                     # 在不记录梯度的情况下走一遍生成器

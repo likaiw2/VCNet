@@ -15,10 +15,10 @@ class UNetConvBlock(nn.Module):
         self.activation = activation
 
 
-        nn.init.xavier_uniform(self.conv.weight, gain = np.sqrt(2.0))
-        nn.init.constant(self.conv.bias,0)
-        nn.init.xavier_uniform(self.conv2.weight, gain = np.sqrt(2.0))
-        nn.init.constant(self.conv2.bias,0)
+        nn.init.xavier_uniform_(self.conv.weight, gain = np.sqrt(2.0))
+        nn.init.constant_(self.conv.bias,0)
+        nn.init.xavier_uniform_(self.conv2.weight, gain = np.sqrt(2.0))
+        nn.init.constant_(self.conv2.bias,0)
     def forward(self, x):
         out = self.activation(self.bn(self.conv(x)))
         out = self.activation(self.bn2(self.conv2(out)))
@@ -30,11 +30,11 @@ class residualUnit(nn.Module):
     def __init__(self, in_size, out_size, kernel_size=3,stride=1, padding=1, activation=F.leaky_relu):
         super(residualUnit, self).__init__()
         self.conv1 = nn.Conv3d(in_size, out_size, kernel_size, stride=1, padding=1)
-        nn.init.xavier_uniform(self.conv1.weight, gain = np.sqrt(2.0)) #or gain=1
-        nn.init.constant(self.conv1.bias, 0)
+        nn.init.xavier_uniform_(self.conv1.weight, gain = np.sqrt(2.0)) #or gain=1
+        nn.init.constant_(self.conv1.bias, 0)
         self.conv2 = nn.Conv3d(out_size, out_size, kernel_size, stride=1, padding=1)
-        nn.init.xavier_uniform(self.conv2.weight, gain = np.sqrt(2.0)) #or gain=1
-        nn.init.constant(self.conv2.bias, 0)
+        nn.init.xavier_uniform_(self.conv2.weight, gain = np.sqrt(2.0)) #or gain=1
+        nn.init.constant_(self.conv2.bias, 0)
         self.activation = activation
         self.bn1 = nn.BatchNorm3d(out_size)
         self.bn2 = nn.BatchNorm3d(out_size)
@@ -63,8 +63,8 @@ class UNetUpResBlock(nn.Module):
         # print("after size:",in_size,out_size)
 
         self.bnup = nn.BatchNorm3d(out_size)
-        nn.init.xavier_uniform(self.up.weight, gain=np.sqrt(2.0))
-        nn.init.constant(self.up.bias, 0)
+        nn.init.xavier_uniform_(self.up.weight, gain=np.sqrt(2.0))
+        nn.init.constant_(self.up.bias, 0)
 
         self.activation = activation
 
@@ -103,8 +103,8 @@ class UNetUpResBlock_223(nn.Module):
         # print("after size:",in_size,out_size)
 
         self.bnup = nn.BatchNorm3d(out_size)
-        nn.init.xavier_uniform(self.up.weight, gain=np.sqrt(2.0))
-        nn.init.constant(self.up.bias, 0)
+        nn.init.xavier_uniform_(self.up.weight, gain=np.sqrt(2.0))
+        nn.init.constant_(self.up.bias, 0)
 
         self.activation = activation
 

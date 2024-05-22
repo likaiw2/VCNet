@@ -20,11 +20,10 @@ weights/
 LKNet/configs/__pycache__/
 LKNet/model/__pycache__/
 LKNet/out/
-template/vcnet-blind-image-inpainting
+template/vcnet-blind-image-inpainting/
 DCGAN_m/out/
 DCGAN_m/__pycache__/
 pix2pix_m/out/
-DCGAN_new/__pycache__/tools.cpython-311.pyc
-DCGAN_new/__pycache__/DCGAN_block.cpython-311.pyc
-DCGAN_new/__pycache__/DCGAN_model.cpython-311.pyc
+DCGAN_new/__pycache__/
 DCGAN_new/out/
+
