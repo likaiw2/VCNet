@@ -248,16 +248,11 @@ class DilatedBlock(nn.Module):
         return out
 
 class ResUNet_LRes(nn.Module):
-    def __init__(self, in_channel=1, out_channel=4, dp_prob=0):
+    def __init__(self, in_channel=1, out_channel=4, dp_prob=0,dilation_flag=False,trilinear=False):
         super(ResUNet_LRes, self).__init__()
         # self.imsize = imsize
 
         self.activation = F.leaky_relu
-
-        self.pool1 = nn.MaxPool3d(2)
-        self.pool2 = nn.MaxPool3d(2)
-        self.pool3 = nn.MaxPool3d(3, stride=(2, 2, 2), padding=1)
-        # self.pool4 = nn.MaxPool3d(2)
 
         # hidden_channel = 32
         hidden_channel = 16
@@ -265,47 +260,39 @@ class ResUNet_LRes(nn.Module):
         self.conv_block16_32 = PCBActiv(hidden_channel, hidden_channel*2,sample='down-7')
         self.conv_block32_64 = PCBActiv(hidden_channel*2, hidden_channel*4,sample='down-5')
         self.conv_block64_128 = PCBActiv(hidden_channel*4, hidden_channel*8,sample='down-3')
+        self.conv_block128_256 = PCBActiv(hidden_channel*8, hidden_channel*16,sample='down-3')
         
         # self.mid_dilated1 = DilatedBlock(hidden_channel*8,hidden_channel*8)
         # self.mid_dilated2 = DilatedBlock(hidden_channel*8,hidden_channel*8)
         # self.mid_dilated3 = DilatedBlock(hidden_channel*8,hidden_channel*8)
         
-        # self.conv_block512_1024 = residualUnit(512, 1024)
         # this kind of symmetric design is awesome, it automatically solves the number of channels during upsamping
-        # self.up_block1024_512 = UNetUpResBlock(1024, 512)
         
-        self.up_block512_256 = UNetUpResBlock(hidden_channel*8, hidden_channel*4,stride=1)
-        self.up_block256_128 = UNetUpResBlock(hidden_channel*4, hidden_channel*2,stride=1)
-        self.up_block128_64 = UNetUpResBlock(hidden_channel*2, hidden_channel,stride=1)
+        self.up_block256_128 = UNetUpResBlock(hidden_channel*16, hidden_channel*8,stride=1)
+        self.up_block128_64 = UNetUpResBlock(hidden_channel*8, hidden_channel*4,stride=1)
+        self.up_block64_32 = UNetUpResBlock(hidden_channel*4, hidden_channel*2,stride=1)
+        self.up_block32_16 = UNetUpResBlock(hidden_channel*2, hidden_channel,stride=1)
         self.Dropout = nn.Dropout3d(p=dp_prob)
-        # self.last = nn.Conv3d(hidden_channel, out_channel, 1, stride=1)
+
         self.last = PartialConv(hidden_channel, out_channel, 1, stride=1)
 
     # def forward(self, x, res_x):
     def forward(self, x,mask):
         
         block1,mask1 = self.conv_block1_16(x,mask)
-        # print(block1.shape)
-        # print(mask1.shape)
-        
         block2,mask2 = self.conv_block16_32(block1,mask1)
- 
         block3,mask3 = self.conv_block32_64(block2,mask2)
-        
         block4,mask4 = self.conv_block64_128(block3,mask3)
-
+        block5,mask5 = self.conv_block128_256(block4,mask4)
         
         # mid1 = self.mid_dilated1(block4)
         # mid2 = self.mid_dilated2(mid1)
         # mid3 = self.mid_dilated3(mid2)
-        # pool4 = self.pool4(block4)
-        # pool4_dp = self.Dropout(pool4)
-        # # block5 = self.conv_block512_1024(pool4_dp)
-        # up1 = self.up_block1024_512(block5, block4)
 
-        up2 = self.up_block512_256(block4,mask3, block3)
-        up3 = self.up_block256_128(up2,mask2, block2)
-        up4 = self.up_block128_64(up3,mask1, block1)
+        up1 = self.up_block256_128(block5,mask4, block4)
+        up2 = self.up_block128_64(up1,mask3, block3)
+        up3 = self.up_block64_32(up2,mask2, block2)
+        up4 = self.up_block32_16(up3,mask1, block1)
 
         last,mask = self.last(up4,mask1)
 

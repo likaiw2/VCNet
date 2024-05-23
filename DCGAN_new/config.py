@@ -3,7 +3,7 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.WANDB = CN()
-_C.WANDB.WORK = True
+_C.WANDB.WORK = False
 _C.WANDB.LOG_DIR = ""
 _C.WANDB.STATUS = "online"
 
@@ -17,7 +17,7 @@ _C.dataset.mask_type = "train"
 
 # 保存网络相关的参数
 _C.net = CN()
-_C.net.model_name = "DCGAN_deep"
+_C.net.model_name = "DCGAN_deep_partial"
 _C.net.gen_input_channel = 1
 _C.net.gen_dp_prob = 0.2
 _C.net.disc_input_channel = 2
@@ -26,6 +26,7 @@ _C.net.batch_size = 1
 _C.net.lambda_recon = 200
 _C.net.dilation_flag = False
 _C.net.trilinear = False
+_C.net.partial = True
 
 # 保存训练相关的参数
 _C.train = CN()

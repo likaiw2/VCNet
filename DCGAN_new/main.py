@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from torch import nn
 import torch
 import numpy as np
-from model_deep import ResUNet_LRes,Discriminator
+from model_deep_partial import ResUNet_LRes,Discriminator
 from tqdm import tqdm
 import os
 import wandb
@@ -150,11 +150,7 @@ class DCGAN_Trainer:
                     if save_model:
                         file_name = f"{self.model_name}_{datetime.datetime.now().strftime('%m%d')}_{epoch_idx}epoch_{iter_counter}iter.pth"
                         folder_path = os.path.join(data_save_path,self.model_name,"weight")
-                        if not os.path.isdir(folder_path):
-                            print("not exist")
-                            os.mkdir(folder_path)
                         file_path = os.path.join(folder_path,file_name)
-                        
                         torch.save({'gen': self.net_G.state_dict(),
                                     'gen_opt': self.net_G_opt.state_dict(),
                                     'disc': self.net_D.state_dict(),
@@ -164,24 +160,22 @@ class DCGAN_Trainer:
                         save_object = ["truth","masked","fake"]
                         variable_list = locals()
                         for item_name in save_object:
-                            file_name = f"{item_name}_{datetime.datetime.now().strftime('%m%d')}_{epoch_idx}epoch_{iter_counter}iter.raw"
+                            file_name = f"{epoch_idx}epoch_{iter_counter}iter_{item_name}_{datetime.datetime.now().strftime('%m%d')}.raw"
                             folder_path = os.path.join(data_save_path,self.model_name,"output")
-                            if not os.path.isdir(folder_path):
-                                os.mkdir(folder_path)
                             file_path = os.path.join(folder_path,file_name)
-                            
                             raw_file = variable_list[item_name][0].cpu()
                             raw_file = raw_file.detach().numpy()
                             raw_file.astype('float32').tofile(file_path)
                 
-                if iter_counter%200==0:
-                    wandb.log({"D_loss":D_loss,
-                                "G_loss":G_loss,
-                                "G_adv_loss":G_adv_loss,
-                                "G_rec_loss":G_rec_loss,
-                                "G_hole_loss":G_hole_loss,
-                                "G_vali_loss":G_vali_loss
-                                })
+                    if self.cfg.WANDB.WORK:
+                        if iter_counter%self.cfg.train.log_save_iter==0:
+                            wandb.log({"D_loss":D_loss,
+                                        "G_loss":G_loss,
+                                        "G_adv_loss":G_adv_loss,
+                                        "G_rec_loss":G_rec_loss,
+                                        "G_hole_loss":G_hole_loss,
+                                        "G_vali_loss":G_vali_loss
+                                        })
                     
                 iter_counter += 1
         wandb.finish()
@@ -231,7 +225,6 @@ class DCGAN_Trainer:
                 # 保存和输出
                 if (iter_counter+1) % self.display_step == 0 or iter_counter == 1:
                     if save_model:
-                        
                         file_name = f"{self.model_name}_{datetime.datetime.now().strftime('%m%d')}_{epoch_idx}epoch_{iter_counter}iter.pth"
                         folder_path = os.path.join(data_save_path,self.model_name,"weight")
                         file_path = os.path.join(folder_path,file_name)
@@ -270,5 +263,8 @@ class DCGAN_Trainer:
 
 if __name__ == '__main__':
     trainer = DCGAN_Trainer(cfg)
-    trainer.run()
-    # trainer.run_with_mask()
+    
+    if cfg.net.partial:
+        trainer.run_with_mask()
+    else:
+        trainer.run()
