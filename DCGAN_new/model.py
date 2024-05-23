@@ -140,7 +140,7 @@ class ContractingBlock(nn.Module):
     Values:
         input_channels: the number of channels to expect from a given input
     '''
-    def     __init__(self, input_channels, use_dropout=False, use_bn=True):
+    def __init__(self, input_channels, use_dropout=False, use_bn=True):
         super(ContractingBlock, self).__init__()
         #self.conv1 = nn.Conv2d(input_channels, input_channels * 2, kernel_size=3, padding=1)
         self.conv1 = nn.Conv3d(input_channels, input_channels * 2, kernel_size=3, padding=1)
@@ -158,12 +158,6 @@ class ContractingBlock(nn.Module):
         self.use_dropout = use_dropout
 
     def forward(self, x):
-        '''
-        Function for completing a forward pass of ContractingBlock:
-        Given an image tensor, completes a contracting block and returns the transformed tensor.
-        Parameters:
-            x: image tensor of shape (batch size, channels, height, width)
-        '''
         x = self.conv1(x)
         if self.use_bn:
             x = self.batchnorm(x)
@@ -267,14 +261,6 @@ class ResUNet_LRes(nn.Module):
         return out
 
 class Discriminator(nn.Module):
-    '''
-    Discriminator Class
-    Structured like the contracting path of the U-Net, the discriminator will
-    output a matrix of values classifying corresponding portions of the image as real or fake.
-    Parameters:
-        input_channels: the number of image input channels
-        hidden_channels: the initial number of discriminator convolutional filters
-    '''
     def __init__(self, input_channels, hidden_channels=8):
         super(Discriminator, self).__init__()
         self.upfeature = FeatureMapBlock(input_channels, hidden_channels)
@@ -282,10 +268,7 @@ class Discriminator(nn.Module):
         self.contract2 = ContractingBlock(hidden_channels * 2)
         self.contract3 = ContractingBlock(hidden_channels * 4)
         self.contract4 = ContractingBlock(hidden_channels * 8)
-        #### START CODE HERE ####
-        # self.final = nn.Conv2d(hidden_channels * 16, None, kernel_size=None)
         self.final = nn.Conv3d(hidden_channels * 16, 1, kernel_size=1)
-        #### END CODE HERE ####
 
     def forward(self, x, y):
         x = torch.cat([x, y], axis=1)
