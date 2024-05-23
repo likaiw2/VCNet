@@ -86,7 +86,8 @@ class DCGAN_Trainer:
         self.net_G = ResUNet_LRes(in_channel=gen_input_channel,
                                   out_channel=1,
                                   dp_prob=gen_dp_prob,
-                                 dilation_flag=self.cfg.net.dilation_flag
+                                  dilation_flag=self.cfg.net.dilation_flag,
+                                  trilinear=self.cfg.net.trilinear
                                   ).to(self.device).apply(weights_init)
         self.net_D = Discriminator(disc_input_channel).to(self.device).apply(weights_init)
         self.net_G_opt = torch.optim.Adam(self.net_G.parameters(), lr=learning_rate)

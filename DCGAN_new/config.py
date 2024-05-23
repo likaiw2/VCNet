@@ -25,6 +25,7 @@ _C.net.learning_rate = 0.0002             #原模型参数 5e-3(0.005)
 _C.net.batch_size = 1
 _C.net.lambda_recon = 200
 _C.net.dilation_flag = True
+_C.net.trilinear = True
 
 # 保存训练相关的参数
 _C.train = CN()

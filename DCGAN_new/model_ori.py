@@ -25,6 +25,30 @@ class UNetConvBlock(nn.Module):
 
         return out
 
+class Tri_UpResBlock(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(Tri_UpResBlock, self).__init__()
+        
+        # trilinear + 11conv for upscale
+        self.up_tri_linear = nn.Upsample(scale_factor=2,mode="trilinear",align_corners=False)
+        self.up_conv11 = nn.Conv3d(in_channels, out_channels, kernel_size=1, dilation=1,  stride=1, padding=0)
+        self.bn = nn.BatchNorm3d(out_channels)
+        self.activation = nn.ELU()
+        
+        nn.init.xavier_uniform_(self.up_conv11.weight, gain = np.sqrt(2.0))
+        nn.init.constant_(self.up_conv11.bias,0)
+        
+        self.resUnit = residualUnit(in_channels, out_channels, kernel_size=3)
+        
+    def forward(self,x,res):
+        out=self.up_conv11(self.up_tri_linear(x))
+        out=self.activation(self.bn(out))
+        
+        out = torch.cat([out, res], 1)
+        out = self.resUnit(out)
+
+        return out
+
 # two-layer residual unit: two conv with BN/leaky_relu and identity mapping 残差单元
 class residualUnit(nn.Module):
     def __init__(self, in_size, out_size, kernel_size=3,stride=1, padding=1, activation=F.leaky_relu):
@@ -202,7 +226,7 @@ class DilatedBlock(nn.Module):
         return out
 
 class ResUNet_LRes(nn.Module):
-    def __init__(self, in_channel=1, out_channel=4, dp_prob=0,dilation_flag=False):
+    def __init__(self, in_channel=1, out_channel=4, dp_prob=0,dilation_flag=False,trilinear=False):
         super(ResUNet_LRes, self).__init__()
         # self.imsize = imsize
         self.dilation_flag = dilation_flag
@@ -223,9 +247,14 @@ class ResUNet_LRes(nn.Module):
         # self.conv_block512_1024 = residualUnit(512, 1024)
         # this kind of symmetric design is awesome, it automatically solves the number of channels during upsamping
         # self.up_block1024_512 = UNetUpResBlock(1024, 512)
-        self.up_block512_256 = UNetUpResBlock(hidden_channel*8, hidden_channel*4)
-        self.up_block256_128 = UNetUpResBlock(hidden_channel*4, hidden_channel*2)
-        self.up_block128_64 = UNetUpResBlock(hidden_channel*2, hidden_channel)
+        if trilinear:
+            self.up_block512_256 = Tri_UpResBlock(hidden_channel*8, hidden_channel*4)
+            self.up_block256_128 = Tri_UpResBlock(hidden_channel*4, hidden_channel*2)
+            self.up_block128_64 = Tri_UpResBlock(hidden_channel*2, hidden_channel)
+        else:
+            self.up_block512_256 = UNetUpResBlock(hidden_channel*8, hidden_channel*4)
+            self.up_block256_128 = UNetUpResBlock(hidden_channel*4, hidden_channel*2)
+            self.up_block128_64 = UNetUpResBlock(hidden_channel*2, hidden_channel)
         self.Dropout = nn.Dropout3d(p=dp_prob)
         self.last = nn.Conv3d(hidden_channel, out_channel, 1, stride=1)
         
