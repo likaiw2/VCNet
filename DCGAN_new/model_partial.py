@@ -300,8 +300,8 @@ class ResUNet_LRes(nn.Module):
         # hidden_channel = 32
         hidden_channel = 16
         self.conv_block1_16 = UNetConvBlock(in_channel, hidden_channel)
-        self.conv_block16_32 = PCBActiv(hidden_channel, hidden_channel*2,sample='down-3')
-        self.conv_block32_64 = PCBActiv(hidden_channel*2, hidden_channel*4,sample='down-3')
+        self.conv_block16_32 = PCBActiv(hidden_channel, hidden_channel*2,sample='down-7')
+        self.conv_block32_64 = PCBActiv(hidden_channel*2, hidden_channel*4,sample='down-5')
         self.conv_block64_128 = PCBActiv(hidden_channel*4, hidden_channel*8,sample='down-3')
         
         # self.mid_dilated1 = DilatedBlock(hidden_channel*8,hidden_channel*8)
