@@ -47,14 +47,15 @@ class DCGAN_Trainer:
         self.target_shape = self.cfg.dataset.target_shape
         self.mask_type = self.cfg.dataset.mask_type
         
-        self.cfg.WANDB.LOG_DIR = os.path.join("./logs/", self.model_name)
-        cfg.freeze()
-        self.wandb = wandb
-        self.wandb.init(project="volume_inpainting",
-                        name=f"DCGAN_{datetime.datetime.now().strftime('%m%d_%H_%M')}",
-                        notes=self.cfg.WANDB.LOG_DIR,
-                        config=self.cfg,
-                        mode="offline")
+        if self.cfg.WANDB.WORK:
+            self.cfg.WANDB.LOG_DIR = os.path.join("./logs/", self.model_name)
+            cfg.freeze()
+            self.wandb = wandb
+            self.wandb.init(project="volume_inpainting",
+                            name=f"{self.cfe.net.model_name}_{datetime.datetime.now().strftime('%m%d_%H_%M')}",
+                            notes=self.cfg.WANDB.LOG_DIR,
+                            config=self.cfg,
+                            mode="offline")
         
         # 设置数据集
         self.dataset = tools.DataSet(data_path=self.cfg.dataset.train_data_path,
@@ -83,10 +84,11 @@ class DCGAN_Trainer:
         
         # 损失函数初始化
         self.adv_criterion = nn.BCEWithLogitsLoss()
-        self.recon_criterion = nn.L1Loss()
+        # self.recon_criterion = nn.L1Loss()
+        self.recon_criterion = nn.SmoothL1Loss()
         
         
-    def run(self):
+    def run_with_mask(self):
         iter_counter=0
         for epoch_idx in tqdm(range(self.total_epoch),unit="epoch"):
             for ground_truth, mask in self.data_loader:
@@ -161,10 +163,77 @@ class DCGAN_Trainer:
                 iter_counter += 1
         wandb.finish()
                 
-                
-                
-    
         
+    def run(self):
+        iter_counter=0
+        for epoch_idx in tqdm(range(self.total_epoch),unit="epoch"):
+            for ground_truth, mask in self.data_loader:
+                # 初始化输入
+                masked_data = ground_truth*mask
+                ground_truth=ground_truth.to(self.device)
+                masked_data=masked_data.to(self.device)
+                
+                # 首先更新鉴别器
+                with torch.no_grad():
+                    # 在不记录梯度的情况下走一遍生成器
+                    fake = self.net_G(masked_data)
+                
+                # 计算鉴别器损失
+                D_fake_hat = self.net_D(fake.detach(),masked_data) # Detach generator
+                D_fake_loss = self.adv_criterion(D_fake_hat, torch.zeros_like(D_fake_hat))
+                D_real_hat = self.net_D(ground_truth, masked_data)
+                D_real_loss = self.adv_criterion(D_real_hat, torch.ones_like(D_real_hat))
+                D_loss = (D_fake_loss + D_real_loss) / 2
+                
+                # 对鉴别器反向传播
+                self.net_D_opt.zero_grad() # Zero out the gradient before backpropagation
+                D_loss.backward(retain_graph=True) # Update gradients
+                self.net_D_opt.step() # Update optimizer
+
+                # 更新生成器
+                fake = self.net_G(masked_data)
+                disc_fake_hat = self.net_D(fake, masked_data)
+                G_adv_loss = self.adv_criterion(disc_fake_hat, torch.ones_like(disc_fake_hat))
+                G_rec_loss = self.recon_criterion(ground_truth, fake)
+                G_loss = G_adv_loss + lambda_recon * G_rec_loss
+                
+                # 对生成器反向传播
+                self.net_G_opt.zero_grad()
+                G_loss.backward() # Update gradients
+                self.net_G_opt.step() # Update optimizer
+
+                # 保存和输出
+                if (iter_counter+1) % self.display_step == 0 or iter_counter == 1:
+                    if save_model:
+                        file_name = f"{self.model_name}_{datetime.datetime.now().strftime('%m%d')}_{epoch_idx}epoch_{iter_counter}iter.pth"
+                        file_path = os.path.join(data_save_path,"weight",file_name)
+                        torch.save({'gen': self.net_G.state_dict(),
+                                    'gen_opt': self.net_G_opt.state_dict(),
+                                    'disc': self.net_D.state_dict(),
+                                    'disc_opt': self.net_D_opt.state_dict(),
+                                    }, file_path)
+                    if save_raw:
+                        save_object = ["ground_truth","masked_data","fake"]
+                        variable_list = locals()
+                        for item_name in save_object:
+                            file_name = f"{item_name}_{datetime.datetime.now().strftime('%m%d')}_{epoch_idx}epoch_{iter_counter}iter.raw"
+                            file_path = os.path.join(data_save_path,"output_data",file_name)
+                            raw_file = variable_list[item_name][0].cpu()
+                            raw_file = raw_file.detach().numpy()
+                            raw_file.astype('float32').tofile(file_path)
+                            
+                    if self.cfg.WANDB.WORK:
+                        if iter_counter%self.train.log_save_iter==0:
+                            wandb.log({"D_loss":D_loss,
+                                        "G_loss":G_loss,
+                                        "G_adv_loss":G_adv_loss,
+                                        "G_rec_loss":G_rec_loss,
+                                        })
+                    
+                iter_counter += 1
+        wandb.finish()
+                
+                
         
 
 
@@ -173,3 +242,4 @@ class DCGAN_Trainer:
 if __name__ == '__main__':
     trainer = DCGAN_Trainer(cfg)
     trainer.run()
+    # trainer.run_with_mask()

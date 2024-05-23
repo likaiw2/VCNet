@@ -3,6 +3,7 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.WANDB = CN()
+_C.WANDB.WORK = True
 _C.WANDB.LOG_DIR = ""
 
 # 保存数据集相关的参数
@@ -29,6 +30,7 @@ _C.train.save_model = True
 _C.train.save_raw = True
 _C.train.device = "cuda:0"
 _C.train.total_epoch = 1000
+_C.train.log_save_iter = 100
 
 
 
