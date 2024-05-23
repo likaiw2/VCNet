@@ -75,7 +75,7 @@ class DCGAN_Trainer:
                                            num_workers=1)
         self.data_size = len(self.dataset)
         self.display_step = np.ceil(np.ceil(self.data_size / batch_size) * self.total_epoch / 20)   #一共输出20个epoch，供判断用
-        
+       
         # 生成器鉴别器初始化
         def weights_init(m):
             if isinstance(m, nn.Conv3d) or isinstance(m, nn.ConvTranspose3d):
@@ -83,7 +83,11 @@ class DCGAN_Trainer:
             if isinstance(m, nn.BatchNorm3d):
                 torch.nn.init.normal_(m.weight, 0.0, 0.02)
                 torch.nn.init.constant_(m.bias, 0)
-        self.net_G = ResUNet_LRes(in_channel=gen_input_channel,out_channel=1,dp_prob=gen_dp_prob).to(self.device).apply(weights_init)
+        self.net_G = ResUNet_LRes(in_channel=gen_input_channel,
+                                  out_channel=1,
+                                  dp_prob=gen_dp_prob,
+                                 dilation_flag=self.cfg.net.dilation_flag
+                                  ).to(self.device).apply(weights_init)
         self.net_D = Discriminator(disc_input_channel).to(self.device).apply(weights_init)
         self.net_G_opt = torch.optim.Adam(self.net_G.parameters(), lr=learning_rate)
         self.net_D_opt = torch.optim.Adam(self.net_D.parameters(), lr=learning_rate)

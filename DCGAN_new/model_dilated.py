@@ -146,7 +146,7 @@ class GatedConv3d(torch.nn.Module):
         return self.sigmoid(mask)
     def forward(self, input):
         x = self.conv3d(input)
-        mask = self.mask_conv2d(input)
+        mask = self.mask_conv3d(input)
         if self.activation is not None:
             x = self.activation(x) * self.gated(mask)
         else:
@@ -247,7 +247,6 @@ class ResUNet_LRes(nn.Module):
         pool3_dp = self.Dropout(pool3)              
 
         block4 = self.conv_block256_512(pool3_dp)   
-        
         
         mid1 = self.mid_dilated1(block4)
         mid2 = self.mid_dilated2(mid1)

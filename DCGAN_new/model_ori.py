@@ -2,8 +2,8 @@ import torch
 from torch import nn
 import numpy as np
 import torch.nn.functional as F
+import tools
 
-#------------------原论文中的block（始）------------------
 # Ordinary UNet Conv Block 卷积块
 class UNetConvBlock(nn.Module):
     def __init__(self, in_size, out_size, kernel_size=3, activation=F.leaky_relu):
@@ -92,47 +92,6 @@ class UNetUpResBlock(nn.Module):
 
         return out
 
-class UNetUpResBlock_223(nn.Module):
-    def __init__(self, in_size, out_size, kernel_size=3, activation=F.leaky_relu, space_dropout=False):
-        super(UNetUpResBlock_223, self).__init__()
-        # 转置卷积 输入
-        # print("before size:",in_size,out_size)
-        self.up = nn.ConvTranspose3d(in_size, out_size, kernel_size=3, stride=(2, 2, 3), padding=1, output_padding=(1,1,2))
-        # (original) kernel_size=2 out_padding=0
-
-        # print("after size:",in_size,out_size)
-
-        self.bnup = nn.BatchNorm3d(out_size)
-        nn.init.xavier_uniform_(self.up.weight, gain=np.sqrt(2.0))
-        nn.init.constant_(self.up.bias, 0)
-
-        self.activation = activation
-
-        self.resUnit = residualUnit(in_size, out_size, kernel_size=kernel_size)
-
-    def center_crop(self, layer, target_size):
-        batch_size, n_channels, layer_width, layer_height, layer_depth = layer.size()
-        xy1 = (layer_width - target_size) // 2
-        return layer[:, :, xy1:(xy1 + target_size), xy1:(xy1 + target_size), xy1:(xy1 + target_size)]
-
-    def forward(self, x, bridge):
-        # print ('    x.shape: ',x.shape, ' \n    bridge.shape: ',bridge.shape)
-        up = self.activation(self.bnup(self.up(x)))
-
-        # crop1 = self.center_crop(bridge, up.size()[2])
-        # print ('    up.shape: ',up.shape, ' \n    crop1.shape: ',crop1.shape)
-
-        crop1 = bridge
-        # print ('    up.shape: ',up.shape, ' \n    crop1.shape: ',crop1.shape)
-
-        out = torch.cat([up, crop1], 1)
-
-        out = self.resUnit(out)
-        # out = self.activation(self.bn2(self.conv2(out)))
-
-        return out
-#------------------原论文中的block（末）------------------
-
 class ContractingBlock(nn.Module):
     '''
     ContractingBlock Class
@@ -198,11 +157,55 @@ class FeatureMapBlock(nn.Module):
         x = self.conv(x)
         return x
 
+class DilatedBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, downsample=None):
+        super(DilatedBlock, self).__init__()
+        
+        # in the VCNet, in_channels and out_channels are the same
+        self.conv1 = nn.Conv3d(in_channels=in_channels,out_channels=out_channels,kernel_size=3,stride=1,dilation=2,padding=tools.get_pad(16, 3, 1, 2))
+        self.bn1 = nn.BatchNorm3d(out_channels)
+        
+        self.conv2 = nn.Conv3d(in_channels=in_channels,out_channels=out_channels,kernel_size=3,stride=1,dilation=4,padding=tools.get_pad(16, 3, 1, 4))
+        self.bn2 = nn.BatchNorm3d(out_channels)
+        
+        self.conv3 = nn.Conv3d(in_channels=in_channels,out_channels=out_channels,kernel_size=3,stride=1,dilation=8,padding=tools.get_pad(16, 3, 1, 8))
+        self.bn3 = nn.BatchNorm3d(out_channels)
+        
+        self.activation = nn.LeakyReLU()
+        
+        nn.init.xavier_uniform_(self.conv1.weight, gain = np.sqrt(2.0))
+        nn.init.constant_(self.conv1.bias,0)
+        nn.init.xavier_uniform_(self.conv2.weight, gain = np.sqrt(2.0))
+        nn.init.constant_(self.conv2.bias,0)
+        nn.init.xavier_uniform_(self.conv3.weight, gain = np.sqrt(2.0))
+        nn.init.constant_(self.conv3.bias,0)
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.activation(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.activation(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+        out = self.activation(out)
+
+        # out += identity   #这个会报错，很呆，会产生inplace问题
+        out = identity + out
+        out = self.activation(out)
+
+        return out
 
 class ResUNet_LRes(nn.Module):
-    def __init__(self, in_channel=1, out_channel=4, dp_prob=0):
+    def __init__(self, in_channel=1, out_channel=4, dp_prob=0,dilation_flag=False):
         super(ResUNet_LRes, self).__init__()
         # self.imsize = imsize
+        self.dilation_flag = dilation_flag
 
         self.activation = F.leaky_relu
 
@@ -225,6 +228,11 @@ class ResUNet_LRes(nn.Module):
         self.up_block128_64 = UNetUpResBlock(hidden_channel*2, hidden_channel)
         self.Dropout = nn.Dropout3d(p=dp_prob)
         self.last = nn.Conv3d(hidden_channel, out_channel, 1, stride=1)
+        
+        if self.dilation_flag:
+            self.mid_dilated1 = DilatedBlock(hidden_channel*8,hidden_channel*8)
+            self.mid_dilated2 = DilatedBlock(hidden_channel*8,hidden_channel*8)
+            self.mid_dilated3 = DilatedBlock(hidden_channel*8,hidden_channel*8)
 
     # def forward(self, x, res_x):
     def forward(self, x):
@@ -247,8 +255,16 @@ class ResUNet_LRes(nn.Module):
         # pool4_dp = self.Dropout(pool4)
         # # block5 = self.conv_block512_1024(pool4_dp)
         # up1 = self.up_block1024_512(block5, block4)
+        
+        if self.dilation_flag:
+            mid1 = self.mid_dilated1(block4)
+            mid2 = self.mid_dilated2(mid1)
+            mid3 = self.mid_dilated3(mid2)
+            up2 = self.up_block512_256(mid3, block3)
+        else:
+            up2 = self.up_block512_256(block4, block3)
 
-        up2 = self.up_block512_256(block4, block3)
+        
         up3 = self.up_block256_128(up2, block2)
         up4 = self.up_block128_64(up3, block1)
 

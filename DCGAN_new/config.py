@@ -17,13 +17,14 @@ _C.dataset.mask_type = "train"
 
 # 保存网络相关的参数
 _C.net = CN()
-_C.net.model_name = "DCGAN_origional"
+_C.net.model_name = "DCGAN_ori+dilated"
 _C.net.gen_input_channel = 1
 _C.net.gen_dp_prob = 0.2
 _C.net.disc_input_channel = 2
 _C.net.learning_rate = 0.0002             #原模型参数 5e-3(0.005)
 _C.net.batch_size = 1
 _C.net.lambda_recon = 200
+_C.net.dilation_flag = True
 
 # 保存训练相关的参数
 _C.train = CN()
