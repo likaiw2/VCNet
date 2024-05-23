@@ -248,9 +248,11 @@ class DilatedBlock(nn.Module):
         return out
 
 class ResUNet_LRes(nn.Module):
-    def __init__(self, in_channel=1, out_channel=4, dp_prob=0,dilation_flag=False,trilinear=False):
+    def __init__(self, in_channel=1, out_channel=4, dp_prob=0,dilation_flag=False,trilinear_flag=False):
         super(ResUNet_LRes, self).__init__()
         # self.imsize = imsize
+        self.dilation_flag = dilation_flag
+        self.trilinear_flag = trilinear_flag
 
         self.activation = F.leaky_relu
 
@@ -262,9 +264,10 @@ class ResUNet_LRes(nn.Module):
         self.conv_block64_128 = PCBActiv(hidden_channel*4, hidden_channel*8,sample='down-3')
         self.conv_block128_256 = PCBActiv(hidden_channel*8, hidden_channel*16,sample='down-3')
         
-        # self.mid_dilated1 = DilatedBlock(hidden_channel*8,hidden_channel*8)
-        # self.mid_dilated2 = DilatedBlock(hidden_channel*8,hidden_channel*8)
-        # self.mid_dilated3 = DilatedBlock(hidden_channel*8,hidden_channel*8)
+        if self.dilation_flag:
+            self.mid_dilated1 = DilatedBlock(hidden_channel*8,hidden_channel*8)
+            self.mid_dilated2 = DilatedBlock(hidden_channel*8,hidden_channel*8)
+            self.mid_dilated3 = DilatedBlock(hidden_channel*8,hidden_channel*8)
         
         # this kind of symmetric design is awesome, it automatically solves the number of channels during upsamping
         
@@ -272,8 +275,8 @@ class ResUNet_LRes(nn.Module):
         self.up_block128_64 = UNetUpResBlock(hidden_channel*8, hidden_channel*4,stride=1)
         self.up_block64_32 = UNetUpResBlock(hidden_channel*4, hidden_channel*2,stride=1)
         self.up_block32_16 = UNetUpResBlock(hidden_channel*2, hidden_channel,stride=1)
+        
         self.Dropout = nn.Dropout3d(p=dp_prob)
-
         self.last = PartialConv(hidden_channel, out_channel, 1, stride=1)
 
     # def forward(self, x, res_x):
@@ -285,11 +288,13 @@ class ResUNet_LRes(nn.Module):
         block4,mask4 = self.conv_block64_128(block3,mask3)
         block5,mask5 = self.conv_block128_256(block4,mask4)
         
-        # mid1 = self.mid_dilated1(block4)
-        # mid2 = self.mid_dilated2(mid1)
-        # mid3 = self.mid_dilated3(mid2)
-
-        up1 = self.up_block256_128(block5,mask4, block4)
+        if self.dilation_flag:
+            mid1 = self.mid_dilated1(block4)
+            mid2 = self.mid_dilated2(mid1)
+            mid3 = self.mid_dilated3(mid2)
+            up1 = self.up_block256_128(mid3,mask4, block4)
+        else:
+            up1 = self.up_block256_128(block5,mask4, block4)
         up2 = self.up_block128_64(up1,mask3, block3)
         up3 = self.up_block64_32(up2,mask2, block2)
         up4 = self.up_block32_16(up3,mask1, block1)

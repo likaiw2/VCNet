@@ -3,7 +3,7 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.WANDB = CN()
-_C.WANDB.WORK = False
+_C.WANDB.WORK = True
 _C.WANDB.LOG_DIR = ""
 _C.WANDB.STATUS = "online"
 
@@ -25,8 +25,8 @@ _C.net.learning_rate = 0.0002             #原模型参数 5e-3(0.005)
 _C.net.batch_size = 1
 _C.net.lambda_recon = 200
 _C.net.dilation_flag = False
-_C.net.trilinear = False
-_C.net.partial = True
+_C.net.trilinear_flag = False
+_C.net.partial_flag = True
 
 # 保存训练相关的参数
 _C.train = CN()

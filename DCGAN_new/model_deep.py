@@ -226,36 +226,38 @@ class DilatedBlock(nn.Module):
         return out
 
 class ResUNet_LRes(nn.Module):
-    def __init__(self, in_channel=1, out_channel=4, dp_prob=0,dilation_flag=False,trilinear=False):
+    def __init__(self, in_channel=1, out_channel=4, dp_prob=0,dilation_flag=False,trilinear_flag=False):
         super(ResUNet_LRes, self).__init__()
         # self.imsize = imsize
         self.dilation_flag = dilation_flag
+        self.trilinear_flag = trilinear_flag
 
         self.activation = F.leaky_relu
 
         self.pool1 = nn.MaxPool3d(2)
         self.pool2 = nn.MaxPool3d(2)
-        self.pool3 = nn.MaxPool3d(3, stride=(2, 2, 2), padding=1)
+        self.pool3 = nn.MaxPool3d(2)
         self.pool4 = nn.MaxPool3d(2)
 
         # hidden_channel = 32
         hidden_channel = 16
-        self.conv_block1_64 = UNetConvBlock(in_channel, hidden_channel)
-        self.conv_block64_128 = residualUnit(hidden_channel, hidden_channel*2)
-        self.conv_block128_256 = residualUnit(hidden_channel*2, hidden_channel*4)
-        self.conv_block256_512 = residualUnit(hidden_channel*4, hidden_channel*8)
-        self.conv_block512_1024 = residualUnit(hidden_channel*8, hidden_channel*16)
+        self.conv_block1_16 = UNetConvBlock(in_channel, hidden_channel)
+        self.conv_block16_32 = residualUnit(hidden_channel, hidden_channel*2)
+        self.conv_block32_64 = residualUnit(hidden_channel*2, hidden_channel*4)
+        self.conv_block64_128 = residualUnit(hidden_channel*4, hidden_channel*8)
+        self.conv_block128_256 = residualUnit(hidden_channel*8, hidden_channel*16)
         # this kind of symmetric design is awesome, it automatically solves the number of channels during upsamping
         
-        if trilinear:
-            self.up_block512_256 = Tri_UpResBlock(hidden_channel*8, hidden_channel*4)
-            self.up_block256_128 = Tri_UpResBlock(hidden_channel*4, hidden_channel*2)
-            self.up_block128_64 = Tri_UpResBlock(hidden_channel*2, hidden_channel)
+        if trilinear_flag:
+            self.up_block256_128 = Tri_UpResBlock(hidden_channel*16, hidden_channel*8)
+            self.up_block128_64 = Tri_UpResBlock(hidden_channel*8, hidden_channel*4)
+            self.up_block64_32 = Tri_UpResBlock(hidden_channel*4, hidden_channel*2)
+            self.up_block32_16 = Tri_UpResBlock(hidden_channel*2, hidden_channel)
         else:
-            self.up_block1024_512 = UNetUpResBlock(hidden_channel*16, hidden_channel*8)
-            self.up_block512_256 = UNetUpResBlock(hidden_channel*8, hidden_channel*4)
-            self.up_block256_128 = UNetUpResBlock(hidden_channel*4, hidden_channel*2)
-            self.up_block128_64 = UNetUpResBlock(hidden_channel*2, hidden_channel)
+            self.up_block256_128 = UNetUpResBlock(hidden_channel*16, hidden_channel*8)
+            self.up_block128_64 = UNetUpResBlock(hidden_channel*8, hidden_channel*4)
+            self.up_block64_32 = UNetUpResBlock(hidden_channel*4, hidden_channel*2)
+            self.up_block32_16 = UNetUpResBlock(hidden_channel*2, hidden_channel)
         self.Dropout = nn.Dropout3d(p=dp_prob)
         self.last = nn.Conv3d(hidden_channel, out_channel, 1, stride=1)
         
@@ -267,34 +269,34 @@ class ResUNet_LRes(nn.Module):
     # def forward(self, x, res_x):
     def forward(self, x):
         res_x = x
-        block1 = self.conv_block1_64(x)             
+        block1 = self.conv_block1_16(x)             
         pool1 = self.pool1(block1)                  
         pool1_dp = self.Dropout(pool1)              
         
-        block2 = self.conv_block64_128(pool1_dp)    
+        block2 = self.conv_block16_32(pool1_dp)    
         pool2 = self.pool2(block2)                  
         pool2_dp = self.Dropout(pool2)              
 
-        block3 = self.conv_block128_256(pool2_dp)   
+        block3 = self.conv_block32_64(pool2_dp)   
         pool3 = self.pool3(block3)                 
         pool3_dp = self.Dropout(pool3)              
 
-        block4 = self.conv_block256_512(pool3_dp)   
+        block4 = self.conv_block64_128(pool3_dp)   
         pool4 = self.pool4(block4)
         pool4_dp = self.Dropout(pool4)
-        block5 = self.conv_block512_1024(pool4_dp)
+        block5 = self.conv_block128_256(pool4_dp)
         
         if self.dilation_flag:
             mid1 = self.mid_dilated1(block5)
             mid2 = self.mid_dilated2(mid1)
             mid3 = self.mid_dilated3(mid2)
-            up1 = self.up_block1024_512(mid3, block4)
+            up1 = self.up_block256_128(mid3, block4)
         else:
-            up1 = self.up_block1024_512(block5, block4)
+            up1 = self.up_block256_128(block5, block4)
             
-        up2 = self.up_block512_256(up1, block3)
-        up3 = self.up_block256_128(up2, block2)
-        up4 = self.up_block128_64(up3, block1)
+        up2 = self.up_block128_64(up1, block3)
+        up3 = self.up_block64_32(up2, block2)
+        up4 = self.up_block32_16(up3, block1)
 
         last = self.last(up4)
         

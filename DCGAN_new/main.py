@@ -6,6 +6,7 @@ from torch import nn
 import torch
 import numpy as np
 from model_deep_partial import ResUNet_LRes,Discriminator
+# from model_deep import ResUNet_LRes,Discriminator
 from tqdm import tqdm
 import os
 import wandb
@@ -87,7 +88,7 @@ class DCGAN_Trainer:
                                   out_channel=1,
                                   dp_prob=gen_dp_prob,
                                   dilation_flag=self.cfg.net.dilation_flag,
-                                  trilinear=self.cfg.net.trilinear
+                                  trilinear_flag=self.cfg.net.trilinear_flag
                                   ).to(self.device).apply(weights_init)
         self.net_D = Discriminator(disc_input_channel).to(self.device).apply(weights_init)
         self.net_G_opt = torch.optim.Adam(self.net_G.parameters(), lr=learning_rate)
@@ -255,16 +256,9 @@ class DCGAN_Trainer:
                 iter_counter += 1
         wandb.finish()
                 
-                
-        
-
-
-
-
 if __name__ == '__main__':
     trainer = DCGAN_Trainer(cfg)
-    
-    if cfg.net.partial:
+    if cfg.net.partial_flag:
         trainer.run_with_mask()
     else:
         trainer.run()
