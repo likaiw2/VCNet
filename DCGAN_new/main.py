@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from torch import nn
 import torch
 import numpy as np
-from model_trilinear import ResUNet_LRes,Discriminator
+from model_ori import ResUNet_LRes,Discriminator
 from tqdm import tqdm
 import os
 import wandb
@@ -47,15 +47,21 @@ class DCGAN_Trainer:
         self.target_shape = self.cfg.dataset.target_shape
         self.mask_type = self.cfg.dataset.mask_type
         
+        folder_path = os.path.join(data_save_path,self.model_name,"weight")
+        os.makedirs(folder_path) if not os.path.isdir(folder_path) else None
+        folder_path = os.path.join(data_save_path,self.model_name,"output")
+        os.makedirs(folder_path) if not os.path.isdir(folder_path) else None
+        
+        
         if self.cfg.WANDB.WORK:
             self.cfg.WANDB.LOG_DIR = os.path.join("./logs/", self.model_name)
             cfg.freeze()
             self.wandb = wandb
             self.wandb.init(project="volume_inpainting",
-                            name=f"{self.cfe.net.model_name}_{datetime.datetime.now().strftime('%m%d_%H_%M')}",
+                            name=f"{self.cfg.net.model_name}_{datetime.datetime.now().strftime('%m%d_%H_%M')}",
                             notes=self.cfg.WANDB.LOG_DIR,
                             config=self.cfg,
-                            mode="offline")
+                            mode=self.cfg.WANDB.STATUS)
         
         # 设置数据集
         self.dataset = tools.DataSet(data_path=self.cfg.dataset.train_data_path,
@@ -99,6 +105,9 @@ class DCGAN_Trainer:
                 ground_truth=ground_truth.to(self.device)
                 masked_data=masked_data.to(self.device)
                 
+                truth = ground_truth
+                masked = masked_data
+                
                 # 首先更新鉴别器
                 with torch.no_grad():
                     # 在不记录梯度的情况下走一遍生成器
@@ -135,18 +144,27 @@ class DCGAN_Trainer:
                 if (iter_counter+1) % self.display_step == 0 or iter_counter == 1:
                     if save_model:
                         file_name = f"{self.model_name}_{datetime.datetime.now().strftime('%m%d')}_{epoch_idx}epoch_{iter_counter}iter.pth"
-                        file_path = os.path.join(data_save_path,"weight",file_name)
+                        folder_path = os.path.join(data_save_path,self.model_name,"weight")
+                        if not os.path.isdir(folder_path):
+                            print("not exist")
+                            os.mkdir(folder_path)
+                        file_path = os.path.join(folder_path,file_name)
+                        
                         torch.save({'gen': self.net_G.state_dict(),
                                     'gen_opt': self.net_G_opt.state_dict(),
                                     'disc': self.net_D.state_dict(),
                                     'disc_opt': self.net_D_opt.state_dict(),
                                     }, file_path)
                     if save_raw:
-                        save_object = ["ground_truth","masked_data","fake"]
+                        save_object = ["truth","masked","fake"]
                         variable_list = locals()
                         for item_name in save_object:
                             file_name = f"{item_name}_{datetime.datetime.now().strftime('%m%d')}_{epoch_idx}epoch_{iter_counter}iter.raw"
-                            file_path = os.path.join(data_save_path,"output",file_name)
+                            folder_path = os.path.join(data_save_path,self.model_name,"output")
+                            if not os.path.isdir(folder_path):
+                                os.mkdir(folder_path)
+                            file_path = os.path.join(folder_path,file_name)
+                            
                             raw_file = variable_list[item_name][0].cpu()
                             raw_file = raw_file.detach().numpy()
                             raw_file.astype('float32').tofile(file_path)
@@ -172,6 +190,9 @@ class DCGAN_Trainer:
                 masked_data = ground_truth*mask
                 ground_truth=ground_truth.to(self.device)
                 masked_data=masked_data.to(self.device)
+                
+                truth = ground_truth
+                masked = masked_data
                 
                 # 首先更新鉴别器
                 with torch.no_grad():
@@ -205,25 +226,28 @@ class DCGAN_Trainer:
                 # 保存和输出
                 if (iter_counter+1) % self.display_step == 0 or iter_counter == 1:
                     if save_model:
+                        
                         file_name = f"{self.model_name}_{datetime.datetime.now().strftime('%m%d')}_{epoch_idx}epoch_{iter_counter}iter.pth"
-                        file_path = os.path.join(data_save_path,"weight",file_name)
+                        folder_path = os.path.join(data_save_path,self.model_name,"weight")
+                        file_path = os.path.join(folder_path,file_name)
                         torch.save({'gen': self.net_G.state_dict(),
                                     'gen_opt': self.net_G_opt.state_dict(),
                                     'disc': self.net_D.state_dict(),
                                     'disc_opt': self.net_D_opt.state_dict(),
                                     }, file_path)
                     if save_raw:
-                        save_object = ["ground_truth","masked_data","fake"]
+                        save_object = ["truth","masked","fake"]
                         variable_list = locals()
                         for item_name in save_object:
-                            file_name = f"{item_name}_{datetime.datetime.now().strftime('%m%d')}_{epoch_idx}epoch_{iter_counter}iter.raw"
-                            file_path = os.path.join(data_save_path,"output_data",file_name)
+                            file_name = f"{epoch_idx}epoch_{iter_counter}iter_{item_name}_{datetime.datetime.now().strftime('%m%d')}.raw"
+                            folder_path = os.path.join(data_save_path,self.model_name,"output")
+                            file_path = os.path.join(folder_path,file_name)
                             raw_file = variable_list[item_name][0].cpu()
                             raw_file = raw_file.detach().numpy()
                             raw_file.astype('float32').tofile(file_path)
                             
                     if self.cfg.WANDB.WORK:
-                        if iter_counter%self.train.log_save_iter==0:
+                        if iter_counter%self.cfg.train.log_save_iter==0:
                             wandb.log({"D_loss":D_loss,
                                         "G_loss":G_loss,
                                         "G_adv_loss":G_adv_loss,
