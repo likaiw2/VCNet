@@ -89,7 +89,6 @@ class DCGAN_Trainer:
                                   dp_prob=gen_dp_prob,
                                   dilation_flag=self.cfg.net.dilation_flag,
                                   trilinear_flag=self.cfg.net.trilinear_flag,
-                                  smooth_L1=self.cfg.net.smooth_L1_flag,
                                   ).to(self.device).apply(weights_init)
         self.net_D = Discriminator(disc_input_channel).to(self.device).apply(weights_init)
         self.net_G_opt = torch.optim.Adam(self.net_G.parameters(), lr=learning_rate)
@@ -190,6 +189,10 @@ class DCGAN_Trainer:
     def run(self):
         iter_counter=0
         for epoch_idx in tqdm(range(self.total_epoch),unit="epoch"):
+            epoch_D_loss=0.0
+            epoch_G_loss=0.0
+            epoch_G_adv_loss=0.0
+            epoch_G_rec_loss=0.0
             for ground_truth, mask in self.data_loader:
                 # 初始化输入
                 masked_data = ground_truth*mask
@@ -228,6 +231,11 @@ class DCGAN_Trainer:
                 G_loss.backward() # Update gradients
                 self.net_G_opt.step() # Update optimizer
 
+                epoch_D_loss+=D_loss
+                epoch_G_loss+=G_loss
+                epoch_G_adv_loss+=G_adv_loss
+                epoch_G_rec_loss+=G_rec_loss
+                
                 # 保存和输出
                 if (iter_counter+1) % self.display_step == 0 or iter_counter == 1:
                     if save_model:
@@ -250,13 +258,13 @@ class DCGAN_Trainer:
                             raw_file = raw_file.detach().numpy()
                             raw_file.astype('float32').tofile(file_path)
                             
-                if self.cfg.WANDB.WORK:
-                    if iter_counter%self.cfg.train.log_save_iter==0:
-                        wandb.log({"D_loss":D_loss,
-                                    "G_loss":G_loss,
-                                    "G_adv_loss":G_adv_loss,
-                                    "G_rec_loss":G_rec_loss,
-                                    })
+            if self.cfg.WANDB.WORK:
+                if iter_counter%self.cfg.train.log_save_iter==0:
+                    wandb.log({"D_loss":epoch_D_loss.item()/len(self.data_loader),
+                                "G_loss":epoch_G_loss.item()/len(self.data_loader),
+                                "G_adv_loss":epoch_G_adv_loss.item()/len(self.data_loader),
+                                "G_rec_loss":epoch_G_rec_loss.item()/len(self.data_loader),
+                                })
                     
                 iter_counter += 1
         wandb.finish()

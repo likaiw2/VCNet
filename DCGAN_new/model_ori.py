@@ -226,7 +226,7 @@ class DilatedBlock(nn.Module):
         return out
 
 class ResUNet_LRes(nn.Module):
-    def __init__(self, in_channel=1, out_channel=4, dp_prob=0,dilation_flag=False,trilinear_flag=False,smooth_L1=False):
+    def __init__(self, in_channel=1, out_channel=4, dp_prob=0,dilation_flag=False,trilinear_flag=False):
         super(ResUNet_LRes, self).__init__()
         # self.imsize = imsize
         self.dilation_flag = dilation_flag
