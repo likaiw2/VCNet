@@ -96,8 +96,11 @@ class DCGAN_Trainer:
         
         # 损失函数初始化
         self.adv_criterion = nn.BCEWithLogitsLoss()
-        # self.recon_criterion = nn.L1Loss()
-        self.recon_criterion = nn.SmoothL1Loss()
+        if cfg.net.smooth_L1:
+            self.recon_criterion = nn.SmoothL1Loss()
+        else:
+            self.recon_criterion = nn.L1Loss()
+        
         
         
     def run_with_mask(self):
@@ -168,15 +171,15 @@ class DCGAN_Trainer:
                             raw_file = raw_file.detach().numpy()
                             raw_file.astype('float32').tofile(file_path)
                 
-                    if self.cfg.WANDB.WORK:
-                        if iter_counter%self.cfg.train.log_save_iter==0:
-                            wandb.log({"D_loss":D_loss,
-                                        "G_loss":G_loss,
-                                        "G_adv_loss":G_adv_loss,
-                                        "G_rec_loss":G_rec_loss,
-                                        "G_hole_loss":G_hole_loss,
-                                        "G_vali_loss":G_vali_loss
-                                        })
+                if self.cfg.WANDB.WORK:
+                    if iter_counter%self.cfg.train.log_save_iter==0:
+                        wandb.log({"D_loss":D_loss,
+                                    "G_loss":G_loss,
+                                    "G_adv_loss":G_adv_loss,
+                                    "G_rec_loss":G_rec_loss,
+                                    "G_hole_loss":G_hole_loss,
+                                    "G_vali_loss":G_vali_loss,
+                                    })
                     
                 iter_counter += 1
         wandb.finish()
@@ -245,13 +248,13 @@ class DCGAN_Trainer:
                             raw_file = raw_file.detach().numpy()
                             raw_file.astype('float32').tofile(file_path)
                             
-                    if self.cfg.WANDB.WORK:
-                        if iter_counter%self.cfg.train.log_save_iter==0:
-                            wandb.log({"D_loss":D_loss,
-                                        "G_loss":G_loss,
-                                        "G_adv_loss":G_adv_loss,
-                                        "G_rec_loss":G_rec_loss,
-                                        })
+                if self.cfg.WANDB.WORK:
+                    if iter_counter%self.cfg.train.log_save_iter==0:
+                        wandb.log({"D_loss":D_loss,
+                                    "G_loss":G_loss,
+                                    "G_adv_loss":G_adv_loss,
+                                    "G_rec_loss":G_rec_loss,
+                                    })
                     
                 iter_counter += 1
         wandb.finish()

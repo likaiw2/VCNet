@@ -27,6 +27,7 @@ _C.net.lambda_recon = 200
 _C.net.dilation_flag = False
 _C.net.trilinear_flag = False
 _C.net.partial_flag = True
+_C.net.smooth_L1 = False
 
 # 保存训练相关的参数
 _C.train = CN()
