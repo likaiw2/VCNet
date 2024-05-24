@@ -226,7 +226,7 @@ class DilatedBlock(nn.Module):
         return out
 
 class ResUNet_LRes(nn.Module):
-    def __init__(self, in_channel=1, out_channel=4, dp_prob=0,dilation_flag=False,trilinear=False):
+    def __init__(self, in_channel=1, out_channel=4, dp_prob=0,dilation_flag=False,trilinear_flag=False,smooth_L1=False):
         super(ResUNet_LRes, self).__init__()
         # self.imsize = imsize
         self.dilation_flag = dilation_flag
@@ -247,7 +247,7 @@ class ResUNet_LRes(nn.Module):
         # self.conv_block512_1024 = residualUnit(512, 1024)
         # this kind of symmetric design is awesome, it automatically solves the number of channels during upsamping
         # self.up_block1024_512 = UNetUpResBlock(1024, 512)
-        if trilinear:
+        if trilinear_flag:
             self.up_block512_256 = Tri_UpResBlock(hidden_channel*8, hidden_channel*4)
             self.up_block256_128 = Tri_UpResBlock(hidden_channel*4, hidden_channel*2)
             self.up_block128_64 = Tri_UpResBlock(hidden_channel*2, hidden_channel)

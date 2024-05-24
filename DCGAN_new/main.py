@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from torch import nn
 import torch
 import numpy as np
-from model_deep_partial import ResUNet_LRes,Discriminator
+from model_ori import ResUNet_LRes,Discriminator
 # from model_deep import ResUNet_LRes,Discriminator
 from tqdm import tqdm
 import os
@@ -88,7 +88,8 @@ class DCGAN_Trainer:
                                   out_channel=1,
                                   dp_prob=gen_dp_prob,
                                   dilation_flag=self.cfg.net.dilation_flag,
-                                  trilinear_flag=self.cfg.net.trilinear_flag
+                                  trilinear_flag=self.cfg.net.trilinear_flag,
+                                  smooth_L1=self.cfg.net.smooth_L1_flag,
                                   ).to(self.device).apply(weights_init)
         self.net_D = Discriminator(disc_input_channel).to(self.device).apply(weights_init)
         self.net_G_opt = torch.optim.Adam(self.net_G.parameters(), lr=learning_rate)
@@ -96,7 +97,8 @@ class DCGAN_Trainer:
         
         # 损失函数初始化
         self.adv_criterion = nn.BCEWithLogitsLoss()
-        if cfg.net.smooth_L1:
+       
+        if cfg.net.smooth_L1_flag:
             self.recon_criterion = nn.SmoothL1Loss()
         else:
             self.recon_criterion = nn.L1Loss()
