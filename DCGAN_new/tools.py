@@ -112,6 +112,7 @@ class DataSet(Dataset):
         elif np.prod(data.shape)>np.prod(self.target_shape):
             # print("crop!")
             data = self.transform(data)
+            data = ((data-np.min(data))/(np.max(data)-np.min(data)))*255.0
         
         #generate mask
         shape_type = random.randint(1,4) if self.mask_type=="train" else random.randint(4,9)
