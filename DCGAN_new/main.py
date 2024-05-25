@@ -150,7 +150,7 @@ class DCGAN_Trainer:
                     coarse_fake,fake = self.net_G(masked_data,mask)
                     
                 fake = truth * mask + fake * (1 - mask)
-                
+                #################################################here
                 # 计算鉴别器损失
                 D_fake_hat = self.net_D(fake.detach(),masked_data) # Detach generator
                 D_fake_loss = self.adv_criterion(D_fake_hat, torch.zeros_like(D_fake_hat))
