@@ -100,11 +100,11 @@ class DCGAN_Trainer:
                 torch.nn.init.normal_(m.weight, 0.0, 0.02)
                 torch.nn.init.constant_(m.bias, 0)
                 
-        self.net_G = ResUNet_LRes(in_channel=3,
-                                #  out_channel=1,
-                                #   dp_prob=gen_dp_prob,
-                                #   dilation_flag=self.cfg.net.dilation_flag,
-                                #   trilinear_flag=self.cfg.net.trilinear_flag
+        self.net_G = ResUNet_LRes(in_channel=1,
+                                 out_channel=1,
+                                  dp_prob=gen_dp_prob,
+                                  dilation_flag=self.cfg.net.dilation_flag,
+                                  trilinear_flag=self.cfg.net.trilinear_flag
                                   ).to(self.device).apply(weights_init)
         self.net_D = Discriminator(disc_input_channel).to(self.device).apply(weights_init)
         self.net_G_opt = torch.optim.Adam(self.net_G.parameters(), lr=learning_rate)
@@ -216,7 +216,7 @@ class DCGAN_Trainer:
         
     def run(self):
         iter_counter=0
-        for epoch_idx in tqdm(range(self.total_epoch),unit="epoch"):
+        for epoch_idx in tqdm(range(self.total_epoch),unit="epoch",ncols=100):
             epoch_D_loss=0.0
             epoch_G_loss=0.0
             epoch_G_adv_loss=0.0
@@ -265,7 +265,7 @@ class DCGAN_Trainer:
                 epoch_G_rec_loss+=G_rec_loss.item()
                 
                 # 保存和输出
-                if ((iter_counter+1) % 400 == 0 or iter_counter == 1) and True:
+                if ((iter_counter+1) % 400 == 0 or iter_counter == 1) and False:
                     self.check_train(epoch_idx)
                     
                 
@@ -314,8 +314,15 @@ class DCGAN_Trainer:
         
         with torch.no_grad():
             # Dataloader returns the batches
+            mask_flag=True
+            global global_mask
             for ground_truth,mask in self.test_data_loader:
-                masked_data = ground_truth*mask
+                
+                if mask_flag:
+                    global_mask = mask
+                    mask_flag = False
+                    
+                masked_data = ground_truth*global_mask
                 ground_truth=ground_truth.to(self.device)
                 masked_data=masked_data.to(self.device)
                 
@@ -323,6 +330,7 @@ class DCGAN_Trainer:
                 masked = masked_data
                 
                 fake = self.net_G(masked)
+                
 
                 # total_mse += evaluation.get_mse(fake,truth)
                 total_psnr += evaluation.get_psnr(fake,truth)
@@ -340,6 +348,7 @@ class DCGAN_Trainer:
                             'net_D': self.net_D.state_dict(),
                             'net_D_opt': self.net_D_opt.state_dict(),
                             }, file_path)
+                
             if self.cfg.WANDB.WORK:
                 wandb.log({"psnr":total_psnr/self.test_data_size,
                             })    
@@ -357,7 +366,7 @@ if __name__ == "__main__":
         trainer = DCGAN_Trainer(cfg)
         trainer.run_with_mask()
     else:
-        ResUNet_LRes = models.model_p2p.ResUNet_LRes
-        Discriminator = models.model_p2p.Discriminator
+        ResUNet_LRes = models.model.ResUNet_LRes
+        Discriminator = models.model.Discriminator
         trainer = DCGAN_Trainer(cfg)
         trainer.run()
