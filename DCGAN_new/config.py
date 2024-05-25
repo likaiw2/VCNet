@@ -3,14 +3,14 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.WANDB = CN()
-_C.WANDB.WORK = False
+_C.WANDB.WORK = True
 _C.WANDB.LOG_DIR = ""
 _C.WANDB.STATUS = "online"
 
 # 保存数据集相关的参数
 _C.dataset = CN()
-_C.dataset.train_data_path = "/root/autodl-fs/brain_168_224_160_ct"
-_C.dataset.test_data_path = "/root/autodl-tmp/Diode/Datas/VCNet_dataSet/test"
+_C.dataset.train_data_path = "/root/autodl-fs/brain_168_224_160_ct/train"
+_C.dataset.test_data_path = "/root/autodl-fs/brain_168_224_160_ct/test"
 _C.dataset.data_save_path = "/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out"
 _C.dataset.volume_shape = (160,224,168)
 _C.dataset.target_shape = (128,128,128)
@@ -19,7 +19,8 @@ _C.dataset.mask_type = "train"
 # 保存网络相关的参数
 _C.net = CN()
 _C.net.pth_load_path = ""
-_C.net.model_name = "DCGAN_ori"
+# _C.net.model_name = "DCGAN_ori"
+_C.net.model_name = "pix2pix"
 _C.net.gen_input_channel = 1
 _C.net.gen_dp_prob = 0.2
 _C.net.disc_input_channel = 2

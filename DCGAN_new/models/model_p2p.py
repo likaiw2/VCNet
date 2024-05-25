@@ -97,7 +97,7 @@ class ExpandingBlock(nn.Module):
         # print("After Conv1:" + str(x.shape))
         # print(x.shape)
         #使用裁剪操作将上一步生成的数据裁剪过后与现有生成数据拼接
-        skip_con_x = crop(skip_con_x, x.shape)
+        skip_con_x = self.crop(skip_con_x, x.shape)
         # print("skip_con_x.shape:"+str(skip_con_x.shape))
         # print("x.shape:" + str(x.shape))
         x = torch.cat([x, skip_con_x], axis=1)
@@ -116,6 +116,27 @@ class ExpandingBlock(nn.Module):
             x = self.dropout(x)
         x = self.activation(x)
         return x
+    
+    def crop(self,image, new_shape):
+        '''
+        Function for cropping an image tensor: Given an image tensor and the new shape,
+        crops to the center pixels (assumes that the input's size and the new size are
+        even numbers).
+        Parameters:
+            image: image tensor of shape (batch size, channels, height, width)
+            new_shape: a torch.Size object with the shape you want x to have
+        '''
+        middle_depth=image.shape[2] //2
+        middle_height = image.shape[3] // 2
+        middle_width = image.shape[4] // 2
+        starting_depth=middle_depth-new_shape[2]//2
+        final_depth=starting_depth+new_shape[2]
+        starting_height = middle_height - new_shape[3] // 2
+        final_height = starting_height + new_shape[3]
+        starting_width = middle_width - new_shape[4] // 2
+        final_width = starting_width + new_shape[4]
+        cropped_image = image[:, :,starting_depth:final_depth, starting_height:final_height, starting_width:final_width]
+        return cropped_image                    
 
 class FeatureMapBlock(nn.Module):
     '''
@@ -142,7 +163,7 @@ class FeatureMapBlock(nn.Module):
         x = self.conv(x)
         return x
 
-class UNet(nn.Module):
+class ResUNet_LRes(nn.Module):
     #Generator
     '''
     UNet Class
@@ -153,8 +174,10 @@ class UNet(nn.Module):
         input_channels: the number of channels to expect from a given input
         output_channels: the number of channels to expect for a given output
     '''
-    def __init__(self, input_channels, output_channels, hidden_channels=32):
-        super(UNet, self).__init__()
+    def __init__(self, in_channel, out_channel, hidden_channels=32):
+        super(ResUNet_LRes, self).__init__()
+        input_channels = in_channel
+        output_channels = out_channel
         self.upfeature = FeatureMapBlock(input_channels, hidden_channels)
         self.contract1 = ContractingBlock(hidden_channels, use_dropout=True)
         self.contract2 = ContractingBlock(hidden_channels * 2, use_dropout=True)

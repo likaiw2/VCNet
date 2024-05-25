@@ -24,3 +24,4 @@ template/vcnet-blind-image-inpainting/
 pix2pix_m/out/
 DCGAN_new/__pycache__/
 DCGAN_new/out/
+DCGAN_new/models/__pycache__/

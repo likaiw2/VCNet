@@ -53,6 +53,8 @@ def get_mse(im1,im2):
     return mse
 
 def get_psnr(im1, im2):
+    im1 = im1.detach().cpu().numpy() if type(im1)==torch.Tensor else None
+    im2 = im2.detach().cpu().numpy() if type(im2)==torch.Tensor else None
     data_range=255.0
     # 归一化到指定大小 0 - data_range
     data1 = ((im1-np.min(im1))/(np.max(im1)-np.min(im1)))*data_range
@@ -66,8 +68,8 @@ def get_psnr(im1, im2):
 def get_ssim3D(img1, img2, window_size = 11, size_average = True):
     (_, channel, _, _, _) = img1.size()
     window = create_window_3D(window_size, channel)
-    img1 = torch.from_numpy(img1)
-    img2 = torch.from_numpy(img2)
+    img1 = torch.from_numpy(img1) if not type(img1)==torch.Tensor else None
+    img2 = torch.from_numpy(img2) if not type(img2)==torch.Tensor else None
     
     if img1.is_cuda:
         window = window.cuda(img1.get_device())
