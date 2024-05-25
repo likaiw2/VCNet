@@ -1,5 +1,6 @@
 import datetime
 import time
+import models.model_gated
 import models.model_p2p
 import tools
 from torch.utils.data import DataLoader
@@ -99,8 +100,8 @@ class DCGAN_Trainer:
                 torch.nn.init.normal_(m.weight, 0.0, 0.02)
                 torch.nn.init.constant_(m.bias, 0)
                 
-        self.net_G = ResUNet_LRes(in_channel=gen_input_channel,
-                                 out_channel=1,
+        self.net_G = ResUNet_LRes(in_channel=3,
+                                #  out_channel=1,
                                 #   dp_prob=gen_dp_prob,
                                 #   dilation_flag=self.cfg.net.dilation_flag,
                                 #   trilinear_flag=self.cfg.net.trilinear_flag
@@ -146,7 +147,9 @@ class DCGAN_Trainer:
                 # 首先更新鉴别器
                 with torch.no_grad():
                     # 在不记录梯度的情况下走一遍生成器
-                    fake = self.net_G(masked_data,mask)
+                    coarse_fake,fake = self.net_G(masked_data,mask)
+                    
+                fake = truth * mask + fake * (1 - mask)
                 
                 # 计算鉴别器损失
                 D_fake_hat = self.net_D(fake.detach(),masked_data) # Detach generator
@@ -349,8 +352,8 @@ class DCGAN_Trainer:
         
 if __name__ == "__main__":
     if cfg.net.partial_flag:
-        ResUNet_LRes = models.model_partial.ResUNet_LRes
-        Discriminator = models.model_partial.Discriminator
+        ResUNet_LRes = models.model_gated.ResUNet_LRes
+        Discriminator = models.model_gated.Discriminator
         trainer = DCGAN_Trainer(cfg)
         trainer.run_with_mask()
     else:

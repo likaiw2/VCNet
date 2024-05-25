@@ -133,7 +133,7 @@ class ContractingBlock(nn.Module):
         #self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.maxpool = nn.MaxPool3d(kernel_size=2, stride=2)
         if use_bn:
-            #self.batchnorm = nn.Batchnorm3d(input_channels * 2)
+            #self.batchnorm = nn.BatchNorm3d(input_channels * 2)
             self.batchnorm = nn.BatchNorm3d(input_channels * 2)
         self.use_bn = use_bn
         if use_dropout:
@@ -239,7 +239,7 @@ class GatedConv3dWithActivation(torch.nn.Module):
         self.activation = activation
         self.conv3d = torch.nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
         self.mask_conv3d = torch.nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
-        self.batch_norm3d = torch.nn.Batchnorm3d(out_channels)
+        self.batch_norm3d = torch.nn.BatchNorm3d(out_channels)
         self.sigmoid = torch.nn.Sigmoid()
 
         for m in self.modules():
@@ -278,16 +278,53 @@ class GatedDeConv3dWithActivation(torch.nn.Module):
         x = F.interpolate(input, scale_factor=2)
         return self.conv3d(x)
 
-class InpaintSANet(torch.nn.Module):
+class Self_Attn(nn.Module):
+    """ Self attention Layer"""
+    def __init__(self,in_dim,activation,with_attn=False):
+        super(Self_Attn,self).__init__()
+        self.chanel_in = in_dim
+        self.activation = activation
+        self.with_attn = with_attn
+        self.query_conv = nn.Conv3d(in_channels = in_dim , out_channels = in_dim//8 , kernel_size= 1)
+        self.key_conv = nn.Conv3d(in_channels = in_dim , out_channels = in_dim//8 , kernel_size= 1)
+        self.value_conv = nn.Conv3d(in_channels = in_dim , out_channels = in_dim , kernel_size= 1)
+        self.gamma = nn.Parameter(torch.zeros(1))
+
+        self.softmax  = nn.Softmax(dim=-1) #
+    def forward(self,x):
+        """
+            inputs :
+                x : input feature maps( B X C X W X H)
+            returns :
+                out : self attention value + input feature
+                attention: B X N X N (N is Width*Height)
+        """
+        m_batchsize,C,deepth,width ,height = x.size()
+        proj_query  = self.query_conv(x).view(m_batchsize,-1,deepth*width*height).permute(0,2,1) # B X CX(N)
+        proj_key =  self.key_conv(x).view(m_batchsize,-1,deepth*width*height) # B X C x (*W*H)
+        energy =  torch.bmm(proj_query,proj_key) # transpose check
+        attention = self.softmax(energy) # BX (N) X (N)
+        proj_value = self.value_conv(x).view(m_batchsize,-1,deepth*width*height) # B X C X N
+
+        out = torch.bmm(proj_value,attention.permute(0,2,1) )
+        out = out.view(m_batchsize,C,deepth,width,height)
+
+        out = self.gamma*out + x
+        if self.with_attn:
+            return out ,attention
+        else:
+            return out
+
+class ResUNet_LRes(torch.nn.Module):
     """
     Inpaint generator, input should be 5*256*256, where 3*256*256 is the masked image, 1*256*256 for mask, 1*256*256 is the guidence
     """
-    def __init__(self, n_in_channel=5):
-        super(InpaintSANet, self).__init__()
+    def __init__(self, in_channel=3):
+        super(ResUNet_LRes, self).__init__()
         cnum = 32
         self.coarse_net = nn.Sequential(
             #input is 5*256*256, but it is full convolution network, so it can be larger than 256
-            GatedConv3dWithActivation(n_in_channel, cnum, 5, 1, padding=tools.get_pad(256, 5, 1)),
+            GatedConv3dWithActivation(in_channel, cnum, 5, 1, padding=tools.get_pad(256, 5, 1)),
             # downsample 128
             GatedConv3dWithActivation(cnum, 2*cnum, 4, 2, padding=tools.get_pad(256, 4, 2)),
             GatedConv3dWithActivation(2*cnum, 2*cnum, 3, 1, padding=tools.get_pad(128, 3, 1)),
@@ -297,9 +334,9 @@ class InpaintSANet(torch.nn.Module):
             GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, padding=tools.get_pad(64, 3, 1)),
             # atrous convlution
             GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=2, padding=tools.get_pad(64, 3, 1, 2)),
-            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=4, padding=get_pad(64, 3, 1, 4)),
-            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=8, padding=get_pad(64, 3, 1, 8)),
-            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=16, padding=get_pad(64, 3, 1, 16)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=4, padding=tools.get_pad(64, 3, 1, 4)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=8, padding=tools.get_pad(64, 3, 1, 8)),
+            GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=16, padding=tools.get_pad(64, 3, 1, 16)),
             GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, padding=tools.get_pad(64, 3, 1)),
             #Self_Attn(4*cnum, 'relu'),
             GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, padding=tools.get_pad(64, 3, 1)),
@@ -316,7 +353,7 @@ class InpaintSANet(torch.nn.Module):
 
         self.refine_conv_net = nn.Sequential(
             # input is 5*256*256
-            GatedConv3dWithActivation(n_in_channel, cnum, 5, 1, padding=tools.get_pad(256, 5, 1)),
+            GatedConv3dWithActivation(in_channel+2, cnum, 5, 1, padding=tools.get_pad(256, 5, 1)),
             # downsample
             GatedConv3dWithActivation(cnum, cnum, 4, 2, padding=tools.get_pad(256, 4, 2)),
             GatedConv3dWithActivation(cnum, 2*cnum, 3, 1, padding=tools.get_pad(128, 3, 1)),
@@ -332,7 +369,7 @@ class InpaintSANet(torch.nn.Module):
 
             GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, dilation=16, padding=tools.get_pad(64, 3, 1, 16))
         )
-        # self.refine_attn = Self_Attn(4*cnum, 'relu', with_attn=False)
+        self.refine_attn = Self_Attn(4*cnum, 'relu', with_attn=False)
         self.refine_upsample_net = nn.Sequential(
             GatedConv3dWithActivation(4*cnum, 4*cnum, 3, 1, padding=tools.get_pad(64, 3, 1)),
 
@@ -369,6 +406,7 @@ class InpaintSANet(torch.nn.Module):
         #print(x.size(), attention.size())
         x = self.refine_upsample_net(x)
         x = torch.clamp(x, -1., 1.)
+        # print(type(coarse_x),type(x))
         return coarse_x, x
     
 class Discriminator(nn.Module):
