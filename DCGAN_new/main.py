@@ -53,6 +53,8 @@ class DCGAN_Trainer:
         self.target_shape = self.cfg.dataset.target_shape
         self.mask_type = self.cfg.dataset.mask_type
         
+        self.top_psnr=0
+        
         folder_path = os.path.join(data_save_path,self.model_name,"weight")
         os.makedirs(folder_path) if not os.path.isdir(folder_path) else None
         folder_path = os.path.join(data_save_path,self.model_name,"output")
@@ -79,7 +81,7 @@ class DCGAN_Trainer:
                                            batch_size=batch_size,
                                            shuffle=True,
                                            num_workers=1)
-        self.data_size = len(self.dataset)
+        self.data_size = len(self.data_loader)
         # 设置测试集
         self.test_dataset = tools.DataSet(data_path=self.cfg.dataset.test_data_path,
                                      volume_shape=self.volume_shape,
@@ -90,7 +92,7 @@ class DCGAN_Trainer:
                                            batch_size=batch_size,
                                            shuffle=True,
                                            num_workers=1)
-        self.test_data_size = len(self.dataset)
+        self.test_data_size = len(self.test_data_loader)
         
         self.display_step = np.ceil(np.ceil(self.data_size / batch_size) * self.total_epoch / 20)   #一共输出20个epoch，供判断用
        
@@ -265,6 +267,11 @@ class DCGAN_Trainer:
                 epoch_G_rec_loss+=G_rec_loss.item()
                 
                 # 保存和输出
+                if (iter_counter+1) % 400 == 0 or iter_counter == 1:
+                    self.check_train(epoch_idx)
+                    
+                
+                # 保存和输出
                 if (iter_counter+1) % self.display_step == 0 or iter_counter == 1:
                     if save_model:
                         file_name = f"{self.model_name}_{epoch_idx}epoch_{iter_counter}iter.pth"
@@ -298,9 +305,12 @@ class DCGAN_Trainer:
         wandb.finish()
         
     
-    def test(self):
+    def check_train(self,epoch_idx):
 
         # self.net_G.eval()
+        total_mse=0.0
+        total_ssim=0.0
+        total_mse=0.0
         
         with torch.no_grad():
             # Dataloader returns the batches
@@ -314,7 +324,24 @@ class DCGAN_Trainer:
                 
                 fake = self.netG(masked)
 
-                mse = evaluation.get_mse()###################################################
+                # total_mse += evaluation.get_mse(fake,truth)
+                total_psnr += evaluation.get_psnr(fake,truth)
+                # total_ssim += evaluation.get_ssim3D(fake,truth)
+            
+            if total_psnr/self.test_data_size >= self.top_psnr and save_model:
+                self.top_psnr = total_psnr/self.test_data_size
+                
+                file_name = f"{self.model_name}_{epoch_idx}epoch_psnr{self.top_psnr}.pth"
+                folder_path = os.path.join(data_save_path,self.model_name,"weight","best_psnr")
+                file_path = os.path.join(folder_path,file_name)
+                torch.save({'net_G': self.net_G.state_dict(),
+                            'net_G_opt': self.net_G_opt.state_dict(),
+                            'net_D': self.net_D.state_dict(),
+                            'net_D_opt': self.net_D_opt.state_dict(),
+                            }, file_path)
+                
+        
+
         
         
         
