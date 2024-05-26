@@ -374,7 +374,7 @@ if __name__ == "__main__":
         trainer = DCGAN_Trainer(cfg)
         trainer.run()
     elif cfg.net.model_name=="VCNet":
-        ResUNet_LRes = models.model_VCNet.UNet_v2(down_mode=3,up_mode=2)
+        ResUNet_LRes = models.model_VCNet.UNet_v2(down_mode=3,up_mode=1)
         Discriminator = models.model.Discriminator(2)
         trainer = DCGAN_Trainer(cfg)
         trainer.run_with_mask()
