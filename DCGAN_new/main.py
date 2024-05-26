@@ -128,6 +128,12 @@ class DCGAN_Trainer:
         
     def run_with_mask(self):
         iter_counter=0
+        epoch_D_loss=0.0
+        epoch_G_loss=0.0
+        epoch_G_adv_loss=0.0
+        epoch_G_rec_loss=0.0 
+        epoch_G_hole_loss=0.0 
+        epoch_G_vali_loss=0.0
         for epoch_idx in tqdm(range(self.total_epoch),unit="epoch",ncols=100):
             for ground_truth, mask in self.data_loader:
                 # 初始化输入
@@ -169,6 +175,13 @@ class DCGAN_Trainer:
                 
                 G_loss = G_adv_loss + lambda_recon * G_rec_loss+G_hole_loss+G_vali_loss
                 
+                epoch_G_adv_loss+=G_adv_loss.item()
+                epoch_G_rec_loss+=G_rec_loss.item()
+                epoch_G_hole_loss+=G_hole_loss.item()
+                epoch_G_vali_loss+=G_vali_loss.item()
+                epoch_G_loss+=G_loss.item()
+                epoch_D_loss+=D_loss.item()
+                
                 # 对生成器反向传播
                 self.net_G_opt.zero_grad()
                 G_loss.backward() # Update gradients
@@ -200,12 +213,12 @@ class DCGAN_Trainer:
                 
                 if self.cfg.WANDB.WORK:
                     if iter_counter%self.cfg.train.log_save_iter==0:
-                        wandb.log({"D_loss":D_loss,
-                                    "G_loss":G_loss,
-                                    "G_adv_loss":G_adv_loss,
-                                    "G_rec_loss":G_rec_loss,
-                                    "G_hole_loss":G_hole_loss,
-                                    "G_vali_loss":G_vali_loss,
+                        wandb.log({"D_loss":epoch_D_loss,
+                                    "G_loss":epoch_G_loss,
+                                    "G_adv_loss":epoch_G_adv_loss,
+                                    "G_rec_loss":epoch_G_rec_loss,
+                                    "G_hole_loss":epoch_G_hole_loss,
+                                    "G_vali_loss":epoch_G_vali_loss,
                                     })
                     
                 iter_counter += 1
