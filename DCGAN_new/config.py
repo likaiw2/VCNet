@@ -9,8 +9,8 @@ _C.WANDB.STATUS = "online"
 
 # 保存数据集相关的参数
 _C.dataset = CN()
-_C.dataset.train_data_path = "/root/autodl-fs/brain_168_224_160_ct/train"
-_C.dataset.test_data_path = "/root/autodl-fs/brain_168_224_160_ct/test"
+_C.dataset.train_data_path = "/root/autodl-fs/brain_168_224_160_mr/train"
+_C.dataset.test_data_path = "/root/autodl-fs/brain_168_224_160_mr/test"
 _C.dataset.data_save_path = "/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out"
 _C.dataset.volume_shape = (160,224,168)
 _C.dataset.target_shape = (128,128,128)
