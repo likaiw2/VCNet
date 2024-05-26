@@ -1,15 +1,16 @@
 import datetime
 import time
+import models.model_VCNet
 import models.model_gated
 import models.model_p2p
+import models.model
+import models.model_deep
+import models.model_deep_partial
 import tools
 from torch.utils.data import DataLoader
 from torch import nn
 import torch
 import numpy as np
-import models.model
-import models.model_partial
-# from model_deep import ResUNet_LRes,Discriminator
 from tqdm import tqdm
 import os
 import wandb
@@ -100,13 +101,8 @@ class DCGAN_Trainer:
                 torch.nn.init.normal_(m.weight, 0.0, 0.02)
                 torch.nn.init.constant_(m.bias, 0)
                 
-        self.net_G = ResUNet_LRes(in_channel=1,
-                                 out_channel=1,
-                                  dp_prob=gen_dp_prob,
-                                  dilation_flag=self.cfg.net.dilation_flag,
-                                  trilinear_flag=self.cfg.net.trilinear_flag
-                                  ).to(self.device).apply(weights_init)
-        self.net_D = Discriminator(disc_input_channel).to(self.device).apply(weights_init)
+        self.net_G = ResUNet_LRes.to(self.device).apply(weights_init)
+        self.net_D = Discriminator.to(self.device).apply(weights_init)
         self.net_G_opt = torch.optim.Adam(self.net_G.parameters(), lr=learning_rate)
         self.net_D_opt = torch.optim.Adam(self.net_D.parameters(), lr=learning_rate)
         
@@ -132,7 +128,7 @@ class DCGAN_Trainer:
         
     def run_with_mask(self):
         iter_counter=0
-        for epoch_idx in tqdm(range(self.total_epoch),unit="epoch"):
+        for epoch_idx in tqdm(range(self.total_epoch),unit="epoch",ncols=100):
             for ground_truth, mask in self.data_loader:
                 # 初始化输入
                 masked_data = ground_truth*mask
@@ -147,7 +143,7 @@ class DCGAN_Trainer:
                 # 首先更新鉴别器
                 with torch.no_grad():
                     # 在不记录梯度的情况下走一遍生成器
-                    coarse_fake,fake = self.net_G(masked_data,mask)
+                    fake = self.net_G(masked_data,mask)
                     
                 fake = truth * mask + fake * (1 - mask)
                 #################################################here
@@ -181,8 +177,9 @@ class DCGAN_Trainer:
                 # 保存和输出
                 if (iter_counter+1) % self.display_step == 0 or iter_counter == 1:
                     if save_model:
-                        file_name = f"{self.model_name}_{datetime.datetime.now().strftime('%m%d')}_{epoch_idx}epoch_{iter_counter}iter.pth"
+                        file_name = f"{self.model_name}_{epoch_idx}epoch_{iter_counter}iter.pth"
                         folder_path = os.path.join(data_save_path,self.model_name,"weight")
+                        os.makedirs(folder_path) if not os.path.isdir(folder_path) else None
                         file_path = os.path.join(folder_path,file_name)
                         torch.save({'gen': self.net_G.state_dict(),
                                     'gen_opt': self.net_G_opt.state_dict(),
@@ -193,8 +190,9 @@ class DCGAN_Trainer:
                         save_object = ["truth","masked","fake"]
                         variable_list = locals()
                         for item_name in save_object:
-                            file_name = f"{epoch_idx}epoch_{iter_counter}iter_{item_name}_{datetime.datetime.now().strftime('%m%d')}.raw"
+                            file_name = f"{self.model_name}_{epoch_idx}epoch_{iter_counter}iter_{item_name}.raw"
                             folder_path = os.path.join(data_save_path,self.model_name,"output")
+                            os.makedirs(folder_path) if not os.path.isdir(folder_path) else None
                             file_path = os.path.join(folder_path,file_name)
                             raw_file = variable_list[item_name][0].cpu()
                             raw_file = raw_file.detach().numpy()
@@ -360,13 +358,28 @@ class DCGAN_Trainer:
         
         
 if __name__ == "__main__":
-    if cfg.net.partial_flag:
-        ResUNet_LRes = models.model_gated.ResUNet_LRes
-        Discriminator = models.model_gated.Discriminator
+    if cfg.net.model_name=="DCGAN_ori":
+        ResUNet_LRes = models.model.ResUNet_LRes(1,1,0.2)
+        Discriminator = models.model.Discriminator(2)
         trainer = DCGAN_Trainer(cfg)
         trainer.run_with_mask()
-    else:
-        ResUNet_LRes = models.model.ResUNet_LRes
-        Discriminator = models.model.Discriminator
+    elif cfg.net.model_name=="DCGAN_dila":
+        ResUNet_LRes = models.model.ResUNet_LRes(1,1,0.2,True,False)
+        Discriminator = models.model.Discriminator(2)
+        trainer = DCGAN_Trainer(cfg)
+        trainer.run()
+    elif cfg.net.model_name=="DCGAN_tri":
+        ResUNet_LRes = models.model.ResUNet_LRes(1,1,0.2,False,trilinear_flag=True)
+        Discriminator = models.model.Discriminator(2)
+        trainer = DCGAN_Trainer(cfg)
+        trainer.run()
+    elif cfg.net.model_name=="VCNet":
+        ResUNet_LRes = models.model_VCNet.UNet_v2(down_mode=3,up_mode=2)
+        Discriminator = models.model.Discriminator(2)
+        trainer = DCGAN_Trainer(cfg)
+        trainer.run_with_mask()
+    elif cfg.net.model_name=="Pix2Pix":
+        ResUNet_LRes = models.model_p2p.ResUNet_LRes(1,1)
+        Discriminator = models.model.Discriminator(2)
         trainer = DCGAN_Trainer(cfg)
         trainer.run()

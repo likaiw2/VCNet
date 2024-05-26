@@ -3,7 +3,7 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.WANDB = CN()
-_C.WANDB.WORK = True
+_C.WANDB.WORK = False
 _C.WANDB.LOG_DIR = ""
 _C.WANDB.STATUS = "online"
 
@@ -19,7 +19,8 @@ _C.dataset.mask_type = "train"
 # 保存网络相关的参数
 _C.net = CN()
 _C.net.pth_load_path = ""
-_C.net.model_name = "DCGAN_ori"
+_C.net.model_name = "VCNet"
+# _C.net.model_name = "DCGAN_ori"
 # _C.net.model_name = "pix2pix"
 _C.net.gen_input_channel = 1
 _C.net.gen_dp_prob = 0.2
