@@ -1,0 +1,83 @@
+import datetime
+import time
+import models.model_VCNet
+import models.model_gated
+import models.model_p2p
+import models.model
+import models.model_deep
+import models.model_deep_partial
+import tools
+from torch.utils.data import DataLoader
+from torch import nn
+import torch
+import numpy as np
+from tqdm import tqdm
+import os
+import wandb
+import evaluation
+
+from config import get_cfg_defaults
+cfg = get_cfg_defaults()
+
+# parameter
+test_data_path=""
+pth_path=""
+volume_shape=(128,128,128)
+target_shape=(128,128,128)
+device = torch.device("cuda:0")
+
+# make data loader
+test_dataset = tools.DataSet(data_path=cfg.dataset.test_data_path,
+                             volume_shape=volume_shape,
+                             target_shape=target_shape,
+                             data_type=np.float32)
+test_data_loader = DataLoader(dataset=test_dataset,batch_size=1,
+                              shuffle=True,
+                              num_workers=1)
+test_data_size = len(test_data_loader)
+
+gt,mask = test_data_loader[0]
+
+# init gen and disc
+Generator=...
+Discriminator=...
+
+net_G = Generator.to(device)
+
+
+if os.path.exists(pth_path):
+    loaded_state = torch.load(pth_path)
+    net_G.load_state_dict(loaded_state["net_G"])
+    print("Weight load success!")
+else:
+    print("load weights failed!")
+    
+
+for ground_truth, mask in test_data_loader:
+    # 初始化输入
+    masked_data = ground_truth*mask
+    
+    mask = mask.to(device)
+    ground_truth=ground_truth.to(device)
+    masked_data=masked_data.to(device)
+    
+    truth = ground_truth
+    masked = masked_data
+    
+    # 首先更新鉴别器
+    with torch.no_grad():
+        # 在不记录梯度的情况下走一遍生成器
+        fake = net_G(masked_data,mask)
+        
+
+    # 保存和输出
+    save_object = ["truth","masked","fake"]
+    variable_list = locals()
+    for item_name in save_object:
+        file_name = f"{model_name}_{epoch_idx}epoch_{iter_counter}iter_{item_name}.raw"
+        folder_path = os.path.join(data_save_path,model_name,"output")
+        os.makedirs(folder_path) if not os.path.isdir(folder_path) else None
+        file_path = os.path.join(folder_path,file_name)
+        raw_file = variable_list[item_name][0].cpu()
+        raw_file = raw_file.detach().numpy()
+        raw_file.astype('float32').tofile(file_path)
