@@ -21,7 +21,7 @@ cfg = get_cfg_defaults()
 
 # parameter
 test_data_path="/root/autodl-fs/brain_168_224_160_mr/test"
-pth_path="/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out/VCNet_06080030/weight/VCNet_06080030_0epoch_1iter.pth"
+pth_path="/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out/DCGAN_dila_06080138/weight/DCGAN_dila_06080138_0epoch_1iter.pth"
 data_save_path="/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out"
 # volume_shape=(128,128,128)
 volume_shape=(160,224,168)
@@ -47,7 +47,10 @@ mask = mask.to(device)
 # Generator = models.model.ResUNet_LRes(1,1,0.2)
 # Discriminator = models.model.Discriminator(2)
 
-Generator = models.model_VCNet.UNet_v2(down_mode=3,up_mode=1)
+# Generator = models.model_VCNet.UNet_v2(down_mode=3,up_mode=1)
+# Discriminator = models.model.Discriminator(2)
+
+Generator = models.model.ResUNet_LRes(1,1,0.2,True,False)
 Discriminator = models.model.Discriminator(2)
 
 
