@@ -18,7 +18,7 @@ _C.dataset.mask_type = "train"
 
 # 保存网络相关的参数
 _C.net = CN()
-_C.net.pth_load_path = ""
+_C.net.pth_load_path = "/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out/VCNet_05261238/weight/VCNet_05261238_449epoch_31499iter.pth"
 _C.net.model_name = "VCNet"
 # _C.net.model_name = "DCGAN_ori"
 # _C.net.model_name = "pix2pix"
