@@ -47,7 +47,7 @@ def save_raw_file(fileName, raw_file):
     raw_file.astype('float32').tofile(fileName)
 
 class DCGAN_Trainer:
-    def __init__(self,cfg,pth_load=False):
+    def __init__(self,cfg,Generator,Discriminator,pth_load=False):
         self.cfg = cfg
         self.model_name = f"{self.cfg.net.model_name}_{datetime.datetime.now().strftime('%m%d%H%M')}"
         self.device = torch.device(self.cfg.train.device)
@@ -101,7 +101,7 @@ class DCGAN_Trainer:
                 torch.nn.init.normal_(m.weight, 0.0, 0.02)
                 torch.nn.init.constant_(m.bias, 0)
                 
-        self.net_G = ResUNet_LRes.to(self.device).apply(weights_init)
+        self.net_G = Generator.to(self.device).apply(weights_init)
         self.net_D = Discriminator.to(self.device).apply(weights_init)
         self.net_G_opt = torch.optim.Adam(self.net_G.parameters(), lr=learning_rate)
         self.net_D_opt = torch.optim.Adam(self.net_D.parameters(), lr=learning_rate)
@@ -363,6 +363,168 @@ class DCGAN_Trainer:
             if self.cfg.WANDB.WORK:
                 wandb.log({"psnr":total_psnr/self.test_data_size,
                             })    
+
+class DCGAN_Tester:
+    def __init__(self,cfg,Generator,Discriminator,pth_load=False):
+        self.cfg = cfg
+        self.model_name = f"{self.cfg.net.model_name}_{datetime.datetime.now().strftime('%m%d%H%M')}"
+        self.device = torch.device(self.cfg.train.device)
+        self.total_epoch = self.cfg.train.total_epoch
+        self.volume_shape = self.cfg.dataset.volume_shape
+        self.target_shape = self.cfg.dataset.target_shape
+        self.mask_type = self.cfg.dataset.mask_type
+        
+        self.top_psnr=0
+        
+        if self.cfg.WANDB.WORK:
+            self.cfg.WANDB.LOG_DIR = os.path.join("./logs/", self.model_name)
+            cfg.freeze()
+            self.wandb = wandb
+            self.wandb.init(project="volume_inpainting",
+                            name=self.model_name,
+                            notes=self.cfg.WANDB.LOG_DIR,
+                            config=self.cfg,
+                            mode=self.cfg.WANDB.STATUS)
+        
+        # 设置训练集
+        self.dataset = tools.DataSet(data_path=self.cfg.dataset.train_data_path,
+                                     volume_shape=self.volume_shape,
+                                     target_shape=self.target_shape,
+                                     mask_type=self.mask_type,
+                                     data_type=np.float32)
+        self.data_loader = DataLoader(dataset=self.dataset,
+                                           batch_size=batch_size,
+                                           shuffle=True,
+                                           num_workers=1)
+        self.data_size = len(self.data_loader)
+        # 设置测试集
+        self.test_dataset = tools.DataSet(data_path=self.cfg.dataset.test_data_path,
+                                     volume_shape=self.volume_shape,
+                                     target_shape=self.target_shape,
+                                     mask_type=self.mask_type,
+                                     data_type=np.float32)
+        self.test_data_loader = DataLoader(dataset=self.dataset,
+                                           batch_size=batch_size,
+                                           shuffle=True,
+                                           num_workers=1)
+        self.test_data_size = len(self.test_data_loader)
+        
+        self.display_step = np.ceil(np.ceil(self.data_size / batch_size) * self.total_epoch / 20)   #一共输出20个epoch，供判断用
+      
+        # 生成器鉴别器初始化
+        def weights_init(m):
+            if isinstance(m, nn.Conv3d) or isinstance(m, nn.ConvTranspose3d):
+                torch.nn.init.normal_(m.weight, 0.0, 0.02)
+            if isinstance(m, nn.BatchNorm3d):
+                torch.nn.init.normal_(m.weight, 0.0, 0.02)
+                torch.nn.init.constant_(m.bias, 0)
+                
+        self.net_G = Generator.to(self.device).apply(weights_init)
+        self.net_D = Discriminator.to(self.device).apply(weights_init)
+        self.net_G_opt = torch.optim.Adam(self.net_G.parameters(), lr=learning_rate)
+        self.net_D_opt = torch.optim.Adam(self.net_D.parameters(), lr=learning_rate)
+        
+        if pth_load:
+            if os.path.exists(self.cfg.net.pth_load_path):
+                loaded_state = torch.load(self.cfg.net.pth_load_path)
+                self.net_G.load_state_dict(loaded_state["net_G"])
+                self.net_G_opt.load_state_dict(loaded_state["net_G_opt"])
+                self.net_D.load_state_dict(loaded_state["net_D"])
+                self.net_D_opt.load_state_dict(loaded_state["net_D_opt"])
+                print("Weight load success!")
+            else:
+                print("load weights failed!")
+        
+    def run_with_mask(self):
+        iter_counter=0
+        
+        for epoch_idx in tqdm(range(self.total_epoch),unit="epoch",ncols=100):
+            for ground_truth, mask in self.test_data_loader:
+                # 初始化输入
+                masked_data = ground_truth*mask
+                
+                mask = mask.to(self.device)
+                ground_truth=ground_truth.to(self.device)
+                masked_data=masked_data.to(self.device)
+                
+                truth = ground_truth
+                masked = masked_data
+                
+                # 首先更新鉴别器
+                with torch.no_grad():
+                    # 在不记录梯度的情况下走一遍生成器
+                    fake = self.net_G(masked_data,mask)
+                    
+
+                # 保存和输出
+                if save_raw:
+                    save_object = ["truth","masked","fake"]
+                    variable_list = locals()
+                    for item_name in save_object:
+                        file_name = f"{self.model_name}_{epoch_idx}epoch_{iter_counter}iter_{item_name}.raw"
+                        folder_path = os.path.join(data_save_path,self.model_name,"output")
+                        os.makedirs(folder_path) if not os.path.isdir(folder_path) else None
+                        file_path = os.path.join(folder_path,file_name)
+                        raw_file = variable_list[item_name][0].cpu()
+                        raw_file = raw_file.detach().numpy()
+                        raw_file.astype('float32').tofile(file_path)
+                
+                # if self.cfg.WANDB.WORK:
+                #     if iter_counter%self.cfg.train.log_save_iter==0:
+                #         wandb.log({"D_loss":epoch_D_loss,
+                #                     "G_loss":epoch_G_loss,
+                #                     "G_adv_loss":epoch_G_adv_loss,
+                #                     "G_rec_loss":epoch_G_rec_loss,
+                #                     "G_hole_loss":epoch_G_hole_loss,
+                #                     "G_vali_loss":epoch_G_vali_loss,
+                #                     })
+                    
+                # iter_counter += 1
+        wandb.finish()
+                
+        
+    def run(self):
+        iter_counter=0
+        for epoch_idx in tqdm(range(self.total_epoch),unit="epoch",ncols=100):
+            for ground_truth, mask in self.data_loader:
+                # 初始化输入
+                masked_data = ground_truth*mask
+                ground_truth=ground_truth.to(self.device)
+                masked_data=masked_data.to(self.device)
+                
+                truth = ground_truth
+                masked = masked_data
+                
+                # 首先更新鉴别器
+                with torch.no_grad():
+                    # 在不记录梯度的情况下走一遍生成器
+                    fake = self.net_G(masked_data)
+                    
+                
+                # 保存和输出
+                if (iter_counter+1) % self.display_step == 0 or iter_counter == 1:
+                    if save_raw:
+                        save_object = ["truth","masked","fake"]
+                        variable_list = locals()
+                        for item_name in save_object:
+                            file_name = f"{self.model_name}_{epoch_idx}epoch_{iter_counter}iter_{item_name}.raw"
+                            folder_path = os.path.join(data_save_path,self.model_name,"output")
+                            os.makedirs(folder_path) if not os.path.isdir(folder_path) else None
+                            file_path = os.path.join(folder_path,file_name)
+                            raw_file = variable_list[item_name][0].cpu()
+                            raw_file = raw_file.detach().numpy()
+                            raw_file.astype('float32').tofile(file_path)
+                            
+                # if self.cfg.WANDB.WORK:
+                #     if iter_counter%self.cfg.train.log_save_iter==0:
+                #         wandb.log({"D_loss":epoch_D_loss/len(self.data_loader),
+                #                     "G_loss":epoch_G_loss/len(self.data_loader),
+                #                     "G_adv_loss":epoch_G_adv_loss/len(self.data_loader),
+                #                     "G_rec_loss":epoch_G_rec_loss/len(self.data_loader),
+                #                     })
+                    
+                iter_counter += 1
+        wandb.finish()
                 
                 
         
@@ -371,28 +533,55 @@ class DCGAN_Trainer:
         
         
 if __name__ == "__main__":
-    if cfg.net.model_name=="DCGAN_ori":
-        ResUNet_LRes = models.model.ResUNet_LRes(1,1,0.2)
-        Discriminator = models.model.Discriminator(2)
-        trainer = DCGAN_Trainer(cfg)
-        trainer.run_with_mask()
-    elif cfg.net.model_name=="DCGAN_dila":
-        ResUNet_LRes = models.model.ResUNet_LRes(1,1,0.2,True,False)
-        Discriminator = models.model.Discriminator(2)
-        trainer = DCGAN_Trainer(cfg)
-        trainer.run()
-    elif cfg.net.model_name=="DCGAN_tri":
-        ResUNet_LRes = models.model.ResUNet_LRes(1,1,0.2,False,trilinear_flag=True)
-        Discriminator = models.model.Discriminator(2)
-        trainer = DCGAN_Trainer(cfg)
-        trainer.run()
-    elif cfg.net.model_name=="VCNet":
-        ResUNet_LRes = models.model_VCNet.UNet_v2(down_mode=3,up_mode=1)
-        Discriminator = models.model.Discriminator(2)
-        trainer = DCGAN_Trainer(cfg)
-        trainer.run_with_mask()
-    elif cfg.net.model_name=="Pix2Pix":
-        ResUNet_LRes = models.model_p2p.ResUNet_LRes(1,1)
-        Discriminator = models.model.Discriminator(2)
-        trainer = DCGAN_Trainer(cfg)
-        trainer.run()
+    if cfg.test.flag == False:
+        if cfg.net.model_name=="DCGAN_ori":
+            Generator = models.model.ResUNet_LRes(1,1,0.2)
+            Discriminator = models.model.Discriminator(2)
+            trainer = DCGAN_Trainer(cfg,Generator,Discriminator)
+            trainer.run_with_mask()
+        elif cfg.net.model_name=="DCGAN_dila":
+            Generator = models.model.ResUNet_LRes(1,1,0.2,True,False)
+            Discriminator = models.model.Discriminator(2)
+            trainer = DCGAN_Trainer(cfg,Generator,Discriminator)
+            trainer.run()
+        elif cfg.net.model_name=="DCGAN_tri":
+            Generator = models.model.ResUNet_LRes(1,1,0.2,False,trilinear_flag=True)
+            Discriminator = models.model.Discriminator(2)
+            trainer = DCGAN_Trainer(cfg,Generator,Discriminator)
+            trainer.run()
+        elif cfg.net.model_name=="VCNet":
+            Generator = models.model_VCNet.UNet_v2(down_mode=3,up_mode=1)
+            Discriminator = models.model.Discriminator(2)
+            trainer = DCGAN_Trainer(cfg,Generator,Discriminator)
+            trainer.run_with_mask()
+        elif cfg.net.model_name=="Pix2Pix":
+            Generator = models.model_p2p.ResUNet_LRes(1,1)
+            Discriminator = models.model.Discriminator(2)
+            trainer = DCGAN_Trainer(cfg,Generator,Discriminator)
+            trainer.run()
+    elif cfg.test.flag == True:
+        if cfg.net.model_name=="DCGAN_ori":
+            Generator = models.model.ResUNet_LRes(1,1,0.2)
+            Discriminator = models.model.Discriminator(2)
+            tester = DCGAN_Tester(cfg,Generator,Discriminator,pth_load=True)
+            tester.run_with_mask()
+        elif cfg.net.model_name=="DCGAN_dila":
+            Generator = models.model.ResUNet_LRes(1,1,0.2,True,False)
+            Discriminator = models.model.Discriminator(2)
+            trainer = DCGAN_Trainer(cfg,Generator,Discriminator,pth_load=True)
+            trainer.run()
+        elif cfg.net.model_name=="DCGAN_tri":
+            Generator = models.model.ResUNet_LRes(1,1,0.2,False,trilinear_flag=True)
+            Discriminator = models.model.Discriminator(2)
+            tester = DCGAN_Tester(cfg,Generator,Discriminator,pth_load=True)
+            tester.run()
+        elif cfg.net.model_name=="VCNet":
+            Generator = models.model_VCNet.UNet_v2(down_mode=3,up_mode=1)
+            Discriminator = models.model.Discriminator(2)
+            tester = DCGAN_Tester(cfg,Generator,Discriminator,pth_load=True)
+            tester.run()
+        elif cfg.net.model_name=="Pix2Pix":
+            Generator = models.model_p2p.ResUNet_LRes(1,1)
+            Discriminator = models.model.Discriminator(2)
+            tester = DCGAN_Tester(cfg,Generator,Discriminator,pth_load=True)
+            tester.run()

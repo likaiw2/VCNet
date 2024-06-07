@@ -41,6 +41,14 @@ def _ssim_3D(img1, img2, window, window_size, channel, size_average = True):
         return ssim_map.mean(1).mean(1).mean(1)
 
 
+def get_mae(im1,im2):
+    data_range=255.0
+    # 归一化到指定大小 0 - data_range
+    data1 = ((im1-np.min(im1))/(np.max(im1)-np.min(im1)))*data_range
+    data2 = ((im2-np.min(im2))/(np.max(im2)-np.min(im2)))*data_range
+    
+    mse = abs(data1 - data2).mean()
+    return mse
 
 
 def get_mse(im1,im2):

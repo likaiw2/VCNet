@@ -25,3 +25,5 @@ pix2pix_m/out/
 DCGAN_new/__pycache__/
 DCGAN_new/out/
 DCGAN_new/models/__pycache__/
+thesis/DCGAN/.DS_Store
+thesis/
