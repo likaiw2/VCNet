@@ -21,8 +21,8 @@ cfg = get_cfg_defaults()
 
 # parameter
 test_data_path="/root/autodl-fs/brain_168_224_160_mr/test"
-pth_path="/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out/DCGAN_dila_06080138/weight/DCGAN_dila_06080138_0epoch_1iter.pth"
-data_save_path="/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out"
+pth_path="/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out/DCGAN_dila_06080138/weight/DCGAN_dila_06080138_159epoch_11199iter.pth"
+data_save_path="/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out/testout_06080138"
 # volume_shape=(128,128,128)
 volume_shape=(160,224,168)
 target_shape=(128,128,128)
@@ -59,7 +59,7 @@ net_G = Generator.to(device)
 if os.path.exists(pth_path):
     loaded_state = torch.load(pth_path)
     # print(loaded_state["gen"].keys())
-    net_G.load_state_dict(loaded_state["gen"])
+    net_G.load_state_dict(loaded_state["net_G"])
     print("Weight load success!")
 else:
     print("load weights failed!")
@@ -78,7 +78,8 @@ for ground_truth, _ in test_data_loader:
     # 首先更新鉴别器
     with torch.no_grad():
         # 在不记录梯度的情况下走一遍生成器
-        fake = net_G(masked_data,mask)
+        # fake = net_G(masked_data,mask)
+        fake = net_G(masked_data)
         
 
     # 保存和输出
