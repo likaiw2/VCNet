@@ -3,7 +3,7 @@ from yacs.config import CfgNode as CN
 _C = CN()
 
 _C.WANDB = CN()
-_C.WANDB.WORK = True
+_C.WANDB.WORK = False
 _C.WANDB.LOG_DIR = ""
 _C.WANDB.STATUS = "online"
 
