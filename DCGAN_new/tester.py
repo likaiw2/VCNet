@@ -21,8 +21,9 @@ cfg = get_cfg_defaults()
 
 # parameter
 test_data_path="/root/autodl-fs/brain_168_224_160_mr/test"
-pth_path="/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out/DCGAN_dila_06080138/weight/DCGAN_dila_06080138_159epoch_11199iter.pth"
-data_save_path="/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out/testout_06080138"
+pth_path="/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out/DCGAN_dila_06080138/weight/DCGAN_dila_06080138_279epoch_19599iter.pth"
+# pth_path="/root/autodl-fs/DCGAN_dila_06080138_279epoch_19599iter.pth"     # 备用的pth
+data_save_path="/root/autodl-tmp/Diode/Codes/Volume_Impainting/DCGAN_new/out/testout_06080138_279epoch"
 # volume_shape=(128,128,128)
 volume_shape=(160,224,168)
 target_shape=(128,128,128)
